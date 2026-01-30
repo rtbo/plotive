@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `des::axis::Range` is a tuple struct
 - `plotive-pxl` and `plotive-svg` accept `?Sized` data source
 
+### Fixed
+
+- `time::DateTime::to_comps` not handling correctly negative timestamps
+
 ## [0.2.0] - 2026-01-15
 
 ### Added

@@ -190,7 +190,11 @@ impl DateTime {
 
     /// Compute the time components of this DateTime
     pub fn to_time(&self) -> TimeComps {
-        let seconds_in_day = self.0 % 86400.0;
+        let seconds_in_day = if self.0 < 0.0 {
+            86400.0 + (self.0 % 86400.0)
+        } else {
+            self.0 % 86400.0
+        };
         let hour = (seconds_in_day / 3600.0).floor() as u32;
         let minute = ((seconds_in_day % 3600.0) / 60.0).floor() as u32;
         let second = (seconds_in_day % 60.0).floor() as u32;
@@ -1077,6 +1081,28 @@ fn format_micro_opt<W: fmt::Write>(out: &mut W, mut micro: u32) -> fmt::Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_to_comps() {
+        let dt = DateTime::try_from(DateTimeComps {
+            year: 2025,
+            month: 1,
+            day: 13,
+            hour: 15,
+            minute: 46,
+            second: 32,
+            micro: 250000,
+        })
+        .unwrap();
+        let comps = dt.to_comps();
+        assert_eq!(comps.year, 2025);
+        assert_eq!(comps.month, 1);
+        assert_eq!(comps.day, 13);
+        assert_eq!(comps.hour, 15);
+        assert_eq!(comps.minute, 46);
+        assert_eq!(comps.second, 32);
+        assert_eq!(comps.micro, 250000);
+    }
 
     #[test]
     fn test_fmt_tokens() {
