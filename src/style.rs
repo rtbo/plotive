@@ -4,8 +4,8 @@ pub(crate) mod defaults;
 pub mod series;
 pub mod theme;
 
-use crate::style::series::Palette;
-use crate::style::theme::Theme;
+pub use crate::style::series::Palette;
+pub use crate::style::theme::Theme;
 use crate::{Color, ColorU8, ResolveColor, render};
 
 /// Overall style definition for figures
