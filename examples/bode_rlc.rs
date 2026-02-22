@@ -17,7 +17,7 @@ fn rlc_freq_response(f: f64, r: f64, l: f64, c: f64) -> (f64, f64) {
     let imag = pulse * r * c;
 
     let mag = num / (real.powi(2) + imag.powi(2)).sqrt();
-    let ph = -(imag / real).atan();
+    let ph = -imag.atan2(real);
     (20.0 * mag.log10(), ph)
 }
 
