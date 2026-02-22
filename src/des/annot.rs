@@ -44,35 +44,73 @@ impl From<Label> for Annotation {
 }
 
 impl Annotation {
-    pub(crate) fn pos_mut(&mut self) -> &mut Pos {
-        match self {
-            Annotation::Line(line) => &mut line.pos,
-            Annotation::Arrow(arrow) => &mut arrow.pos,
-            Annotation::Marker(marker) => &mut marker.pos,
-            Annotation::Label(label) => &mut label.pos,
-        }
-    }
-
-    /// Set the X-axis to use for this label.
+    /// Set the X-axis to use for this annotation.
     /// Only useful if multiple X-axes are used.
     /// By default, the first X-axis is used.
     pub fn with_x_axis(mut self, x_axis: axis::Ref) -> Self {
-        self.pos_mut().x_axis = x_axis;
+        match &mut self {
+            Annotation::Line(line) => line.x_axis = x_axis,
+            Annotation::Arrow(arrow) => arrow.x_axis = x_axis,
+            Annotation::Marker(marker) => marker.x_axis = x_axis,
+            Annotation::Label(label) => label.x_axis = x_axis,
+        }
         self
     }
 
-    /// Set the Y-axis to use for this label.
+    /// Set the Y-axis to use for this annotation.
     /// Only useful if multiple Y-axes are used.
     /// By default, the first Y-axis is used.
     pub fn with_y_axis(mut self, y_axis: axis::Ref) -> Self {
-        self.pos_mut().y_axis = y_axis;
+        match &mut self {
+            Annotation::Line(line) => line.y_axis = y_axis,
+            Annotation::Arrow(arrow) => arrow.y_axis = y_axis,
+            Annotation::Marker(marker) => marker.y_axis = y_axis,
+            Annotation::Label(label) => label.y_axis = y_axis,
+        }
         self
     }
 
     /// Set the z-position of this annotation in relation to the series.
     pub fn with_zpos(mut self, zpos: ZPos) -> Self {
-        self.pos_mut().zpos = zpos;
+        match &mut self {
+            Annotation::Line(line) => line.zpos = zpos,
+            Annotation::Arrow(arrow) => arrow.zpos = zpos,
+            Annotation::Marker(marker) => marker.zpos = zpos,
+            Annotation::Label(label) => label.zpos = zpos,
+        }
         self
+    }
+
+    /// Get the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    pub fn x_axis(&self) -> &axis::Ref {
+        match self {
+            Annotation::Line(line) => &line.x_axis,
+            Annotation::Arrow(arrow) => &arrow.x_axis,
+            Annotation::Marker(marker) => &marker.x_axis,
+            Annotation::Label(label) => &label.x_axis,
+        }
+    }
+
+    /// Get the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    pub fn y_axis(&self) -> &axis::Ref {
+        match self {
+            Annotation::Line(line) => &line.y_axis,
+            Annotation::Arrow(arrow) => &arrow.y_axis,
+            Annotation::Marker(marker) => &marker.y_axis,
+            Annotation::Label(label) => &label.y_axis,
+        }
+    }
+
+    /// Get the z-position of this annotation in relation to the series.
+    pub fn zpos(&self) -> ZPos {
+        match self {
+            Annotation::Line(line) => line.zpos,
+            Annotation::Arrow(arrow) => arrow.zpos,
+            Annotation::Marker(marker) => marker.zpos,
+            Annotation::Label(label) => label.zpos,
+        }
     }
 }
 
@@ -85,119 +123,174 @@ pub enum ZPos {
     AboveSeries,
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct Pos {
-    pub(crate) x: f64,
-    pub(crate) y: f64,
-    pub(crate) x_axis: axis::Ref,
-    pub(crate) y_axis: axis::Ref,
-    pub(crate) zpos: ZPos,
-}
-
 /// A line plotted on the plot area.
 #[derive(Debug, Clone)]
 pub struct Line {
-    pub(crate) direction: Direction,
-    pub(crate) line: theme::Stroke,
+    direction: LineDir,
+    stroke: theme::Stroke,
 
-    pub(crate) pos: Pos,
+    x_axis: axis::Ref,
+    y_axis: axis::Ref,
+    zpos: ZPos,
 }
 
+/// The definition of the direction of a line plotted on the plot area.
+/// This type defines the position and orientation of the line in data coordinates.
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum Direction {
-    Horizontal,
-    Vertical,
-    Slope(f32),
-    SecondPoint(f64, f64),
+pub enum LineDir {
+    /// A horizontal line passing by the given y value in data coordinates
+    Horizontal(f64),
+    /// A vertical line passing by the given x value in data coordinates
+    Vertical(f64),
+    /// A line passing by (x, y) with the given slope in data coordinates
+    Slope {
+        /// The x value of the point the line passes by in data coordinates
+        x: f64,
+        /// The y value of the point the line passes by in data coordinates
+        y: f64,
+        /// The slope of the line in data coordinates
+        slope: f32,
+    },
+    /// A line passing by (x1, y1) and (x2, y2) in data coordinates
+    TwoPoints {
+        /// The x value of the first point in data coordinates
+        x1: f64,
+        /// The y value of the first point in data coordinates
+        y1: f64,
+        /// The x value of the second point in data coordinates
+        x2: f64,
+        /// The y value of the second point in data coordinates
+        y2: f64,
+    },
+}
+
+impl From<LineDir> for Line {
+    fn from(direction: LineDir) -> Self {
+        Line::new(direction)
+    }
+}
+
+impl From<LineDir> for Annotation {
+    fn from(direction: LineDir) -> Self {
+        Line::new(direction).into()
+    }
 }
 
 impl Line {
+    /// Create a new line with the given direction.
+    pub fn new(direction: LineDir) -> Self {
+        Line {
+            direction,
+            stroke: theme::Col::Foreground.into(),
+            x_axis: Default::default(),
+            y_axis: Default::default(),
+            zpos: ZPos::BelowSeries,
+        }
+    }
+
     /// Plot a vertical line passing by x
     pub fn vertical(x: f64) -> Self {
-        Line {
-            direction: Direction::Vertical,
-            line: theme::Col::Foreground.into(),
-            pos: Pos {
-                x,
-                y: 0.0,
-                x_axis: Default::default(),
-                y_axis: Default::default(),
-                zpos: ZPos::BelowSeries,
-            },
-        }
+        Line::new(LineDir::Vertical(x))
     }
 
     /// Plot a horizontal line passing by y
     pub fn horizontal(y: f64) -> Self {
-        Line {
-            direction: Direction::Horizontal,
-            line: theme::Col::Foreground.into(),
-            pos: Pos {
-                x: 0.0,
-                y,
-                x_axis: Default::default(),
-                y_axis: Default::default(),
-                zpos: ZPos::BelowSeries,
-            },
-        }
+        Line::new(LineDir::Horizontal(y))
     }
 
     /// Plot a line passing by x and y with the given slope.
     /// This is only meaningful on linear scales, and will raise an error
     /// if either X or Y axes are logarithmic.
     pub fn slope(x: f64, y: f64, slope: f32) -> Self {
-        Line {
-            direction: Direction::Slope(slope),
-            line: theme::Col::Foreground.into(),
-            pos: Pos {
-                x,
-                y,
-                x_axis: Default::default(),
-                y_axis: Default::default(),
-                zpos: ZPos::BelowSeries,
-            },
-        }
+        Line::new(LineDir::Slope { x, y, slope })
     }
 
     /// Plot a line passing by (x1, y1) and (x2, y2).
     pub fn two_points(x1: f64, y1: f64, x2: f64, y2: f64) -> Self {
-        Line {
-            direction: Direction::SecondPoint(x2, y2),
-            line: theme::Col::Foreground.into(),
-            pos: Pos {
-                x: x1,
-                y: y1,
-                x_axis: Default::default(),
-                y_axis: Default::default(),
-                zpos: ZPos::BelowSeries,
-            },
-        }
+        Line::new(LineDir::TwoPoints { x1, y1, x2, y2 })
     }
 
     /// Set the line to be displayed.
     /// By default, the line is a solid line of the foreground theme color.
-    pub fn with_line(self, line: theme::Stroke) -> Self {
-        Self { line, ..self }
+    pub fn with_stroke(self, line: theme::Stroke) -> Self {
+        Self {
+            stroke: line,
+            ..self
+        }
     }
 
     /// Set the pattern of the line
     pub fn with_pattern(self, pattern: style::LinePattern) -> Self {
         Self {
-            line: self.line.with_pattern(pattern),
+            stroke: self.stroke.with_pattern(pattern),
             ..self
         }
+    }
+
+    /// Set the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    /// By default, the first X-axis is used.
+    pub fn with_x_axis(mut self, x_axis: axis::Ref) -> Self {
+        self.x_axis = x_axis;
+        self
+    }
+
+    /// Set the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    /// By default, the first Y-axis is used.
+    pub fn with_y_axis(mut self, y_axis: axis::Ref) -> Self {
+        self.y_axis = y_axis;
+        self
+    }
+
+    /// Set the z-position of this annotation in relation to the series.
+    pub fn with_zpos(mut self, zpos: ZPos) -> Self {
+        self.zpos = zpos;
+        self
+    }
+
+    /// Get the direction of the line.
+    pub fn direction(&self) -> LineDir {
+        self.direction
+    }
+
+    /// Get the stroke of the line.
+    /// By default, the line is a solid line of the foreground theme color.
+    pub fn stroke(&self) -> &theme::Stroke {
+        &self.stroke
+    }
+
+    /// Get the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    pub fn x_axis(&self) -> &axis::Ref {
+        &self.x_axis
+    }
+
+    /// Get the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    pub fn y_axis(&self) -> &axis::Ref {
+        &self.y_axis
+    }
+
+    /// Get the z-position of this annotation in relation to the series.
+    pub fn zpos(&self) -> ZPos {
+        self.zpos
     }
 }
 
 /// An arrow plotted on the plot area
 #[derive(Debug, Clone)]
 pub struct Arrow {
-    pub(crate) dx: f32,
-    pub(crate) dy: f32,
-    pub(crate) head_size: f32,
-    pub(crate) line: theme::Stroke,
+    x: f64,
+    y: f64,
+    dx: f32,
+    dy: f32,
+    head_size: f32,
+    stroke: theme::Stroke,
 
-    pub(crate) pos: Pos,
+    x_axis: axis::Ref,
+    y_axis: axis::Ref,
+    zpos: ZPos,
 }
 
 impl Arrow {
@@ -205,37 +298,173 @@ impl Arrow {
     /// with the given delta vector in figure units.
     pub fn new(x: f64, y: f64, dx: f32, dy: f32) -> Self {
         Arrow {
+            x,
+            y,
             dx,
             dy,
             head_size: 10.0,
-            line: theme::Col::Foreground.into(),
-            pos: Pos {
-                x,
-                y,
-                x_axis: Default::default(),
-                y_axis: Default::default(),
-                zpos: ZPos::AboveSeries,
-            },
+            stroke: theme::Col::Foreground.into(),
+            x_axis: Default::default(),
+            y_axis: Default::default(),
+            zpos: ZPos::AboveSeries,
         }
     }
 
     /// Set the line style of the arrow.
     /// By default the foreground theme color is used with a solid line of width 1.0.
-    pub fn with_line(self, line: theme::Stroke) -> Self {
-        Self { line, ..self }
+    pub fn with_stroke(self, line: theme::Stroke) -> Self {
+        Self {
+            stroke: line,
+            ..self
+        }
     }
 
     /// Set the head size of the arrow in figure units. By default 5.0.
     pub fn with_head_size(self, head_size: f32) -> Self {
         Self { head_size, ..self }
     }
+
+    /// Set the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    /// By default, the first X-axis is used.
+    pub fn with_x_axis(mut self, x_axis: axis::Ref) -> Self {
+        self.x_axis = x_axis;
+        self
+    }
+
+    /// Set the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    /// By default, the first Y-axis is used.
+    pub fn with_y_axis(mut self, y_axis: axis::Ref) -> Self {
+        self.y_axis = y_axis;
+        self
+    }
+
+    /// Set the z-position of this annotation in relation to the series.
+    pub fn with_zpos(mut self, zpos: ZPos) -> Self {
+        self.zpos = zpos;
+        self
+    }
+
+    /// Get the target point of the arrow in data coordinates.
+    pub fn target(&self) -> (f64, f64) {
+        (self.x, self.y)
+    }
+
+    /// Get the delta vector of the arrow in figure units.
+    pub fn delta(&self) -> (f32, f32) {
+        (self.dx, self.dy)
+    }
+
+    /// Get the line style of the arrow.
+    /// By default the foreground theme color is used with a solid line of width 1.0.
+    pub fn stroke(&self) -> &theme::Stroke {
+        &self.stroke
+    }
+
+    /// Get the head size of the arrow in figure units. By default 5.0.
+    pub fn head_size(&self) -> f32 {
+        self.head_size
+    }
+
+    /// Get the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    pub fn x_axis(&self) -> &axis::Ref {
+        &self.x_axis
+    }
+
+    /// Get the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    pub fn y_axis(&self) -> &axis::Ref {
+        &self.y_axis
+    }
+
+    /// Get the z-position of this annotation in relation to the series.
+    pub fn zpos(&self) -> ZPos {
+        self.zpos
+    }
 }
 
 /// An arbitrary marker to place on the plot area
 #[derive(Debug, Clone)]
 pub struct Marker {
-    pub(crate) marker: theme::Marker,
-    pub(crate) pos: Pos,
+    x: f64,
+    y: f64,
+    marker: theme::Marker,
+
+    x_axis: axis::Ref,
+    y_axis: axis::Ref,
+    zpos: ZPos,
+}
+
+impl Marker {
+    /// Create a new marker at data coordinates (x, y)
+    pub fn new(x: f64, y: f64) -> Self {
+        Marker {
+            x,
+            y,
+            marker: Default::default(),
+            x_axis: Default::default(),
+            y_axis: Default::default(),
+            zpos: ZPos::AboveSeries,
+        }
+    }
+
+    /// Set the marker style.
+    /// By default, a circle of size 5.0 and the foreground theme color is used.
+    pub fn with_marker(self, marker: theme::Marker) -> Self {
+        Self { marker, ..self }
+    }
+
+    /// Set the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    /// By default, the first X-axis is used.
+    pub fn with_x_axis(mut self, x_axis: axis::Ref) -> Self {
+        self.x_axis = x_axis;
+        self
+    }
+
+    /// Set the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    /// By default, the first Y-axis is used.
+    pub fn with_y_axis(mut self, y_axis: axis::Ref) -> Self {
+        self.y_axis = y_axis;
+        self
+    }
+
+    /// Set the z-position of this annotation in relation to the series.
+    pub fn with_zpos(mut self, zpos: ZPos) -> Self {
+        self.zpos = zpos;
+        self
+    }
+
+    /// Get the position of the marker in data coordinates.
+    pub fn position(&self) -> (f64, f64) {
+        (self.x, self.y)
+    }
+
+    /// Get the marker style.
+    /// By default, a circle of size 5.0 and the foreground theme color is used.
+    pub fn marker(&self) -> &theme::Marker {
+        &self.marker
+    }
+
+    /// Get the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    pub fn x_axis(&self) -> &axis::Ref {
+        &self.x_axis
+    }
+
+    /// Get the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    pub fn y_axis(&self) -> &axis::Ref {
+        &self.y_axis
+    }
+
+    /// Get the z-position of this annotation in relation to the series.
+    pub fn zpos(&self) -> ZPos {
+        self.zpos
+    }
 }
 
 /// An anchor point for [`Label`].
@@ -266,21 +495,27 @@ pub enum Anchor {
 /// An arbitrary label to place on the plot area
 #[derive(Debug, Clone)]
 pub struct Label {
-    pub(crate) text: String,
-    pub(crate) font_size: f32,
-    pub(crate) font: Font,
-    pub(crate) color: theme::Color,
-    pub(crate) anchor: Anchor,
-    pub(crate) frame: (Option<theme::Fill>, Option<theme::Stroke>),
-    pub(crate) angle: f32,
+    x: f64,
+    y: f64,
+    text: String,
+    font_size: f32,
+    font: Font,
+    color: theme::Color,
+    anchor: Anchor,
+    frame: (Option<theme::Fill>, Option<theme::Stroke>),
+    angle: f32,
 
-    pub(crate) pos: Pos,
+    x_axis: axis::Ref,
+    y_axis: axis::Ref,
+    zpos: ZPos,
 }
 
 impl Label {
     /// Create a new label with the given text at data coordinates (x, y)
     pub fn new(text: String, x: f64, y: f64) -> Self {
         Label {
+            x,
+            y,
             text,
             font_size: 12.0,
             font: Font::default(),
@@ -288,13 +523,9 @@ impl Label {
             anchor: Anchor::default(),
             frame: (None, None),
             angle: 0.0,
-            pos: Pos {
-                x,
-                y,
-                x_axis: Default::default(),
-                y_axis: Default::default(),
-                zpos: ZPos::AboveSeries,
-            },
+            x_axis: Default::default(),
+            y_axis: Default::default(),
+            zpos: ZPos::AboveSeries,
         }
     }
 
@@ -334,5 +565,86 @@ impl Label {
     /// By default, the angle is 0.0 (horizontal).
     pub fn with_angle(self, angle: f32) -> Self {
         Self { angle, ..self }
+    }
+
+    /// Set the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    /// By default, the first X-axis is used.
+    pub fn with_x_axis(mut self, x_axis: axis::Ref) -> Self {
+        self.x_axis = x_axis;
+        self
+    }
+
+    /// Set the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    /// By default, the first Y-axis is used.
+    pub fn with_y_axis(mut self, y_axis: axis::Ref) -> Self {
+        self.y_axis = y_axis;
+        self
+    }
+
+    /// Set the z-position of this annotation in relation to the series.
+    pub fn with_zpos(mut self, zpos: ZPos) -> Self {
+        self.zpos = zpos;
+        self
+    }
+
+    /// Get the position of the label in data coordinates.
+    pub fn position(&self) -> (f64, f64) {
+        (self.x, self.y)
+    }
+
+    /// Get the text of the label.
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Get the font size of the label
+    pub fn font_size(&self) -> f32 {
+        self.font_size
+    }
+
+    /// Get the font of the label
+    pub fn font(&self) -> &Font {
+        &self.font
+    }
+
+    /// Get the color of the label.
+    /// By default, the foreground theme color is used.
+    pub fn color(&self) -> &theme::Color {
+        &self.color
+    }
+
+    /// Get the anchor point of the label.
+    /// By default, the top-left corner is used.
+    pub fn anchor(&self) -> Anchor {
+        self.anchor
+    }
+
+    /// Get the frame border and fill of the label.
+    pub fn frame(&self) -> (Option<&theme::Fill>, Option<&theme::Stroke>) {
+        (self.frame.0.as_ref(), self.frame.1.as_ref())
+    }
+
+    /// Get the rotation angle of the label in degrees in counter-clockwise direction.
+    pub fn angle(&self) -> f32 {
+        self.angle
+    }
+
+    /// Get the X-axis to use for this annotation.
+    /// Only useful if multiple X-axes are used.
+    pub fn x_axis(&self) -> &axis::Ref {
+        &self.x_axis
+    }
+
+    /// Get the Y-axis to use for this annotation.
+    /// Only useful if multiple Y-axes are used.
+    pub fn y_axis(&self) -> &axis::Ref {
+        &self.y_axis
+    }
+
+    /// Get the z-position of this annotation in relation to the series.
+    pub fn zpos(&self) -> ZPos {
+        self.zpos
     }
 }

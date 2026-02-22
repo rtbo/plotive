@@ -1,7 +1,7 @@
 use std::f32;
 
 use super::Ctx;
-use crate::des::annot::{Anchor, Direction, Pos, ZPos};
+use crate::des::annot::{Anchor, LineDir, ZPos};
 use crate::des::{self};
 use crate::drawing::axis::Axis;
 use crate::drawing::plot::{Axes, Orientation};
@@ -19,10 +19,14 @@ pub(super) enum Annot {
 
 #[derive(Debug, Clone)]
 pub(super) struct Label {
+    x: f64,
+    y: f64,
     text: Text,
     frame: (Option<theme::Fill>, Option<theme::Stroke>),
     angle: f32,
-    pos: Pos,
+    x_axis: des::axis::Ref,
+    y_axis: des::axis::Ref,
+    zpos: ZPos,
 }
 
 impl<D> Ctx<'_, D>
@@ -35,7 +39,7 @@ where
             des::Annotation::Arrow(arrow) => Annot::Arrow(arrow.clone()),
             des::Annotation::Marker(marker) => Annot::Marker(marker.clone()),
             des::Annotation::Label(label) => {
-                let (align, ver_align) = match label.anchor {
+                let (align, ver_align) = match label.anchor() {
                     Anchor::TopLeft => (text::line::Align::Left, text::line::VerAlign::Top),
                     Anchor::TopCenter => (text::line::Align::Center, text::line::VerAlign::Top),
                     Anchor::TopRight => (text::line::Align::Right, text::line::VerAlign::Top),
@@ -49,57 +53,81 @@ where
                     Anchor::Center => (text::line::Align::Center, text::line::VerAlign::Middle),
                 };
                 let line_text = text::LineText::new(
-                    label.text.clone(),
+                    label.text().to_string(),
                     (align, ver_align),
-                    label.font_size,
-                    label.font.clone(),
+                    label.font_size(),
+                    label.font().clone(),
                     &self.fontdb,
                 )?;
-                let text = Text::from_line_text(&line_text, &self.fontdb, label.color)?;
+                let (x, y) = label.position();
+                let text = Text::from_line_text(&line_text, &self.fontdb, *label.color())?;
+                let frame = label.frame();
+                let frame = (frame.0.cloned(), frame.1.cloned());
                 Annot::Label(Label {
+                    x,
+                    y,
                     text,
-                    frame: label.frame.clone(),
-                    angle: label.angle,
-                    pos: label.pos.clone(),
+                    frame,
+                    angle: label.angle(),
+                    x_axis: label.x_axis().clone(),
+                    y_axis: label.y_axis().clone(),
+                    zpos: label.zpos(),
                 })
             }
         };
 
         // Resolve axis reference to index, to ensure no error can happen later during drawing
         let x_axis = axes
-            .or_find_idx(Orientation::X, &annot.pos().x_axis)?
-            .ok_or_else(|| super::Error::UnknownAxisRef(annot.pos().x_axis.clone()))?;
+            .or_find_idx(Orientation::X, annot.x_axis())?
+            .ok_or_else(|| super::Error::UnknownAxisRef(annot.x_axis().clone()))?;
         let y_axis = axes
-            .or_find_idx(Orientation::Y, &annot.pos().y_axis)?
-            .ok_or_else(|| super::Error::UnknownAxisRef(annot.pos().y_axis.clone()))?;
-        annot.pos_mut().x_axis = des::axis::Ref::Idx(x_axis);
-        annot.pos_mut().y_axis = des::axis::Ref::Idx(y_axis);
+            .or_find_idx(Orientation::Y, annot.y_axis())?
+            .ok_or_else(|| super::Error::UnknownAxisRef(annot.y_axis().clone()))?;
+        annot = annot.with_axes(des::axis::Ref::Idx(x_axis), des::axis::Ref::Idx(y_axis));
 
         Ok(annot)
     }
 }
 
 impl Annot {
-    fn pos(&self) -> &Pos {
+    fn x_axis(&self) -> &des::axis::Ref {
         match self {
-            Annot::Line(line) => &line.pos,
-            Annot::Arrow(arrow) => &arrow.pos,
-            Annot::Marker(marker) => &marker.pos,
-            Annot::Label(label) => &label.pos,
+            Annot::Line(line) => line.x_axis(),
+            Annot::Arrow(arrow) => arrow.x_axis(),
+            Annot::Marker(marker) => marker.x_axis(),
+            Annot::Label(label) => &label.x_axis,
         }
     }
 
-    fn pos_mut(&mut self) -> &mut Pos {
+    fn with_axes(self, x_axis: des::axis::Ref, y_axis: des::axis::Ref) -> Self {
         match self {
-            Annot::Line(line) => &mut line.pos,
-            Annot::Arrow(arrow) => &mut arrow.pos,
-            Annot::Marker(marker) => &mut marker.pos,
-            Annot::Label(label) => &mut label.pos,
+            Annot::Line(line) => Annot::Line(line.with_x_axis(x_axis).with_y_axis(y_axis)),
+            Annot::Arrow(arrow) => Annot::Arrow(arrow.with_x_axis(x_axis).with_y_axis(y_axis)),
+            Annot::Marker(marker) => Annot::Marker(marker.with_x_axis(x_axis).with_y_axis(y_axis)),
+            Annot::Label(mut label) => {
+                label.x_axis = x_axis;
+                label.y_axis = y_axis;
+                Annot::Label(label)
+            }
+        }
+    }
+
+    fn y_axis(&self) -> &des::axis::Ref {
+        match self {
+            Annot::Line(line) => line.y_axis(),
+            Annot::Arrow(arrow) => arrow.y_axis(),
+            Annot::Marker(marker) => marker.y_axis(),
+            Annot::Label(label) => &label.y_axis,
         }
     }
 
     pub fn zpos(&self) -> ZPos {
-        self.pos().zpos
+        match self {
+            Annot::Line(line) => line.zpos(),
+            Annot::Arrow(arrow) => arrow.zpos(),
+            Annot::Marker(marker) => marker.zpos(),
+            Annot::Label(label) => label.zpos,
+        }
     }
 
     pub fn draw<S>(
@@ -112,11 +140,11 @@ impl Annot {
         S: render::Surface,
     {
         let x_axis = axes
-            .or_find(Orientation::X, &self.pos().x_axis)
+            .or_find(Orientation::X, self.x_axis())
             .unwrap()
             .unwrap();
         let y_axis = axes
-            .or_find(Orientation::Y, &self.pos().y_axis)
+            .or_find(Orientation::Y, self.y_axis())
             .unwrap()
             .unwrap();
         match self {
@@ -127,7 +155,7 @@ impl Annot {
                 self.draw_annot_arrow(surface, style, arrow, &x_axis, &y_axis, plot_rect);
             }
             Annot::Marker(marker) => {
-                self.draw_annot_marker(surface, style, marker, x_axis, y_axis, plot_rect);
+                self.draw_annot_marker(surface, style, marker, &x_axis, &y_axis, plot_rect);
             }
             Annot::Label(label) => {
                 self.draw_annot_label(surface, style, label, &x_axis, &y_axis, plot_rect);
@@ -146,9 +174,8 @@ impl Annot {
     ) where
         S: render::Surface,
     {
-        let (x, y) = (line.pos.x, line.pos.y);
-        let (p1, p2) = match line.direction {
-            Direction::Horizontal => {
+        let (p1, p2) = match line.direction() {
+            LineDir::Horizontal(y) => {
                 let y = y_axis.coord_map().map_coord_num(y);
                 let p1 = geom::Point {
                     x: plot_rect.left(),
@@ -160,7 +187,7 @@ impl Annot {
                 };
                 (p1, p2)
             }
-            Direction::Vertical => {
+            LineDir::Vertical(x) => {
                 let x = x_axis.coord_map().map_coord_num(x);
                 let p1 = geom::Point {
                     x,
@@ -172,7 +199,7 @@ impl Annot {
                 };
                 (p1, p2)
             }
-            Direction::Slope(slope) => {
+            LineDir::Slope { x, y, slope } => {
                 // FIXME: raise error if either X or Y is logarithmic
                 let x1 = x_axis.coord_map().map_coord_num(x);
                 let y1 = y_axis.coord_map().map_coord_num(y);
@@ -182,9 +209,9 @@ impl Annot {
                 let p2 = geom::Point { x: x2, y: y2 };
                 (p1, p2)
             }
-            Direction::SecondPoint(x2, y2) => {
-                let x1 = x_axis.coord_map().map_coord_num(x);
-                let y1 = y_axis.coord_map().map_coord_num(y);
+            LineDir::TwoPoints { x1, y1, x2, y2 } => {
+                let x1 = x_axis.coord_map().map_coord_num(x1);
+                let y1 = y_axis.coord_map().map_coord_num(y1);
                 let x2 = x_axis.coord_map().map_coord_num(x2);
                 let y2 = y_axis.coord_map().map_coord_num(y2);
                 let p1 = geom::Point { x: x1, y: y1 };
@@ -211,7 +238,7 @@ impl Annot {
             let path = render::Path {
                 path: &path,
                 fill: None,
-                stroke: Some(line.line.as_stroke(style)),
+                stroke: Some(line.stroke().as_stroke(style)),
                 transform: None,
             };
             surface.draw_path(&path);
@@ -229,17 +256,20 @@ impl Annot {
     ) where
         S: render::Surface,
     {
-        let target_x = x_axis.coord_map().map_coord_num(arrow.pos.x);
-        let target_y = y_axis.coord_map().map_coord_num(arrow.pos.y);
-        let len = (arrow.dx.powi(2) + arrow.dy.powi(2)).sqrt();
+        let (target_x, target_y) = arrow.target();
+        let (dx, dy) = arrow.delta();
+        let head_size = arrow.head_size();
+        let target_x = x_axis.coord_map().map_coord_num(target_x);
+        let target_y = y_axis.coord_map().map_coord_num(target_y);
+        let len = (dx.powi(2) + dy.powi(2)).sqrt();
         let mut builder = geom::PathBuilder::with_capacity(5, 5);
         builder.move_to(0.0, 0.0);
         builder.line_to(0.0, len);
-        builder.move_to(-arrow.head_size / 2.0, arrow.head_size);
+        builder.move_to(-head_size / 2.0, head_size);
         builder.line_to(0.0, 0.0);
-        builder.line_to(arrow.head_size / 2.0, arrow.head_size);
+        builder.line_to(head_size / 2.0, head_size);
         let path = builder.finish().expect("Should be a valid path");
-        let angle = (arrow.dy.atan2(arrow.dx) + f32::consts::FRAC_PI_2) * 180.0 / f32::consts::PI;
+        let angle = (dy.atan2(dx) + f32::consts::FRAC_PI_2) * 180.0 / f32::consts::PI;
         let transform = geom::Transform::from_translate(
             plot_rect.left() + target_x,
             plot_rect.bottom() - target_y,
@@ -248,7 +278,7 @@ impl Annot {
         let rpath = render::Path {
             path: &path,
             fill: None,
-            stroke: Some(arrow.line.as_stroke(style)),
+            stroke: Some(arrow.stroke().as_stroke(style)),
             transform: Some(&transform),
         };
         surface.draw_path(&rpath);
@@ -265,16 +295,17 @@ impl Annot {
     ) where
         S: render::Surface,
     {
-        let x = x_axis.coord_map().map_coord_num(marker.pos.x);
-        let y = y_axis.coord_map().map_coord_num(marker.pos.y);
-        let path = marker::marker_path(&marker.marker);
+        let (x, y) = marker.position();
+        let x = x_axis.coord_map().map_coord_num(x);
+        let y = y_axis.coord_map().map_coord_num(y);
+        let path = marker::marker_path(marker.marker());
 
         let transform =
             geom::Transform::from_translate(plot_rect.left() + x, plot_rect.bottom() - y);
         let rpath = render::Path {
             path: &path,
-            fill: marker.marker.fill.as_ref().map(|f| f.as_paint(style)),
-            stroke: marker.marker.stroke.as_ref().map(|l| l.as_stroke(style)),
+            fill: marker.marker().fill.as_ref().map(|f| f.as_paint(style)),
+            stroke: marker.marker().stroke.as_ref().map(|l| l.as_stroke(style)),
             transform: Some(&transform),
         };
         surface.draw_path(&rpath);
@@ -291,8 +322,8 @@ impl Annot {
     ) where
         S: render::Surface,
     {
-        let x = x_axis.coord_map().map_coord_num(label.pos.x);
-        let y = y_axis.coord_map().map_coord_num(label.pos.y);
+        let x = x_axis.coord_map().map_coord_num(label.x);
+        let y = y_axis.coord_map().map_coord_num(label.y);
 
         let transform =
             geom::Transform::from_translate(plot_rect.left() + x, plot_rect.bottom() - y)
