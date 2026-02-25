@@ -5,7 +5,9 @@ use std::sync::Arc;
 
 use iced::widget::{button, column, mouse_area, row, space, text};
 use iced::{Alignment, Length, mouse};
-use iced_font_awesome::{fa_icon, fa_icon_solid};
+#[cfg(feature = "clipboard")]
+use iced_font_awesome::fa_icon;
+use iced_font_awesome::fa_icon_solid;
 use plotive::drawing::zoom;
 use plotive::{Prepare, data, des, drawing, fontdb, geom};
 
