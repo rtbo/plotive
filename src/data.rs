@@ -43,7 +43,11 @@ pub enum SampleRef<'a> {
 impl SampleRef<'_> {
     /// Check if the sample is null
     pub fn is_null(&self) -> bool {
-        matches!(self, SampleRef::Null)
+        match self {
+            SampleRef::Null => true,
+            SampleRef::Num(v) => !v.is_finite(),
+            _ => false,
+        }
     }
 
     /// Get the sample as a numeric value, if possible
@@ -200,7 +204,11 @@ pub enum Sample {
 impl Sample {
     /// Check if the sample is null
     pub fn is_null(&self) -> bool {
-        matches!(self, Sample::Null)
+        match self {
+            Sample::Null => true,
+            Sample::Num(v) => !v.is_finite(),
+            _ => false,
+        }
     }
 
     /// Get the sample as a numeric value, if possible
