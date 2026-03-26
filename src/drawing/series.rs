@@ -290,6 +290,196 @@ struct Line {
     interpolation: des::series::Interpolation,
 }
 
+trait Liner {
+    fn new(pt_len: usize) -> Self
+    where
+        Self: Sized;
+
+    fn start_line(&mut self, x: f32, y: f32);
+    fn cont_line(&mut self, x: f32, y: f32);
+    fn stop_line(&mut self, x: f32, y: f32) {
+        self.cont_line(x, y);
+    }
+
+    fn into_path(self) -> geom::Path;
+}
+
+struct LinearLiner {
+    pb: geom::PathBuilder,
+}
+
+impl Liner for LinearLiner {
+    fn new(pt_len: usize) -> Self {
+        LinearLiner {
+            pb: geom::PathBuilder::with_capacity(pt_len + 1, pt_len),
+        }
+    }
+
+    fn start_line(&mut self, x: f32, y: f32) {
+        self.pb.move_to(x, y);
+    }
+
+    fn cont_line(&mut self, x: f32, y: f32) {
+        self.pb.line_to(x, y);
+    }
+
+    fn into_path(self) -> geom::Path {
+        self.pb.finish().expect("Should be a valid path")
+    }
+}
+
+struct StepLiner {
+    pb: geom::PathBuilder,
+    prev_x: Option<f32>,
+    prev_y: Option<f32>,
+    step_type: des::series::Interpolation,
+}
+
+impl Liner for StepLiner {
+    fn new(_pt_len: usize) -> Self {
+        StepLiner {
+            pb: geom::PathBuilder::new(),
+            prev_x: None,
+            prev_y: None,
+            step_type: des::series::Interpolation::StepEarly, // default, will be set properly in prepare
+        }
+    }
+
+    fn into_path(self) -> geom::Path {
+        self.pb.finish().expect("Should be a valid path")
+    }
+
+    fn start_line(&mut self, x: f32, y: f32) {
+        self.prev_x = Some(x);
+        self.prev_y = Some(y);
+        self.pb.move_to(x, y);
+    }
+
+    fn cont_line(&mut self, x: f32, y: f32) {
+        if let (Some(px), Some(py)) = (self.prev_x, self.prev_y) {
+            match self.step_type {
+                des::series::Interpolation::StepEarly => {
+                    self.pb.line_to(px, y);
+                    self.pb.line_to(x, y);
+                }
+                des::series::Interpolation::StepLate => {
+                    self.pb.line_to(x, py);
+                    self.pb.line_to(x, y);
+                }
+                des::series::Interpolation::StepMiddle => {
+                    let mid_x = (px + x) / 2.0;
+                    self.pb.line_to(mid_x, py);
+                    self.pb.line_to(mid_x, y);
+                    self.pb.line_to(x, y);
+                }
+                _ => {}
+            }
+        } else {
+            self.pb.move_to(x, y);
+        }
+        self.prev_x = Some(x);
+        self.prev_y = Some(y);
+    }
+}
+
+struct CubicSplineLiner {
+    pb: geom::PathBuilder,
+    buf: [(f32, f32); 4],
+    buf_idx: usize,
+}
+
+impl CubicSplineLiner {
+    fn add_point(&mut self, points: &[(f32, f32)]) {
+        match points.len() {
+            2 => {
+                self.pb.line_to(points[1].0, points[1].1);
+            }
+            3 => {
+                unreachable!()
+                // // For the first segment, we can use a quadratic Bezier with control point at p1
+                // let cp_x = points[1].0;
+                // let cp_y = points[1].1;
+                // self.pb
+                //     .quad_to(cp_x, cp_y, points[2].0, points[2].1);
+            }
+            4 => {
+                // Calculate control points for cubic Bezier using Catmull-Rom formulation
+                // The tangent at p1 is (p2 - p0) / 2
+                // The tangent at p2 is (p3 - p1) / 2
+
+                // Tension parameter (0.5 for standard Catmull-Rom)
+                let tension = 0.5;
+
+                // Control point 1: p1 + tangent_at_p1 / 3
+                let tangent1_x = (points[2].0 - points[0].0) * tension;
+                let tangent1_y = (points[2].1 - points[0].1) * tension;
+                let cp1_x = points[1].0 + tangent1_x / 3.0;
+                let cp1_y = points[1].1 + tangent1_y / 3.0;
+
+                // Control point 2: p2 - tangent_at_p2 / 3
+                let tangent2_x = (points[3].0 - points[1].0) * tension;
+                let tangent2_y = (points[3].1 - points[1].1) * tension;
+                let cp2_x = points[2].0 - tangent2_x / 3.0;
+                let cp2_y = points[2].1 - tangent2_y / 3.0;
+
+                // Draw cubic Bezier curve
+                self.pb
+                    .cubic_to(cp1_x, cp1_y, cp2_x, cp2_y, points[2].0, points[2].1);
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Liner for CubicSplineLiner {
+    fn new(_pt_len: usize) -> Self {
+        CubicSplineLiner {
+            pb: geom::PathBuilder::new(),
+            buf: [(0.0, 0.0); 4],
+            buf_idx: 0,
+        }
+    }
+
+    fn into_path(self) -> geom::Path {
+        self.pb.finish().expect("Should be a valid path")
+    }
+
+    fn start_line(&mut self, x: f32, y: f32) {
+        self.buf[0] = (x, y);
+        self.buf_idx = 1;
+        self.pb.move_to(x, y);
+    }
+
+    fn cont_line(&mut self, x: f32, y: f32) {
+        self.buf[self.buf_idx] = (x, y);
+        self.buf_idx += 1;
+        if self.buf_idx == 3 {
+            // For the first segment, we can use a quadratic Bezier with control point at p1
+            let [(x0, y0), (x1, y1), (x2, y2), _] = self.buf;
+            let points = [(x0, y0), (x0, y0), (x1, y1), (x2, y2)];
+            self.add_point(&points);
+        } else if self.buf_idx == 4 {
+            let points = self.buf;
+            self.add_point(&points);
+            // Shift buffer
+            self.buf[0] = self.buf[1];
+            self.buf[1] = self.buf[2];
+            self.buf[2] = self.buf[3];
+            self.buf_idx = 3;
+        }
+    }
+
+    fn stop_line(&mut self, x: f32, y: f32) {
+        self.cont_line(x, y);
+
+        // we draw the last segment if any
+        if self.buf_idx == 3 {
+            let points = [self.buf[0], self.buf[1], self.buf[2], self.buf[2]];
+            self.add_point(&points);
+        }
+    }
+}
+
 impl Line {
     fn prepare<D>(index: usize, des: &des::series::Line, data_source: &D) -> Result<Self, Error>
     where
@@ -319,230 +509,79 @@ impl Line {
         debug_assert!(x_col.len() == y_col.len());
 
         let path = match self.interpolation {
-            des::series::Interpolation::Linear => self.make_path_linear(rect, x_col, y_col, cm),
-            des::series::Interpolation::StepEarly => {
-                self.make_path_step_early(rect, x_col, y_col, cm)
+            des::series::Interpolation::Linear => {
+                let mut liner = LinearLiner::new(x_col.len());
+                self.make_line_path(rect, x_col, y_col, cm, &mut liner);
+                liner.into_path()
             }
-            des::series::Interpolation::StepLate => {
-                self.make_path_step_late(rect, x_col, y_col, cm)
-            }
-            des::series::Interpolation::StepMiddle => {
-                self.make_path_step_middle(rect, x_col, y_col, cm)
+            des::series::Interpolation::StepEarly
+            | des::series::Interpolation::StepLate
+            | des::series::Interpolation::StepMiddle => {
+                let mut liner = StepLiner::new(x_col.len());
+                liner.step_type = self.interpolation;
+                self.make_line_path(rect, x_col, y_col, cm, &mut liner);
+                liner.into_path()
             }
             des::series::Interpolation::Spline => {
-                self.make_path_cubic_spline(rect, x_col, y_col, cm)
+                let mut liner = CubicSplineLiner::new(x_col.len());
+                self.make_line_path(rect, x_col, y_col, cm, &mut liner);
+                liner.into_path()
             }
         };
 
         self.path = Some(path);
     }
 
-    fn make_path_linear(
+    fn make_line_path<L>(
         &self,
         rect: &geom::Rect,
         x: &dyn data::Column,
         y: &dyn data::Column,
         cm: &CoordMapXy,
-    ) -> geom::Path {
-        let mut in_a_line = false;
-        let mut pb = geom::PathBuilder::with_capacity(x.len() + 1, x.len());
+        liner: &mut L,
+    ) where
+        L: Liner,
+    {
+        let mut prev = None;
+        let mut cur = None;
+
         for (x, y) in x.sample_iter().zip(y.sample_iter()) {
-            if x.is_null() || y.is_null() {
-                in_a_line = false;
-                continue;
-            }
-            let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
-            let x = rect.left() + x;
-            let y = rect.bottom() - y;
-            // if x_col.len() == 1024 {
-            //     println!("  adding point {} {}", x, y);
-            // }
-            if in_a_line {
-                pb.line_to(x, y);
+            let next = if x.is_null() || y.is_null() {
+                None
             } else {
-                pb.move_to(x, y);
-                in_a_line = true;
-            }
-        }
-        pb.finish().expect("Should be a valid path")
-    }
+                let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
+                let (x, y) = plot_to_fig(rect, x, y);
+                Some((x, y))
+            };
 
-    fn make_path_step_early(
-        &self,
-        rect: &geom::Rect,
-        x: &dyn data::Column,
-        y: &dyn data::Column,
-        cm: &CoordMapXy,
-    ) -> geom::Path {
-        let mut pb = geom::PathBuilder::new();
-
-        let mut prev_x: Option<f32> = None;
-
-        for (x, y) in x.sample_iter().zip(y.sample_iter()) {
-            if x.is_null() || y.is_null() {
-                prev_x = None;
-                continue;
-            }
-            let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
-            let (x, y) = plot_to_fig(rect, x, y);
-
-            if let Some(px) = prev_x {
-                pb.line_to(px, y);
-                pb.line_to(x, y);
-            } else {
-                pb.move_to(x, y);
-            }
-            prev_x = Some(x);
-        }
-
-        pb.finish().expect("Should be a valid path")
-    }
-
-    fn make_path_step_late(
-        &self,
-        rect: &geom::Rect,
-        x: &dyn data::Column,
-        y: &dyn data::Column,
-        cm: &CoordMapXy,
-    ) -> geom::Path {
-        let mut pb = geom::PathBuilder::new();
-
-        let mut prev_y: Option<f32> = None;
-
-        for (x, y) in x.sample_iter().zip(y.sample_iter()) {
-            if x.is_null() || y.is_null() {
-                prev_y = None;
-                continue;
-            }
-            let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
-            let (x, y) = plot_to_fig(rect, x, y);
-
-            if let Some(py) = prev_y {
-                pb.line_to(x, py);
-                pb.line_to(x, y);
-            } else {
-                pb.move_to(x, y);
-            }
-            prev_y = Some(y);
-        }
-
-        pb.finish().expect("Should be a valid path")
-    }
-
-    fn make_path_step_middle(
-        &self,
-        rect: &geom::Rect,
-        x: &dyn data::Column,
-        y: &dyn data::Column,
-        cm: &CoordMapXy,
-    ) -> geom::Path {
-        let mut pb = geom::PathBuilder::new();
-
-        let mut prev_x: Option<f32> = None;
-        let mut prev_y: Option<f32> = None;
-
-        for (x, y) in x.sample_iter().zip(y.sample_iter()) {
-            if x.is_null() || y.is_null() {
-                prev_x = None;
-                prev_y = None;
-                continue;
-            }
-            let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
-            let (x, y) = plot_to_fig(rect, x, y);
-
-            if let (Some(px), Some(py)) = (prev_x, prev_y) {
-                let mx = (px + x) / 2.0;
-                pb.line_to(mx, py);
-                pb.line_to(mx, y);
-                pb.line_to(x, y);
-            } else {
-                pb.move_to(x, y);
-            }
-            prev_x = Some(x);
-            prev_y = Some(y);
-        }
-
-        pb.finish().expect("Should be a valid path")
-    }
-
-    fn make_path_cubic_spline(
-        &self,
-        rect: &geom::Rect,
-        x: &dyn data::Column,
-        y: &dyn data::Column,
-        cm: &CoordMapXy,
-    ) -> geom::Path {
-        const NAN: (f32, f32) = (f32::NAN, f32::NAN);
-        let mut buf: [(f32, f32); 4] = [NAN, NAN, NAN, NAN];
-        let mut buf_idx = 0;
-
-        let mut pb = geom::PathBuilder::new();
-
-        fn add_point(pb: &mut geom::PathBuilder, points: &[(f32, f32); 4]) {
-            // Calculate control points for cubic Bezier using Catmull-Rom formulation
-            // The tangent at p1 is (p2 - p0) / 2
-            // The tangent at p2 is (p3 - p1) / 2
-
-            // Tension parameter (0.5 for standard Catmull-Rom)
-            let tension = 0.5;
-
-            // Control point 1: p1 + tangent_at_p1 / 3
-            let tangent1_x = (points[2].0 - points[0].0) * tension;
-            let tangent1_y = (points[2].1 - points[0].1) * tension;
-            let cp1_x = points[1].0 + tangent1_x / 3.0;
-            let cp1_y = points[1].1 + tangent1_y / 3.0;
-
-            // Control point 2: p2 - tangent_at_p2 / 3
-            let tangent2_x = (points[3].0 - points[1].0) * tension;
-            let tangent2_y = (points[3].1 - points[1].1) * tension;
-            let cp2_x = points[2].0 - tangent2_x / 3.0;
-            let cp2_y = points[2].1 - tangent2_y / 3.0;
-
-            // Draw cubic Bezier curve
-            pb.cubic_to(cp1_x, cp1_y, cp2_x, cp2_y, points[2].0, points[2].1);
-        }
-
-        for (x, y) in x.sample_iter().zip(y.sample_iter()) {
-            if x.is_null() || y.is_null() {
-                if buf_idx == 3 {
-                    // we draw the last segment if any
-                    add_point(&mut pb, &[buf[0], buf[1], buf[2], buf[2]]);
+            match (prev, cur, next) {
+                (_, None, _) => {}
+                (None, Some(_), None) => {
+                    // single point, no line to draw
                 }
-                buf_idx = 0;
-                continue;
+                (None, Some((x, y)), Some(_)) => {
+                    liner.start_line(x, y);
+                }
+                (Some(_), Some((x, y)), None) => {
+                    liner.stop_line(x, y);
+                }
+                (Some(_), Some((x, y)), Some(_)) => {
+                    liner.cont_line(x, y);
+                }
             }
-            let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
-            let (x, y) = plot_to_fig(rect, x, y);
-
-            // first point, or after a gap
-            if buf_idx == 0 {
-                pb.move_to(x, y);
-            }
-
-            buf[buf_idx] = (x, y);
-            buf_idx += 1;
-
-            if buf_idx == 3 {
-                // we draw the first segment
-                add_point(&mut pb, &[buf[0], buf[0], buf[1], buf[2]]);
-            } else if buf_idx == 4 {
-                // we draw a regular segment
-                add_point(&mut pb, &buf);
-
-                // Shift buffer
-                buf[0] = buf[1];
-                buf[1] = buf[2];
-                buf[2] = buf[3];
-                buf_idx = 3;
-            }
+            prev = cur;
+            cur = next;
         }
 
-        // we draw the last segment if any
-        if buf_idx == 3 {
-            add_point(&mut pb, &[buf[0], buf[1], buf[2], buf[2]]);
+        match (prev, cur) {
+            (_, None) => {}
+            (None, Some(_)) => {
+                // single point, no line to draw
+            }
+            (Some(_), Some((x, y))) => {
+                liner.stop_line(x, y);
+            }
         }
-
-        pb.finish().expect("Should be a valid path")
     }
 
     fn draw<S>(&self, surface: &mut S, style: &Style)

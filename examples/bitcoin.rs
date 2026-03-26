@@ -3,7 +3,6 @@ use plotive::{data, des};
 mod common;
 
 fn main() {
-    // FIXME: support parsing datetime in CSV
     let btc_csv = common::example_res("BTC-USD.csv");
     let csv_data = std::fs::read_to_string(&btc_csv).unwrap();
     let data_source = data::csv::parse_str(&csv_data, Default::default()).unwrap();
