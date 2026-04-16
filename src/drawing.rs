@@ -46,6 +46,8 @@ pub enum Error {
     InconsistentData(String),
     /// Font or text related error, e.g. missing glyphs or font not found
     FontOrText(text::Error),
+    /// Not enough space to draw the figure, e.g. due to too many ticks or too long tick labels
+    NotEnoughSpace,
 }
 
 impl From<text::Error> for Error {
@@ -73,6 +75,7 @@ impl fmt::Display for Error {
             }
             Error::InconsistentData(reason) => write!(f, "Inconsistent data: {}", reason),
             Error::FontOrText(err) => err.fmt(f),
+            Error::NotEnoughSpace => write!(f, "Not enough space to draw the figure"),
         }
     }
 }
