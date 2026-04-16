@@ -46,6 +46,7 @@ mod axes;
 mod interp;
 mod legend;
 mod nulls;
+mod series;
 mod subplots;
 
 #[test]

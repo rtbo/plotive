@@ -13,6 +13,16 @@ fn axes_default() {
     assert_fig_eq_ref!(&fig, "axes/default");
 }
 
+// #[test]
+// fn axes_ticks_empty() {
+//     let plot = des::Plot::new(vec![])
+//         .with_x_axis(des::Axis::new().with_ticks(Default::default()))
+//         .with_y_axis(des::Axis::new().with_ticks(Default::default()));
+//     let fig = fig_small(plot);
+
+//     assert_fig_eq_ref!(&fig, "axes/ticks-empty");
+// }
+
 #[test]
 fn axes_x_title() {
     let series = line().into();
