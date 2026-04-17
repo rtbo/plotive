@@ -365,6 +365,11 @@ pub trait Column: std::fmt::Debug {
     /// Get the number of non-null values in the column
     fn len_some(&self) -> usize;
 
+    /// Check if the column is empty (i.e. has no samples)
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Get an iterator over the samples in the column
     fn sample_iter(&self) -> Box<dyn Iterator<Item = SampleRef<'_>> + '_> {
         #[cfg(feature = "time")]

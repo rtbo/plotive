@@ -82,7 +82,7 @@ fn calc_xy_bounds<D>(
     data_source: &D,
     x_data: &des::series::DataCol,
     y_data: &des::series::DataCol,
-) -> Result<(axis::Bounds, axis::Bounds), Error>
+) -> Result<Option<(axis::Bounds, axis::Bounds)>, Error>
 where
     D: data::Source + ?Sized,
 {
@@ -95,10 +95,14 @@ where
         ));
     }
 
+    if x_col.is_empty() {
+        return Ok(None);
+    }
+
     let x_bounds = x_col.bounds().ok_or(Error::UnboundedAxis)?;
     let y_bounds = y_col.bounds().ok_or(Error::UnboundedAxis)?;
 
-    Ok((x_bounds, y_bounds))
+    Ok(Some((x_bounds, y_bounds)))
 }
 
 #[derive(Debug, Clone)]
@@ -192,9 +196,13 @@ impl Series {
                 continue;
             }
 
+            let Some(sb) = s.bounds() else {
+                continue;
+            };
+
             let b = match or {
-                Orientation::X => &s.bounds().0,
-                Orientation::Y => &s.bounds().1,
+                Orientation::X => &sb.0,
+                Orientation::Y => &sb.1,
             };
 
             if let Some(a) = &mut a {
@@ -206,15 +214,21 @@ impl Series {
         Ok(a)
     }
 
-    fn bounds(&self) -> (axis::BoundsRef<'_>, axis::BoundsRef<'_>) {
+    fn bounds(&self) -> Option<(axis::BoundsRef<'_>, axis::BoundsRef<'_>)> {
         match &self.plot {
-            SeriesPlot::Line(line) => (line.ab.0.as_bound_ref(), line.ab.1.as_bound_ref()),
-            SeriesPlot::Scatter(scatter) => {
-                (scatter.ab.0.as_bound_ref(), scatter.ab.1.as_bound_ref())
-            }
-            SeriesPlot::Histogram(hist) => (hist.ab.0.into(), hist.ab.1.into()),
+            SeriesPlot::Line(line) => line
+                .ab
+                .as_ref()
+                .map(|(x, y)| (x.as_bound_ref(), y.as_bound_ref())),
+            SeriesPlot::Scatter(scatter) => scatter
+                .ab
+                .as_ref()
+                .map(|(x, y)| (x.as_bound_ref(), y.as_bound_ref())),
+            SeriesPlot::Histogram(hist) => Some((hist.ab.0.into(), hist.ab.1.into())),
             SeriesPlot::Bars(bars) => bars.bounds(),
-            SeriesPlot::BarsGroup(bg) => (bg.bounds.0.as_bound_ref(), bg.bounds.1.as_bound_ref()),
+            SeriesPlot::BarsGroup(bg) => {
+                Some((bg.bounds.0.as_bound_ref(), bg.bounds.1.as_bound_ref()))
+            }
         }
     }
 
@@ -283,7 +297,7 @@ impl Series {
 struct Line {
     index: usize,
     cols: (des::DataCol, des::DataCol),
-    ab: (axis::Bounds, axis::Bounds),
+    ab: Option<(axis::Bounds, axis::Bounds)>,
     axes: (des::axis::Ref, des::axis::Ref),
     path: Option<geom::Path>,
     stroke: style::series::Stroke,
@@ -486,11 +500,11 @@ impl Line {
         D: data::Source + ?Sized,
     {
         let cols = (des.x_data().clone(), des.y_data().clone());
-        let (x_bounds, y_bounds) = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
+        let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
         Ok(Line {
             index,
             cols,
-            ab: (x_bounds, y_bounds),
+            ab: xy_bounds,
             axes: (des.x_axis().clone(), des.y_axis().clone()),
             path: None,
             stroke: des.stroke().clone(),
@@ -507,6 +521,18 @@ impl Line {
         let y_col = get_column(&self.cols.1, data_source).unwrap();
 
         debug_assert!(x_col.len() == y_col.len());
+
+        if self.ab.is_none() && x_col.is_empty() {
+            self.path = None;
+            return;
+        }
+
+        if self.ab.is_none() && !x_col.is_empty() {
+            let xy_bounds = calc_xy_bounds(data_source, &self.cols.0, &self.cols.1)
+                .expect("Should be able to calculate bounds for non-empty data")
+                .expect("Should be able to calculate bounds for non-empty data");
+            self.ab = Some(xy_bounds);
+        }
 
         let path = match self.interpolation {
             des::series::Interpolation::Linear => {
@@ -588,6 +614,10 @@ impl Line {
     where
         S: render::Surface,
     {
+        if self.path.is_none() {
+            return;
+        }
+
         let rc = (style, self.index);
 
         let path = render::Path {
@@ -604,7 +634,7 @@ impl Line {
 struct Scatter {
     index: usize,
     cols: (des::DataCol, des::DataCol),
-    ab: (axis::Bounds, axis::Bounds),
+    ab: Option<(axis::Bounds, axis::Bounds)>,
     axes: (des::axis::Ref, des::axis::Ref),
     path: geom::Path,
     points: Vec<geom::Point>,
@@ -617,12 +647,12 @@ impl Scatter {
         D: data::Source + ?Sized,
     {
         let cols = (des.x_data().clone(), des.y_data().clone());
-        let (x_bounds, y_bounds) = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
+        let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
         let path = marker::marker_path(des.marker());
         Ok(Scatter {
             index,
             cols,
-            ab: (x_bounds, y_bounds),
+            ab: xy_bounds,
             axes: (des.x_axis().clone(), des.y_axis().clone()),
             path,
             points: Vec::new(),
@@ -637,6 +667,18 @@ impl Scatter {
         let x_col = get_column(&self.cols.0, data_source).unwrap();
         let y_col = get_column(&self.cols.1, data_source).unwrap();
         debug_assert!(x_col.len() == y_col.len());
+
+        if self.ab.is_none() && x_col.is_empty() {
+            self.points.clear();
+            return;
+        }
+
+        if self.ab.is_none() && !x_col.is_empty() {
+            let xy_bounds = calc_xy_bounds(data_source, &self.cols.0, &self.cols.1)
+                .expect("Should be able to calculate bounds for non-empty data")
+                .expect("Should be able to calculate bounds for non-empty data");
+            self.ab = Some(xy_bounds);
+        }
 
         let mut points = Vec::with_capacity(x_col.len());
 
@@ -656,6 +698,10 @@ impl Scatter {
     where
         S: render::Surface,
     {
+        if self.points.is_empty() {
+            return;
+        }
+
         let rc = (style, self.index);
 
         for p in &self.points {
@@ -788,11 +834,31 @@ enum BarsBounds {
     Horizontal(axis::NumBounds, Categories),
 }
 
+impl BarsBounds {
+    fn calc(x_bounds: axis::Bounds, y_bounds: axis::Bounds) -> Result<Self, Error> {
+        match (x_bounds, y_bounds) {
+            (axis::Bounds::Num(mut x_bounds), axis::Bounds::Cat(y_bounds)) => {
+                x_bounds.add_sample(0.0);
+                Ok(BarsBounds::Horizontal(x_bounds, y_bounds))
+            }
+            (axis::Bounds::Cat(x_bounds), axis::Bounds::Num(mut y_bounds)) => {
+                y_bounds.add_sample(0.0);
+                Ok(BarsBounds::Vertical(x_bounds, y_bounds))
+            }
+            _ => {
+                return Err(Error::InconsistentData(
+                    "One of X and Y data must be numeric and the other categorical".to_string(),
+                ));
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 struct Bars {
     index: usize,
     cols: (des::DataCol, des::DataCol),
-    bounds: BarsBounds,
+    bounds: Option<BarsBounds>,
     axes: (des::axis::Ref, des::axis::Ref),
     position: des::series::BarsPosition,
     path: Option<geom::Path>,
@@ -806,22 +872,12 @@ impl Bars {
         D: data::Source + ?Sized,
     {
         let cols = (des.x_data().clone(), des.y_data().clone());
-        let (x_bounds, y_bounds) = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
+        let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
 
-        let bounds = match (x_bounds, y_bounds) {
-            (axis::Bounds::Num(mut x_bounds), axis::Bounds::Cat(y_bounds)) => {
-                x_bounds.add_sample(0.0);
-                BarsBounds::Horizontal(x_bounds, y_bounds)
-            }
-            (axis::Bounds::Cat(x_bounds), axis::Bounds::Num(mut y_bounds)) => {
-                y_bounds.add_sample(0.0);
-                BarsBounds::Vertical(x_bounds, y_bounds)
-            }
-            _ => {
-                return Err(Error::InconsistentData(
-                    "One of X and Y data must be numeric and the other categorical".to_string(),
-                ));
-            }
+        let bounds = if let Some((x_bounds, y_bounds)) = xy_bounds {
+            Some(BarsBounds::calc(x_bounds, y_bounds)?)
+        } else {
+            None
         };
 
         Ok(Bars {
@@ -836,10 +892,14 @@ impl Bars {
         })
     }
 
-    fn bounds(&self) -> (axis::BoundsRef<'_>, axis::BoundsRef<'_>) {
-        match &self.bounds {
-            &BarsBounds::Vertical(ref x_bounds, y_bounds) => (x_bounds.into(), y_bounds.into()),
-            &BarsBounds::Horizontal(x_bounds, ref y_bounds) => (x_bounds.into(), y_bounds.into()),
+    fn bounds(&self) -> Option<(axis::BoundsRef<'_>, axis::BoundsRef<'_>)> {
+        match self.bounds.as_ref()? {
+            &BarsBounds::Vertical(ref x_bounds, y_bounds) => {
+                Some((x_bounds.into(), y_bounds.into()))
+            }
+            &BarsBounds::Horizontal(x_bounds, ref y_bounds) => {
+                Some((x_bounds.into(), y_bounds.into()))
+            }
         }
     }
 
@@ -852,9 +912,25 @@ impl Bars {
         let y_col = get_column(&self.cols.1, data_source).unwrap();
         debug_assert!(x_col.len() == y_col.len());
 
+        if self.bounds.is_none() && x_col.is_empty() && y_col.is_empty() {
+            // no valid data, so no bars to draw
+            self.path = None;
+            return;
+        }
+
+        if self.bounds.is_none() {
+            let xy_bounds = calc_xy_bounds(data_source, &self.cols.0, &self.cols.1)
+                .expect("Should be able to calculate bounds for non-empty data")
+                .expect("Should be able to calculate bounds for non-empty data");
+            self.bounds = Some(
+                BarsBounds::calc(xy_bounds.0, xy_bounds.1)
+                    .expect("Should be able to calculate bars bounds"),
+            );
+        }
+
         let mut pb = geom::PathBuilder::new();
 
-        match &self.bounds {
+        match self.bounds.as_ref().unwrap() {
             BarsBounds::Vertical(..) => {
                 let cat_bin_width = cm.x.cat_bin_size();
                 let y_start = rect.bottom() - cm.y.map_coord_num(0.0);
@@ -903,6 +979,10 @@ impl Bars {
     where
         S: render::Surface,
     {
+        if self.path.is_none() {
+            return;
+        }
+
         let rc = (style, self.index);
 
         let path = render::Path {

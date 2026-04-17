@@ -319,6 +319,9 @@ where
 
         // Now we can determine width of horizontal axes and set them all up
         let subplot_rect_width = (rect.width() - vert_space_width) / des_plots.cols() as f32;
+        if subplot_rect_width <= 0.0 || subplot_rect_height <= 0.0 {
+            return Err(Error::NotEnoughSpace);
+        }
         let x_axes =
             self.setup_orientation_axes(Orientation::X, des_plots, &plot_data, subplot_rect_width)?;
 
