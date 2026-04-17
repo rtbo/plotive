@@ -1484,6 +1484,22 @@ impl From<Vec<String>> for VecColumn {
     }
 }
 
+#[cfg(feature = "time")]
+impl From<Vec<DateTime>> for VecColumn {
+    fn from(v: Vec<DateTime>) -> Self {
+        let v: Vec<Option<DateTime>> = v.into_iter().map(Some).collect();
+        VecColumn::Time(v)
+    }
+}
+
+#[cfg(feature = "time")]
+impl From<Vec<TimeDelta>> for VecColumn {
+    fn from(v: Vec<TimeDelta>) -> Self {
+        let v: Vec<Option<TimeDelta>> = v.into_iter().map(Some).collect();
+        VecColumn::TimeDelta(v)
+    }
+}
+
 impl Column for VecColumn {
     fn len(&self) -> usize {
         match self {

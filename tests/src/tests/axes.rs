@@ -364,3 +364,44 @@ fn axes_multiple_trbl_titles() {
 
     assert_fig_eq_ref!(&fig, "axes/multiple-trbl-titles");
 }
+
+#[test]
+fn axes_datetime_locator() {
+    use plotive::time;
+
+    let start = time::DateTime::fmt_parse("2020-01-01", "%Y-%m-%d").unwrap();
+    let x = (0..10)
+        .map(|i| start + time::TimeDelta::from_days(i as f64))
+        .collect::<Vec<_>>();
+    let y = (0..10).map(|i| 1.0 / (i as f64 + 1.0)).collect::<Vec<_>>();
+
+    let series = des::series::Line::new(x.into(), y.into());
+
+    let plot = des::Plot::new(vec![series.into()]).with_x_axis(des::Axis::new().with_ticks(
+        des::axis::Ticks::new().with_locator(des::axis::ticks::DateTimeLocator::Days(2).into()),
+    ));
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "axes/datetime-locator");
+}
+
+#[test]
+fn axes_num_datetime_locator() {
+    use plotive::time;
+
+    let start = time::DateTime::fmt_parse("2020-01-01", "%Y-%m-%d").unwrap();
+    let x = (0..10)
+        .map(|i| start + time::TimeDelta::from_days(i as f64))
+        .map(|dt| dt.timestamp())
+        .collect::<Vec<_>>();
+    let y = (0..10).map(|i| 1.0 / (i as f64 + 1.0)).collect::<Vec<_>>();
+
+    let series = des::series::Line::new(x.into(), y.into());
+
+    let plot = des::Plot::new(vec![series.into()]).with_x_axis(des::Axis::new().with_ticks(
+        des::axis::Ticks::new().with_locator(des::axis::ticks::DateTimeLocator::Days(2).into()),
+    ));
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "axes/datetime-locator");
+}
