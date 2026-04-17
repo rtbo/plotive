@@ -922,7 +922,10 @@ impl Bars {
             let xy_bounds = calc_xy_bounds(data_source, &self.cols.0, &self.cols.1)
                 .expect("Should be able to calculate bounds for non-empty data")
                 .expect("Should be able to calculate bounds for non-empty data");
-            self.bounds = Some(BarsBounds::calc(xy_bounds.0, xy_bounds.1).expect("Should be able to calculate bars bounds"));
+            self.bounds = Some(
+                BarsBounds::calc(xy_bounds.0, xy_bounds.1)
+                    .expect("Should be able to calculate bars bounds"),
+            );
         }
 
         let mut pb = geom::PathBuilder::new();

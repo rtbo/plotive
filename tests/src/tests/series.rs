@@ -1,8 +1,7 @@
 use plotive::{data, des};
 
-use crate::{assert_fig_eq_ref, tests::fig_small};
-use crate::TestHarness;
-
+use crate::tests::fig_small;
+use crate::{TestHarness, assert_fig_eq_ref};
 
 #[test]
 fn series_line_nodata() {
@@ -10,7 +9,8 @@ fn series_line_nodata() {
         des::series::Line::new(
             des::DataCol::Inline(data::VecColumn::F64(vec![])),
             des::DataCol::Inline(data::VecColumn::F64(vec![])),
-        ).into()
+        )
+        .into(),
     ]);
     let fig = fig_small(plot);
 
@@ -23,7 +23,8 @@ fn series_scatter_nodata() {
         des::series::Scatter::new(
             des::DataCol::Inline(data::VecColumn::F64(vec![])),
             des::DataCol::Inline(data::VecColumn::F64(vec![])),
-        ).into()
+        )
+        .into(),
     ]);
     let fig = fig_small(plot);
 
