@@ -2,6 +2,8 @@
 use crate::data;
 use crate::des::axis;
 use crate::style::{self, defaults};
+#[cfg(feature = "time")]
+use crate::time;
 
 /// A data column, either inline or a reference to a data source.
 ///
@@ -55,6 +57,20 @@ impl From<Vec<f64>> for DataCol {
 
 impl From<Vec<String>> for DataCol {
     fn from(col: Vec<String>) -> Self {
+        DataCol::Inline(col.into())
+    }
+}
+
+#[cfg(feature = "time")]
+impl From<Vec<time::DateTime>> for DataCol {
+    fn from(col: Vec<time::DateTime>) -> Self {
+        DataCol::Inline(col.into())
+    }
+}
+
+#[cfg(feature = "time")]
+impl From<Vec<time::TimeDelta>> for DataCol {
+    fn from(col: Vec<time::TimeDelta>) -> Self {
         DataCol::Inline(col.into())
     }
 }

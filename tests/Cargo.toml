@@ -10,7 +10,7 @@ keywords.workspace = true
 publish = false
 
 [dependencies]
-plotive.workspace = true
+plotive = { workspace = true, features=["time"] }
 plotive-pxl.workspace = true
 plotive-svg.workspace = true
 tiny-skia.workspace = true

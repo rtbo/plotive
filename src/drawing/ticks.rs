@@ -35,6 +35,13 @@ pub fn locate_num(
             Ok(LogLocator::new_major(*base).ticks(nb))
         }
         #[cfg(feature = "time")]
+        (Locator::DateTime(_), Scale::Auto | Scale::Linear { .. }) => {
+            Ok(locate_datetime(&locator, nb.into())?
+                .into_iter()
+                .map(|dt| dt.timestamp())
+                .collect())
+        }
+        #[cfg(feature = "time")]
         (Locator::TimeDelta(loc), Scale::Auto | Scale::Linear { .. }) => {
             locate_timedelta_num(loc, nb)
         }
@@ -492,9 +499,7 @@ pub fn num_label_formatter(
     match ticks.formatter() {
         None => Arc::new(NullFormat),
         Some(Formatter::Auto) if scale.is_shared() => Arc::new(NullFormat),
-        Some(Formatter::Auto | Formatter::SharedAuto) => {
-            auto_label_formatter(ticks.locator(), ab, scale)
-        }
+        Some(Formatter::Auto | Formatter::SharedAuto) => auto_label_formatter(ticks, ab, scale),
         Some(Formatter::Prec(prec)) => Arc::new(PrecLabelFormat(*prec)),
         Some(Formatter::Percent(fmt)) => {
             let prec = fmt
@@ -505,16 +510,16 @@ pub fn num_label_formatter(
         #[cfg(feature = "time")]
         Some(Formatter::TimeDelta(tdfmt)) => timedelta_label_formatter(ab, tdfmt),
         #[cfg(feature = "time")]
-        _ => todo!(),
+        Some(Formatter::DateTime(_)) => datetime_label_formatter(ticks, ab.into(), scale).unwrap(),
     }
 }
 
 fn auto_label_formatter(
-    locator: &Locator,
+    ticks: &Ticks,
     ab: axis::NumBounds,
     scale: &Scale,
 ) -> Arc<dyn LabelFormatter> {
-    match (locator, scale) {
+    match (ticks.locator(), scale) {
         (Locator::PiMultiple { .. }, _) => Arc::new(PiMultipleLabelFormat { prec: 2 }),
         (Locator::Auto, Scale::Log(LogScale { base, .. })) if *base == 10.0 => {
             Arc::new(SciLabelFormat)
@@ -531,7 +536,13 @@ fn auto_label_formatter(
                 Arc::new(PrecLabelFormat(2))
             }
         }
-        _ => todo!(),
+        #[cfg(feature = "time")]
+        (Locator::DateTime(_), _) => datetime_label_formatter(ticks, ab.into(), scale).unwrap(),
+        _ => todo!(
+            "auto label formatter for locator {:?} and scale {:?}",
+            ticks.locator(),
+            scale
+        ),
     }
 }
 
@@ -694,8 +705,14 @@ struct DateTimeLabelFormat {
 #[cfg(feature = "time")]
 impl LabelFormatter for DateTimeLabelFormat {
     fn format_label(&self, data: data::SampleRef) -> String {
-        let dt = data.as_time().unwrap();
-        format!("{}", dt.fmt_to_string(&self.fmt))
+        match data {
+            data::SampleRef::Time(dt) => format!("{}", dt.fmt_to_string(&self.fmt)),
+            data::SampleRef::Num(num) => {
+                let dt = DateTime::from_timestamp(num).expect("Invalid timestamp");
+                format!("{}", dt.fmt_to_string(&self.fmt))
+            }
+            _ => panic!("data is not compatible with formatter"),
+        }
     }
 }
 
