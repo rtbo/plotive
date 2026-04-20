@@ -85,7 +85,7 @@ impl miette::SourceCode for Source {
                 content.column(),
                 content.line_count(),
             )
-            .with_language("edsl");
+            .with_language("pdsl");
             Ok(Box::new(content))
         } else {
             Ok(content)
