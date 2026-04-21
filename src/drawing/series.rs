@@ -1,6 +1,8 @@
 use axis::AsBoundRef;
+use plotive_base::geom::PathSegment;
 use scale::{CoordMap, CoordMapXy};
 
+use crate::drawing::axis::Bounds;
 use crate::drawing::plot::Orientation;
 use crate::drawing::{
     Categories, ColumnExt, Error, F64ColumnExt, axis, legend, marker, plot_to_fig, scale,
@@ -33,12 +35,26 @@ impl SeriesExt for des::series::Scatter {
     }
 }
 
+impl SeriesExt for des::series::Area {
+    fn legend_entry(&self) -> Option<legend::Entry<'_>> {
+        self.name().map(|n| legend::Entry {
+            label: n.as_ref(),
+            font: None,
+            shape: legend::ShapeRef::AreaRect{
+                fill: self.fill(),
+                stroke_y1: self.stroke_y1(),
+                stroke_y2: self.stroke_y2(),
+            },
+        })
+    }
+}
+
 impl SeriesExt for des::series::Histogram {
     fn legend_entry(&self) -> Option<legend::Entry<'_>> {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(&self.fill(), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
         })
     }
 }
@@ -48,7 +64,7 @@ impl SeriesExt for des::series::Bars {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(self.fill(), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
         })
     }
 }
@@ -58,7 +74,7 @@ impl SeriesExt for des::series::BarSeries {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(&self.fill(), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
         })
     }
 }
@@ -138,6 +154,7 @@ pub struct Series {
 enum SeriesPlot {
     Line(Line),
     Scatter(Scatter),
+    Area(Area),
     Histogram(Histogram),
     Bars(Bars),
     BarsGroup(BarsGroup),
@@ -153,6 +170,7 @@ impl Series {
             des::Series::Scatter(des) => {
                 SeriesPlot::Scatter(Scatter::prepare(index, des, data_source)?)
             }
+            des::Series::Area(des) => SeriesPlot::Area(Area::prepare(index, des, data_source)?),
             des::Series::Histogram(des) => {
                 SeriesPlot::Histogram(Histogram::prepare(index, des, data_source)?)
             }
@@ -224,6 +242,10 @@ impl Series {
                 .ab
                 .as_ref()
                 .map(|(x, y)| (x.as_bound_ref(), y.as_bound_ref())),
+            SeriesPlot::Area(area) => area
+                .ab
+                .as_ref()
+                .map(|(x, y)| (x.as_bound_ref(), y.as_bound_ref())),
             SeriesPlot::Histogram(hist) => Some((hist.ab.0.into(), hist.ab.1.into())),
             SeriesPlot::Bars(bars) => bars.bounds(),
             SeriesPlot::BarsGroup(bg) => {
@@ -236,6 +258,7 @@ impl Series {
         match &self.plot {
             SeriesPlot::Line(line) => &line.axes.0,
             SeriesPlot::Scatter(scatter) => &scatter.axes.0,
+            SeriesPlot::Area(area) => &area.axes.0,
             SeriesPlot::Histogram(hist) => &hist.axes.0,
             SeriesPlot::Bars(bars) => &bars.axes.0,
             SeriesPlot::BarsGroup(bg) => &bg.axes.0,
@@ -246,6 +269,7 @@ impl Series {
         match &self.plot {
             SeriesPlot::Line(line) => &line.axes.1,
             SeriesPlot::Scatter(scatter) => &scatter.axes.1,
+            SeriesPlot::Area(area) => &area.axes.1,
             SeriesPlot::Histogram(hist) => &hist.axes.1,
             SeriesPlot::Bars(bars) => &bars.axes.1,
             SeriesPlot::BarsGroup(bg) => &bg.axes.1,
@@ -266,6 +290,7 @@ impl Series {
                 xy.update_data(data_source, rect, cm);
             }
             SeriesPlot::Scatter(sc) => sc.update_data(data_source, rect, cm),
+            SeriesPlot::Area(area) => area.update_data(data_source, rect, cm),
             SeriesPlot::Histogram(hist) => {
                 hist.update_data(rect, cm);
             }
@@ -286,6 +311,7 @@ impl Series {
         match &self.plot {
             SeriesPlot::Line(xy) => xy.draw(surface, style),
             SeriesPlot::Scatter(sc) => sc.draw(surface, style),
+            SeriesPlot::Area(area) => area.draw(surface, style),
             SeriesPlot::Histogram(hist) => hist.draw(surface, style),
             SeriesPlot::Bars(bars) => bars.draw(surface, style),
             SeriesPlot::BarsGroup(bg) => bg.draw(surface, style),
@@ -293,18 +319,7 @@ impl Series {
     }
 }
 
-#[derive(Debug, Clone)]
-struct Line {
-    index: usize,
-    cols: (des::DataCol, des::DataCol),
-    ab: Option<(axis::Bounds, axis::Bounds)>,
-    axes: (des::axis::Ref, des::axis::Ref),
-    path: Option<geom::Path>,
-    stroke: style::series::Stroke,
-    interpolation: des::series::Interpolation,
-}
-
-trait Liner {
+trait Liner: Sized {
     fn new(pt_len: usize) -> Self
     where
         Self: Sized;
@@ -316,6 +331,56 @@ trait Liner {
     }
 
     fn into_path(self) -> geom::Path;
+
+    fn make_path(
+        mut self,
+        x: &dyn data::Column,
+        y: &dyn data::Column,
+        cm: &CoordMapXy,
+        rect: &geom::Rect,
+    ) -> geom::Path {
+        let mut prev = None;
+        let mut cur = None;
+
+        for (x, y) in x.sample_iter().zip(y.sample_iter()) {
+            let next = if x.is_null() || y.is_null() {
+                None
+            } else {
+                let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
+                let (x, y) = plot_to_fig(rect, x, y);
+                Some((x, y))
+            };
+
+            match (prev, cur, next) {
+                (_, None, _) => {}
+                (None, Some(_), None) => {
+                    // single point, no line to draw
+                }
+                (None, Some((x, y)), Some(_)) => {
+                    self.start_line(x, y);
+                }
+                (Some(_), Some((x, y)), None) => {
+                    self.stop_line(x, y);
+                }
+                (Some(_), Some((x, y)), Some(_)) => {
+                    self.cont_line(x, y);
+                }
+            }
+            prev = cur;
+            cur = next;
+        }
+
+        match (prev, cur) {
+            (_, None) => {}
+            (None, Some(_)) => {
+                // single point, no line to draw
+            }
+            (Some(_), Some((x, y))) => {
+                self.stop_line(x, y);
+            }
+        }
+        self.into_path()
+    }
 }
 
 struct LinearLiner {
@@ -494,6 +559,43 @@ impl Liner for CubicSplineLiner {
     }
 }
 
+fn calc_xy_line_path(
+    x_col: &dyn data::Column,
+    y_col: &dyn data::Column,
+    interpolation: des::series::Interpolation,
+    rect: &geom::Rect,
+    cm: &CoordMapXy,
+) -> geom::Path {
+    match interpolation {
+        des::series::Interpolation::Linear => {
+            let liner = LinearLiner::new(x_col.len());
+            liner.make_path(x_col, y_col, cm, rect)
+        }
+        des::series::Interpolation::StepEarly
+        | des::series::Interpolation::StepLate
+        | des::series::Interpolation::StepMiddle => {
+            let mut liner = StepLiner::new(x_col.len());
+            liner.step_type = interpolation;
+            liner.make_path(x_col, y_col, cm, rect)
+        }
+        des::series::Interpolation::Spline => {
+            let liner = CubicSplineLiner::new(x_col.len());
+            liner.make_path(x_col, y_col, cm, rect)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Line {
+    index: usize,
+    cols: (des::DataCol, des::DataCol),
+    ab: Option<(axis::Bounds, axis::Bounds)>,
+    axes: (des::axis::Ref, des::axis::Ref),
+    path: Option<geom::Path>,
+    stroke: style::series::Stroke,
+    interpolation: des::series::Interpolation,
+}
+
 impl Line {
     fn prepare<D>(index: usize, des: &des::series::Line, data_source: &D) -> Result<Self, Error>
     where
@@ -534,80 +636,9 @@ impl Line {
             self.ab = Some(xy_bounds);
         }
 
-        let path = match self.interpolation {
-            des::series::Interpolation::Linear => {
-                let mut liner = LinearLiner::new(x_col.len());
-                self.make_line_path(rect, x_col, y_col, cm, &mut liner);
-                liner.into_path()
-            }
-            des::series::Interpolation::StepEarly
-            | des::series::Interpolation::StepLate
-            | des::series::Interpolation::StepMiddle => {
-                let mut liner = StepLiner::new(x_col.len());
-                liner.step_type = self.interpolation;
-                self.make_line_path(rect, x_col, y_col, cm, &mut liner);
-                liner.into_path()
-            }
-            des::series::Interpolation::Spline => {
-                let mut liner = CubicSplineLiner::new(x_col.len());
-                self.make_line_path(rect, x_col, y_col, cm, &mut liner);
-                liner.into_path()
-            }
-        };
+        let path = calc_xy_line_path(x_col, y_col, self.interpolation, rect, cm);
 
         self.path = Some(path);
-    }
-
-    fn make_line_path<L>(
-        &self,
-        rect: &geom::Rect,
-        x: &dyn data::Column,
-        y: &dyn data::Column,
-        cm: &CoordMapXy,
-        liner: &mut L,
-    ) where
-        L: Liner,
-    {
-        let mut prev = None;
-        let mut cur = None;
-
-        for (x, y) in x.sample_iter().zip(y.sample_iter()) {
-            let next = if x.is_null() || y.is_null() {
-                None
-            } else {
-                let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
-                let (x, y) = plot_to_fig(rect, x, y);
-                Some((x, y))
-            };
-
-            match (prev, cur, next) {
-                (_, None, _) => {}
-                (None, Some(_), None) => {
-                    // single point, no line to draw
-                }
-                (None, Some((x, y)), Some(_)) => {
-                    liner.start_line(x, y);
-                }
-                (Some(_), Some((x, y)), None) => {
-                    liner.stop_line(x, y);
-                }
-                (Some(_), Some((x, y)), Some(_)) => {
-                    liner.cont_line(x, y);
-                }
-            }
-            prev = cur;
-            cur = next;
-        }
-
-        match (prev, cur) {
-            (_, None) => {}
-            (None, Some(_)) => {
-                // single point, no line to draw
-            }
-            (Some(_), Some((x, y))) => {
-                liner.stop_line(x, y);
-            }
-        }
     }
 
     fn draw<S>(&self, surface: &mut S, style: &Style)
@@ -711,6 +742,220 @@ impl Scatter {
                 fill: self.marker.fill.as_ref().map(|f| f.as_paint(&rc)),
                 stroke: self.marker.stroke.as_ref().map(|l| l.as_stroke(&rc)),
                 transform: Some(&transform),
+            };
+            surface.draw_path(&path);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Area {
+    index: usize,
+    x: des::DataCol,
+    y1: des::DataCol,
+    y2: des::series::AreaY2,
+    ab: Option<(axis::Bounds, axis::Bounds)>,
+    axes: (des::axis::Ref, des::axis::Ref),
+    path_y1: Option<geom::Path>,
+    path_y2: Option<geom::Path>,
+    path_fill: Option<geom::Path>,
+    fill: Option<style::series::Fill>,
+    stroke_y1: Option<style::series::Stroke>,
+    stroke_y2: Option<style::series::Stroke>,
+    interpolation: des::series::Interpolation,
+}
+
+impl Area {
+    fn calc_bounds<D>(
+        data_source: &D,
+        x: &des::DataCol,
+        y1: &des::DataCol,
+        y2: &des::series::AreaY2,
+    ) -> Result<Option<(axis::Bounds, axis::Bounds)>, Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        let mut xy_bounds = calc_xy_bounds(data_source, x, y1)?;
+        if let Some((_, y_bounds)) = &mut xy_bounds {
+            match y2 {
+                des::series::AreaY2::Baseline(value) => {
+                    y_bounds.unite_with(&Bounds::Num((*value).into()))?;
+                }
+                des::series::AreaY2::DataCol(y2_col, ..) => {
+                    let y2_col = get_column(y2_col, data_source)?;
+                    if let Some(y2_bounds) = y2_col.bounds() {
+                        y_bounds.unite_with(&y2_bounds)?;
+                    }
+                }
+            }
+        }
+        Ok(xy_bounds)
+    }
+
+    fn prepare<D>(index: usize, des: &des::series::Area, data_source: &D) -> Result<Self, Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        let x = des.x_data().clone();
+        let y1 = des.y1_data().clone();
+        let y2 = des.y2_data().clone();
+        let xy_bounds = Self::calc_bounds(data_source, &x, &y1, &y2)?;
+        Ok(Area {
+            index,
+            x,
+            y1,
+            y2,
+            ab: xy_bounds,
+            axes: (des.x_axis().clone(), des.y_axis().clone()),
+            path_y1: None,
+            path_y2: None,
+            path_fill: None,
+            fill: des.fill().cloned(),
+            stroke_y1: des.stroke_y1().cloned(),
+            stroke_y2: des.stroke_y2().cloned(),
+            interpolation: des.interpolation(),
+        })
+    }
+
+    fn update_data<D>(&mut self, data_source: &D, rect: &geom::Rect, cm: &CoordMapXy)
+    where
+        D: data::Source + ?Sized,
+    {
+        // unwraping here as data is checked during setup phase
+        let x_col = get_column(&self.x, data_source).unwrap();
+        let y1_col = get_column(&self.y1, data_source).unwrap();
+
+        debug_assert!(x_col.len() == y1_col.len());
+
+        if self.ab.is_none() && x_col.is_empty() {
+            self.path_y1 = None;
+            self.path_y2 = None;
+            self.path_fill = None;
+            return;
+        }
+
+        if self.ab.is_none() && !x_col.is_empty() {
+            let xy_bounds = Self::calc_bounds(data_source, &self.x, &self.y1, &self.y2)
+                .expect("Should be able to calculate bounds for non-empty data")
+                .expect("Should be able to calculate bounds for non-empty data");
+            self.ab = Some(xy_bounds);
+        }
+
+        let path = calc_xy_line_path(x_col, y1_col, self.interpolation, rect, cm);
+        self.path_y1 = Some(path);
+
+        self.path_y2 = match &self.y2 {
+            des::series::AreaY2::Baseline(value) => {
+                let mut pb = geom::PathBuilder::new();
+                let path_y1 = self.path_y1.as_ref().unwrap();
+                let x1 = path_y1.points().first().unwrap().x;
+                let x2 = path_y1.points().last().unwrap().x;
+                let y = cm.y.map_coord_num(*value);
+                let (_, y1) = plot_to_fig(rect, x1, y);
+                let (_, y2) = plot_to_fig(rect, x2, y);
+                pb.move_to(x1, y1);
+                pb.line_to(x2, y2);
+                Some(pb.finish().expect("Should be a valid path"))
+            }
+            des::series::AreaY2::DataCol(y2_col, interpolation) => {
+                let y2_col = get_column(y2_col, data_source).unwrap();
+                let path = calc_xy_line_path(x_col, y2_col, *interpolation, rect, cm);
+                Some(path)
+            }
+        };
+
+        self.path_fill = self.fill.as_ref().map(|_| {
+            let path_y1 = self.path_y1.as_ref().unwrap();
+            let path_y2 = self.path_y2.as_ref().unwrap();
+
+            let mut pb = geom::PathBuilder::new();
+            // For some reason, pb.push_path doesn't work (it inserts a line back to the beginning)
+            for seg in path_y1.segments() {
+                match seg {
+                    PathSegment::MoveTo(p) => {
+                        pb.move_to(p.x, p.y);
+                    }
+                    PathSegment::LineTo(p) => {
+                        pb.line_to(p.x, p.y);
+                    }
+                    PathSegment::QuadTo(p1, p) => {
+                        pb.quad_to(p1.x, p1.y, p.x, p.y);
+                    }
+                    PathSegment::CubicTo(p1, p2, p) => {
+                        pb.cubic_to(p1.x, p1.y, p2.x, p2.y, p.x, p.y);
+                    }
+                    PathSegment::Close => {
+                        pb.close();
+                    }
+                }
+            }
+
+            let mut linked = false;
+            for seg in geom::path_segments_rev_iter(path_y2) {
+                match seg {
+                    PathSegment::MoveTo(p) => {
+                        debug_assert!(!linked);
+                        if !linked {
+                            pb.line_to(p.x, p.y);
+                            linked = true;
+                        } else {
+                            pb.move_to(p.x, p.y);
+                        }
+                    }
+                    PathSegment::LineTo(p) => {
+                        debug_assert!(linked, "Should have made linked already");
+                        pb.line_to(p.x, p.y);
+                    }
+                    PathSegment::QuadTo(p1, p) => {
+                        debug_assert!(linked, "Should have made linked already");
+                        pb.quad_to(p1.x, p1.y, p.x, p.y);
+                    }
+                    PathSegment::CubicTo(p1, p2, p) => {
+                        debug_assert!(linked, "Should have made linked already");
+                        pb.cubic_to(p1.x, p1.y, p2.x, p2.y, p.x, p.y);
+                    }
+                    PathSegment::Close => {
+                        println!("Z");
+                        pb.close();
+                    }
+                }
+            }
+            pb.close();
+            let p = pb.finish().expect("Should be a valid path");
+            p
+        });
+    }
+
+    fn draw<S>(&self, surface: &mut S, style: &Style)
+    where
+        S: render::Surface,
+    {
+        let rc = (style, self.index);
+
+        if let (Some(fp), Some(fill)) = (&self.path_fill, &self.fill) {
+            let path = render::Path {
+                path: fp,
+                fill: Some(fill.as_paint(&rc)),
+                stroke: None,
+                transform: None,
+            };
+            surface.draw_path(&path);
+        }
+        if let (Some(sp), Some(stroke)) = (&self.path_y1, &self.stroke_y1) {
+            let path = render::Path {
+                path: sp,
+                fill: None,
+                stroke: Some(stroke.as_stroke(&rc)),
+                transform: None,
+            };
+            surface.draw_path(&path);
+        }
+        if let (Some(sp), Some(stroke)) = (&self.path_y2, &self.stroke_y2) {
+            let path = render::Path {
+                path: sp,
+                fill: None,
+                stroke: Some(stroke.as_stroke(&rc)),
+                transform: None,
             };
             surface.draw_path(&path);
         }

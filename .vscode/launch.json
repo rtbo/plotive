@@ -7,6 +7,18 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "area example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "area",
+                    "--features", "utils"
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "bars example",
             "cargo": {
                 "args": [

@@ -46,6 +46,10 @@ time = []
 utils = []
 
 [[example]]
+name = "area"
+required-features = ["utils"]
+
+[[example]]
 name = "bars"
 
 [[example]]

@@ -34,6 +34,7 @@ impl From<TimeBounds> for Bounds {
 }
 
 impl Bounds {
+
     pub fn unite_with<B>(&mut self, other: &B) -> Result<(), Error>
     where
         B: AsBoundRef,
