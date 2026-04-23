@@ -6,8 +6,9 @@
  * Y low coordinates are at the top.
  */
 
-use strict_num::{FiniteF32, PositiveF32};
 use std::marker::PhantomData;
+
+use strict_num::{FiniteF32, PositiveF32};
 pub use tiny_skia_path::{Path, PathBuilder, PathSegment, PathVerb, Point, Transform};
 
 /// A size in 2D space represented by width and height
@@ -623,7 +624,8 @@ pub fn reverse_path(path: &Path) -> Path {
             PathSegment::Close => pb.close(),
         }
     }
-    pb.finish().expect("Reversing a valid path should yield a valid path")
+    pb.finish()
+        .expect("Reversing a valid path should yield a valid path")
 }
 
 pub struct PathSegmentsRevIter<'a> {
@@ -763,10 +765,7 @@ impl SubPathSegment {
             SubPathSegment::Line { from, .. } => PathSegment::LineTo(*from),
             SubPathSegment::Quad { from, ctrl, .. } => PathSegment::QuadTo(*ctrl, *from),
             SubPathSegment::Cubic {
-                from,
-                ctrl1,
-                ctrl2,
-                ..
+                from, ctrl1, ctrl2, ..
             } => PathSegment::CubicTo(*ctrl2, *ctrl1, *from),
         }
     }

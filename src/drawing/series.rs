@@ -40,7 +40,7 @@ impl SeriesExt for des::series::Area {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::AreaRect{
+            shape: legend::ShapeRef::AreaRect {
                 fill: self.fill(),
                 stroke_y1: self.stroke_y1(),
                 stroke_y2: self.stroke_y2(),
