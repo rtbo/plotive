@@ -1,9 +1,9 @@
-use plotive::{data, des, utils};
+use plotive::{data, des};
 
 mod common;
 
 fn main() {
-    let x = utils::linspace(0.0, 5.0, 6);
+    let x = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
     let y1 = vec![10.0, 15.0, 8.0, 6.0, 12.0, 10.0];
     let y2 = vec![4.0, 9.0, 2.0, 0.0, 6.0, 4.0];
 
