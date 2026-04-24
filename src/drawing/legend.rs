@@ -8,14 +8,27 @@ use crate::{Style, des, drawing, geom, render, style};
 pub enum Shape {
     Line(style::series::Stroke),
     Marker(style::series::Marker),
-    Rect(style::series::Fill, Option<style::series::Stroke>),
+    Rect(Option<style::series::Fill>, Option<style::series::Stroke>),
+    AreaRect {
+        fill: Option<style::series::Fill>,
+        stroke_y1: Option<style::series::Stroke>,
+        stroke_y2: Option<style::series::Stroke>,
+    },
 }
 
 #[derive(Debug, Clone, Copy)]
 pub enum ShapeRef<'a> {
     Line(&'a style::series::Stroke),
     Marker(&'a style::series::Marker),
-    Rect(&'a style::series::Fill, Option<&'a style::series::Stroke>),
+    Rect(
+        Option<&'a style::series::Fill>,
+        Option<&'a style::series::Stroke>,
+    ),
+    AreaRect {
+        fill: Option<&'a style::series::Fill>,
+        stroke_y1: Option<&'a style::series::Stroke>,
+        stroke_y2: Option<&'a style::series::Stroke>,
+    },
 }
 
 impl ShapeRef<'_> {
@@ -23,7 +36,16 @@ impl ShapeRef<'_> {
         match self {
             &ShapeRef::Line(line) => Shape::Line(line.clone()),
             &ShapeRef::Marker(marker) => Shape::Marker(marker.clone()),
-            &ShapeRef::Rect(fill, line) => Shape::Rect(fill.clone(), line.cloned()),
+            &ShapeRef::Rect(fill, line) => Shape::Rect(fill.cloned(), line.cloned()),
+            &ShapeRef::AreaRect {
+                fill,
+                stroke_y1,
+                stroke_y2,
+            } => Shape::AreaRect {
+                fill: fill.cloned(),
+                stroke_y1: stroke_y1.cloned(),
+                stroke_y2: stroke_y2.cloned(),
+            },
         }
     }
 }
@@ -281,11 +303,59 @@ impl LegendEntry {
                 );
                 let rr = render::Rect {
                     rect: r,
-                    fill: Some(fill.as_paint(&rc)),
+                    fill: fill.as_ref().map(|f| f.as_paint(&rc)),
                     stroke: line.as_ref().map(|l| l.as_stroke(&rc)),
                     transform: None,
                 };
                 surface.draw_rect(&rr);
+            }
+            Shape::AreaRect {
+                fill,
+                stroke_y1,
+                stroke_y2,
+            } => {
+                let r = geom::Rect::from_ps(
+                    geom::Point {
+                        x: rect.left(),
+                        y: rect.center_y() - shape_sz.height() / 2.0,
+                    },
+                    shape_sz,
+                );
+                if let Some(fill) = fill {
+                    let rr = render::Rect {
+                        rect: r,
+                        fill: Some(fill.as_paint(&rc)),
+                        stroke: None,
+                        transform: None,
+                    };
+                    surface.draw_rect(&rr);
+                }
+                if let Some(stroke) = stroke_y1 {
+                    let mut pb = geom::PathBuilder::new();
+                    pb.move_to(r.left(), r.top());
+                    pb.line_to(r.right(), r.top());
+                    let path = pb.finish().unwrap();
+                    let rp = render::Path {
+                        path: &path,
+                        fill: None,
+                        stroke: Some(stroke.as_stroke(&rc)),
+                        transform: None,
+                    };
+                    surface.draw_path(&rp);
+                }
+                if let Some(stroke) = stroke_y2 {
+                    let mut pb = geom::PathBuilder::new();
+                    pb.move_to(r.left(), r.bottom());
+                    pb.line_to(r.right(), r.bottom());
+                    let path = pb.finish().unwrap();
+                    let rp = render::Path {
+                        path: &path,
+                        fill: None,
+                        stroke: Some(stroke.as_stroke(&rc)),
+                        transform: None,
+                    };
+                    surface.draw_path(&rp);
+                }
             }
         };
 

@@ -768,6 +768,7 @@ where
         match &s {
             des::Series::Line(line) => f(line)?,
             des::Series::Scatter(scatter) => f(scatter)?,
+            des::Series::Area(area) => f(area)?,
             des::Series::Histogram(hist) => f(hist)?,
             des::Series::Bars(bars) => f(bars)?,
             des::Series::BarsGroup(bars_group) => {

@@ -46,6 +46,9 @@ time = []
 utils = []
 
 [[example]]
+name = "area"
+
+[[example]]
 name = "bars"
 
 [[example]]
