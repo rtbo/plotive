@@ -85,6 +85,8 @@ pub enum Series {
     Line(Line),
     /// Plots data as scatter points.
     Scatter(Scatter),
+    /// Plots data as an area between two lines.
+    Area(Area),
     /// Plots data in histograms.
     Histogram(Histogram),
     /// Plots data as discrete bars.
@@ -99,6 +101,7 @@ impl Series {
         match self {
             Series::Line(s) => (s.x_axis(), s.y_axis()),
             Series::Scatter(s) => (s.x_axis(), s.y_axis()),
+            Series::Area(s) => (s.x_axis(), s.y_axis()),
             Series::Histogram(s) => (s.x_axis(), s.y_axis()),
             Series::Bars(s) => (s.x_axis(), s.y_axis()),
             Series::BarsGroup(s) => (s.x_axis(), s.y_axis()),
@@ -122,6 +125,12 @@ impl From<Line> for Series {
 impl From<Scatter> for Series {
     fn from(scatter: Scatter) -> Self {
         Series::Scatter(scatter)
+    }
+}
+
+impl From<Area> for Series {
+    fn from(area: Area) -> Self {
+        Series::Area(area)
     }
 }
 
@@ -370,6 +379,197 @@ impl Scatter {
     /// Get the marker style
     pub fn marker(&self) -> &style::series::Marker {
         &self.marker
+    }
+}
+
+/// Definition for the `y2_data` field of the Area plot.
+#[derive(Debug, Clone)]
+pub enum AreaY2 {
+    /// Y2 is a horizontal baseline (usually Y=0)
+    Baseline(f64),
+    /// Y2 is defined by another data column.
+    /// In that case, it must have the same length as X and Y1, and the area will be filled between Y1 and Y2.
+    DataCol(DataCol, Interpolation),
+}
+
+impl Default for AreaY2 {
+    fn default() -> Self {
+        AreaY2::Baseline(0.0)
+    }
+}
+
+impl From<f64> for AreaY2 {
+    fn from(value: f64) -> Self {
+        AreaY2::Baseline(value)
+    }
+}
+
+impl From<DataCol> for AreaY2 {
+    fn from(col: DataCol) -> Self {
+        AreaY2::DataCol(col, Interpolation::default())
+    }
+}
+
+impl From<(DataCol, Interpolation)> for AreaY2 {
+    fn from(value: (DataCol, Interpolation)) -> Self {
+        AreaY2::DataCol(value.0, value.1)
+    }
+}
+
+/// An area series structure.
+///
+/// Plots data as a filled area between Y1 and Y2 lines over the X axis.
+/// This is useful for visualizing cumulative data or kernel density estimates
+#[derive(Debug, Clone)]
+pub struct Area {
+    x_data: DataCol,
+    y1_data: DataCol,
+    y2_data: AreaY2,
+
+    name: Option<String>,
+    x_axis: axis::Ref,
+    y_axis: axis::Ref,
+    fill: Option<style::series::Fill>,
+    stroke_y1: Option<style::series::Stroke>,
+    stroke_y2: Option<style::series::Stroke>,
+    interpolation: Interpolation,
+}
+
+impl Area {
+    /// Create a new area series with the given x, y1, and y2 data columns
+    pub fn new(x_data: DataCol, y1_data: DataCol, y2_data: AreaY2) -> Self {
+        Area {
+            x_data,
+            y1_data,
+            y2_data,
+
+            name: None,
+            x_axis: Default::default(),
+            y_axis: Default::default(),
+            fill: Some(style::series::Fill::default()),
+            stroke_y1: None,
+            stroke_y2: None,
+            interpolation: Interpolation::default(),
+        }
+    }
+
+    /// Set the name and return self for chaining
+    pub fn with_name(self, name: impl Into<String>) -> Self {
+        Self {
+            name: Some(name.into()),
+            ..self
+        }
+    }
+
+    /// Set a reference to the x axis and return self for chaining
+    /// Use this to associate the series with a specific x axis in the plot, when a plot has multiple x axes.
+    pub fn with_x_axis(mut self, axis: axis::Ref) -> Self {
+        self.x_axis = axis;
+        self
+    }
+
+    /// Set a reference to the y axis and return self for chaining
+    /// Use this to associate the series with a specific y axis in the plot, when a plot has multiple y axes.
+    pub fn with_y_axis(mut self, axis: axis::Ref) -> Self {
+        self.y_axis = axis;
+        self
+    }
+
+    /// Set the fill style and return self for chaining
+    pub fn with_fill(mut self, fill: Option<style::series::Fill>) -> Self {
+        self.fill = fill;
+        self
+    }
+
+    /// Set the stroke style of the Y1 line and return self for chaining
+    pub fn with_stroke_y1(mut self, stroke: style::series::Stroke) -> Self {
+        self.stroke_y1 = Some(stroke);
+        self
+    }
+
+    /// Set the stroke style of the Y2 line and return self for chaining
+    pub fn with_stroke_y2(mut self, stroke: style::series::Stroke) -> Self {
+        self.stroke_y2 = Some(stroke);
+        self
+    }
+
+    /// Set the interpolation method and return self for chaining
+    pub fn with_interpolation(mut self, interpolation: Interpolation) -> Self {
+        self.interpolation = interpolation;
+        self
+    }
+
+    /// Get the x data column
+    pub fn x_data(&self) -> &DataCol {
+        &self.x_data
+    }
+
+    /// Get the y1 data column
+    pub fn y1_data(&self) -> &DataCol {
+        &self.y1_data
+    }
+
+    /// Get the y2 data definition
+    pub fn y2_data(&self) -> &AreaY2 {
+        &self.y2_data
+    }
+
+    /// Get the name
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
+    }
+
+    /// Get a reference to the x axis
+    pub fn x_axis(&self) -> &axis::Ref {
+        &self.x_axis
+    }
+
+    /// Get a reference to the y axis
+    pub fn y_axis(&self) -> &axis::Ref {
+        &self.y_axis
+    }
+
+    /// Get the fill style
+    pub fn fill(&self) -> Option<&style::series::Fill> {
+        self.fill.as_ref()
+    }
+
+    /// Get the stroke style of Y1 line
+    pub fn stroke_y1(&self) -> Option<&style::series::Stroke> {
+        self.stroke_y1.as_ref()
+    }
+
+    /// Get the stroke style of Y2 line
+    pub fn stroke_y2(&self) -> Option<&style::series::Stroke> {
+        self.stroke_y2.as_ref()
+    }
+
+    /// Chaining helper to build a plot from this series
+    /// This can only be used if your plot contains a single series.
+    /// This is equivalent to `Plot::new(vec![self.into()])`
+    ///
+    /// # Example
+    /// ```
+    /// use plotive::des;
+    /// use plotive::des::series::{self, data_src_ref};
+    ///
+    /// let fig: des::Figure = series::Area::new(data_src_ref("x_values"), data_src_ref("y_values"), Default::default())
+    ///     .with_name("Area Series")
+    ///     .into_plot()
+    ///     .with_x_axis(des::Axis::new().with_ticks(Default::default()))
+    ///     .with_y_axis(des::Axis::new().with_ticks(Default::default()).with_grid(Default::default()))
+    ///     .into_figure()
+    ///     .with_title("Area Plot Example".into());
+    ///
+    /// ```
+    pub fn into_plot(self) -> super::Plot {
+        super::Plot::new(vec![self.into()])
+    }
+
+    /// Get the interpolation method for Y1.
+    /// Y2 interpolation is defined separately in the `AreaY2::DataCol` variant, if Y2 is defined by a data column.
+    pub fn interpolation(&self) -> Interpolation {
+        self.interpolation
     }
 }
 
