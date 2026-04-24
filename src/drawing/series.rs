@@ -778,8 +778,12 @@ impl Histogram {
         })
     }
 
-    fn calc_bins(col: &dyn data::F64Column, x_bounds: axis::NumBounds, bins: u32, density: bool) -> Result<Vec<HistBin>, Error>
-    {
+    fn calc_bins(
+        col: &dyn data::F64Column,
+        x_bounds: axis::NumBounds,
+        bins: u32,
+        density: bool,
+    ) -> Result<Vec<HistBin>, Error> {
         let width = x_bounds.span() / bins as f64;
         let mut bins = Vec::with_capacity(bins as usize);
         let mut val = x_bounds.start();
@@ -808,7 +812,8 @@ impl Histogram {
     }
 
     fn update_data<D>(&mut self, data_source: &D, rect: &geom::Rect, cm: &CoordMapXy)
-    where     D: data::Source + ?Sized,
+    where
+        D: data::Source + ?Sized,
     {
         if !self.updated_once {
             self.updated_once = true;
@@ -817,7 +822,8 @@ impl Histogram {
             let x_bounds = self.ab.0;
             let col = get_column(&self.data_col, data_source).expect("TODO: error handling");
             let col = col.f64().expect("TODO: error handling");
-            let bins = Self::calc_bins(col, x_bounds, self.bin_count, self.density).expect("TODO: error handling");
+            let bins = Self::calc_bins(col, x_bounds, self.bin_count, self.density)
+                .expect("TODO: error handling");
 
             self.bins = bins;
         }
