@@ -292,7 +292,7 @@ impl Series {
             SeriesPlot::Scatter(sc) => sc.update_data(data_source, rect, cm),
             SeriesPlot::Area(area) => area.update_data(data_source, rect, cm),
             SeriesPlot::Histogram(hist) => {
-                hist.update_data(rect, cm);
+                hist.update_data(data_source, rect, cm);
             }
             SeriesPlot::Bars(bars) => {
                 bars.update_data(data_source, rect, cm);
@@ -973,12 +973,16 @@ struct HistBin {
 #[derive(Debug, Clone)]
 struct Histogram {
     index: usize,
+    data_col: des::DataCol,
+    bin_count: u32,
+    density: bool,
     ab: (axis::NumBounds, axis::NumBounds),
     axes: (des::axis::Ref, des::axis::Ref),
     bins: Vec<HistBin>,
     path: Option<geom::Path>,
     fill: style::series::Fill,
     line: Option<style::series::Stroke>,
+    updated_once: bool,
 }
 
 impl Histogram {
@@ -990,15 +994,43 @@ impl Histogram {
     where
         D: data::Source + ?Sized,
     {
-        let mut bins = Vec::with_capacity(hist.bins() as usize);
-
-        let col = get_column(hist.data(), data_source)?;
+        let data_col = hist.data().clone();
+        let col = get_column(&data_col, data_source)?;
         let col = col.f64().ok_or(Error::InconsistentData(
             "Histogram data must be numeric".into(),
         ))?;
         let x_bounds = col.bounds().ok_or(Error::UnboundedAxis)?;
 
-        let width = x_bounds.span() / hist.bins() as f64;
+        let bins = Self::calc_bins(col, x_bounds, hist.bins(), hist.density())?;
+
+        let mut y_bounds = axis::NumBounds::NAN;
+        for bin in bins.iter() {
+            y_bounds.add_sample(bin.value);
+        }
+
+        Ok(Histogram {
+            index,
+            data_col,
+            bin_count: hist.bins(),
+            density: hist.density(),
+            ab: (x_bounds, y_bounds),
+            axes: (hist.x_axis().clone(), hist.y_axis().clone()),
+            bins,
+            path: None,
+            fill: hist.fill().clone(),
+            line: hist.line().cloned(),
+            updated_once: false,
+        })
+    }
+
+    fn calc_bins(
+        col: &dyn data::F64Column,
+        x_bounds: axis::NumBounds,
+        bins: u32,
+        density: bool,
+    ) -> Result<Vec<HistBin>, Error> {
+        let width = x_bounds.span() / bins as f64;
+        let mut bins = Vec::with_capacity(bins as usize);
         let mut val = x_bounds.start();
         while val <= x_bounds.end() {
             bins.push(HistBin {
@@ -1008,7 +1040,7 @@ impl Histogram {
             val += width;
         }
 
-        let samp_add = if hist.density() {
+        let samp_add = if density {
             1.0 / (col.len_some() as f64 * width)
         } else {
             1.0
@@ -1021,23 +1053,26 @@ impl Histogram {
             }
         }
 
-        let mut y_bounds = axis::NumBounds::NAN;
-        for bin in bins.iter() {
-            y_bounds.add_sample(bin.value);
-        }
-
-        Ok(Histogram {
-            index,
-            ab: (x_bounds, y_bounds),
-            axes: (hist.x_axis().clone(), hist.y_axis().clone()),
-            bins,
-            path: None,
-            fill: hist.fill().clone(),
-            line: hist.line().cloned(),
-        })
+        Ok(bins)
     }
 
-    fn update_data(&mut self, rect: &geom::Rect, cm: &CoordMapXy) {
+    fn update_data<D>(&mut self, data_source: &D, rect: &geom::Rect, cm: &CoordMapXy)
+    where
+        D: data::Source + ?Sized,
+    {
+        if !self.updated_once {
+            self.updated_once = true;
+            // no need to recalculate bins, as first call is made with the same data_source as prepare
+        } else {
+            let x_bounds = self.ab.0;
+            let col = get_column(&self.data_col, data_source).expect("TODO: error handling");
+            let col = col.f64().expect("TODO: error handling");
+            let bins = Self::calc_bins(col, x_bounds, self.bin_count, self.density)
+                .expect("TODO: error handling");
+
+            self.bins = bins;
+        }
+
         let mut pb = geom::PathBuilder::new();
         let mut x = rect.left() + cm.x.map_coord_num(self.bins[0].range.0);
         let mut y = rect.bottom() - cm.y.map_coord_num(0.0);
