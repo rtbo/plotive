@@ -75,7 +75,7 @@ pub fn locate_minor(
             Ok(LogLocator::new_minor(*base).ticks(nb))
         }
         _ => Err(Error::InconsistentDesign(format!(
-            "Unsupported locator/scale combination: {:?}/{:?}",
+            "Unsupported minor locator/scale combination: {:?}/{:?}",
             locator, scale
         ))),
     }
