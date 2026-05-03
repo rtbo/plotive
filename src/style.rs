@@ -406,17 +406,86 @@ pub struct Marker<C: Color> {
     pub stroke: Option<Stroke<C>>,
 }
 
+impl<C: Color> Marker<C> {
+    /// Create a new marker with both fill and stroke set to the same color
+    pub fn new_with_color(color: C) -> Self {
+        Marker {
+            size: MarkerSize::default(),
+            shape: MarkerShape::default(),
+            fill: Some(Fill::Solid {
+                color,
+                opacity: None,
+            }),
+            stroke: Some(Stroke {
+                color,
+                width: defaults::SERIES_LINE_WIDTH,
+                pattern: LinePattern::default(),
+                opacity: None,
+            }),
+        }
+    }
+
+    /// Set the marker size, returning self for chaining
+    pub fn with_size<S: Into<MarkerSize>>(self, size: S) -> Self {
+        Self {
+            size: size.into(),
+            ..self
+        }
+    }
+
+    /// Set the marker shape, returning self for chaining
+    pub fn with_shape(self, shape: MarkerShape) -> Self {
+        Self { shape, ..self }
+    }
+
+    /// Set the marker fill style, returning self for chaining
+    pub fn with_fill<F: Into<Fill<C>>>(self, fill: F) -> Self {
+        Self {
+            fill: Some(fill.into()),
+            ..self
+        }
+    }
+
+    /// Set the marker stroke style, returning self for chaining
+    pub fn with_stroke<S: Into<Stroke<C>>>(self, stroke: S) -> Self {
+        Self {
+            stroke: Some(stroke.into()),
+            ..self
+        }
+    }
+
+    /// Shorthand for setting both fill and stroke to the same color, returning self for chaining
+    pub fn with_color(self, color: C) -> Self {
+        let mut fill = self.fill.unwrap_or_else(|| Fill::Solid {
+            color,
+            opacity: None,
+        });
+        match &mut fill {
+            Fill::Solid { color: col, .. } => *col = color,
+        }
+
+        let mut stroke = self.stroke.unwrap_or_else(|| Stroke {
+            color,
+            width: defaults::SERIES_LINE_WIDTH,
+            opacity: None,
+            pattern: LinePattern::default(),
+        });
+        stroke.color = color;
+
+        Self {
+            fill: Some(fill),
+            stroke: Some(stroke),
+            ..self
+        }
+    }
+}
+
 impl<C> Default for Marker<C>
 where
     C: Color + Default,
 {
     fn default() -> Self {
-        Marker {
-            size: MarkerSize::default(),
-            shape: MarkerShape::default(),
-            fill: Some(Fill::default()),
-            stroke: None,
-        }
+        Marker::new_with_color(C::default())
     }
 }
 
