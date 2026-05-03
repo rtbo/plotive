@@ -167,8 +167,10 @@ pub enum LinePattern {
     Solid,
     /// Dashed line. The pattern is relative to the line width.
     Dash(Dash),
-    /// Dotted line. Equivalent to Dash(1.0, 1.0)
+    /// Dotted line. Equivalent to Dash(vec![1.0, 1.0])
     Dot,
+    /// Dash-dot line. Equivalent to Dash(vec![5.0, 5.0, 1.0, 5.0])
+    DashDot,
 }
 
 impl Default for LinePattern {
@@ -200,6 +202,7 @@ pub struct Stroke<C: Color> {
 }
 
 const DOT_DASH: &[f32] = &[1.0, 1.0];
+const DASH_DOT_DASH: &[f32] = &[5.0, 5.0, 1.0, 5.0];
 
 impl<C: Color> Stroke<C> {
     /// Set the line width in figure units, returning self for chaining
@@ -235,6 +238,7 @@ impl<C: Color> Stroke<C> {
             LinePattern::Solid => render::LinePattern::Solid,
             LinePattern::Dash(Dash(a)) => render::LinePattern::Dash(a.as_slice()),
             LinePattern::Dot => render::LinePattern::Dash(DOT_DASH),
+            LinePattern::DashDot => render::LinePattern::Dash(DASH_DOT_DASH),
         };
 
         render::Stroke {
