@@ -78,7 +78,7 @@ impl MplStyle for series::Line {
         if let Ok(c) = mpl_style.parse::<color::ColorU8>() {
             let mut s = self.stroke().clone();
             s.color = c.into();
-            return Ok(self.with_line(s));
+            return Ok(self.with_stroke(s));
         }
 
         let style = match LineMplStyle::parse(mpl_style) {
@@ -98,13 +98,13 @@ impl MplStyle for series::Line {
         if let Some(pattern) = style.pattern {
             let mut s = self.stroke().clone();
             s.pattern = pattern;
-            self = self.with_line(s);
+            self = self.with_stroke(s);
         }
 
         if let Some(c) = style.color {
             let mut s = self.stroke().clone();
             s.color = c;
-            self = self.with_line(s);
+            self = self.with_stroke(s);
         }
 
         Ok(self)

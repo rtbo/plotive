@@ -51,7 +51,7 @@ fn main() {
     let dist_series = des::Series::Line(
         des::series::Line::new(x.into(), y.into())
             .with_name("distribution")
-            .with_line(style::series::Stroke {
+            .with_stroke(style::series::Stroke {
                 width: 4.0,
                 ..style::Stroke::default()
             }),

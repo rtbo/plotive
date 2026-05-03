@@ -225,8 +225,8 @@ impl Line {
     }
 
     /// Set the line style and return self for chaining
-    pub fn with_line(mut self, line: style::series::Stroke) -> Self {
-        self.stroke = line;
+    pub fn with_stroke(mut self, stroke: style::series::Stroke) -> Self {
+        self.stroke = stroke;
         self
     }
 
@@ -585,7 +585,7 @@ pub struct Histogram {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     fill: style::series::Fill,
-    line: Option<style::series::Stroke>,
+    stroke: Option<style::series::Stroke>,
     bins: u32,
     density: bool,
 }
@@ -600,7 +600,7 @@ impl Histogram {
             x_axis: Default::default(),
             y_axis: Default::default(),
             fill: style::series::Fill::default(),
-            line: None,
+            stroke: None,
             bins: 10,
             density: false,
         }
@@ -631,9 +631,9 @@ impl Histogram {
         Self { fill, ..self }
     }
 
-    /// Set the line style for the histogram outline and return self for chaining
-    pub fn with_line(mut self, line: style::series::Stroke) -> Self {
-        self.line = Some(line);
+    /// Set the stroke style for the histogram outline and return self for chaining
+    pub fn with_outline(mut self, stroke: style::series::Stroke) -> Self {
+        self.stroke = Some(stroke);
         self
     }
 
@@ -674,9 +674,9 @@ impl Histogram {
         &self.fill
     }
 
-    /// Get the line style, if any
-    pub fn line(&self) -> Option<&style::series::Stroke> {
-        self.line.as_ref()
+    /// Get the outline style, if any
+    pub fn outline(&self) -> Option<&style::series::Stroke> {
+        self.stroke.as_ref()
     }
 
     /// Get the number of bins
@@ -726,7 +726,7 @@ pub struct Bars {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     fill: style::series::Fill,
-    line: Option<style::series::Stroke>,
+    stroke: Option<style::series::Stroke>,
     position: BarsPosition,
 }
 
@@ -741,7 +741,7 @@ impl Bars {
             x_axis: Default::default(),
             y_axis: Default::default(),
             fill: style::series::Fill::default(),
-            line: None,
+            stroke: None,
             position: BarsPosition::default(),
         }
     }
@@ -759,10 +759,10 @@ impl Bars {
         Self { fill, ..self }
     }
 
-    /// Set the line style for the bar outline and return self for chaining
-    pub fn with_line(self, line: style::series::Stroke) -> Self {
+    /// Set the stroke style for the bar outline and return self for chaining
+    pub fn with_outline(self, stroke: style::series::Stroke) -> Self {
         Self {
-            line: Some(line),
+            stroke: Some(stroke),
             ..self
         }
     }
@@ -802,9 +802,9 @@ impl Bars {
         &self.fill
     }
 
-    /// Get the line style, if any
-    pub fn line(&self) -> Option<&style::series::Stroke> {
-        self.line.as_ref()
+    /// Get the outline style, if any
+    pub fn outline(&self) -> Option<&style::series::Stroke> {
+        self.stroke.as_ref()
     }
 
     /// Get the position configuration
@@ -823,7 +823,7 @@ pub struct BarSeries {
 
     name: Option<String>,
     fill: style::series::Fill,
-    line: Option<style::series::Stroke>,
+    stroke: Option<style::series::Stroke>,
 }
 
 impl BarSeries {
@@ -834,7 +834,7 @@ impl BarSeries {
 
             name: None,
             fill: style::series::Fill::default(),
-            line: None,
+            stroke: None,
         }
     }
 
@@ -851,10 +851,10 @@ impl BarSeries {
         Self { fill, ..self }
     }
 
-    /// Set the line style for the bar outline and return self for chaining
-    pub fn with_line(self, line: style::series::Stroke) -> Self {
+    /// Set the stroke style for the bar outline and return self for chaining
+    pub fn with_outline(self, stroke: style::series::Stroke) -> Self {
         Self {
-            line: Some(line),
+            stroke: Some(stroke),
             ..self
         }
     }
@@ -874,9 +874,9 @@ impl BarSeries {
         &self.fill
     }
 
-    /// Get the line style, if any
-    pub fn line(&self) -> Option<&style::series::Stroke> {
-        self.line.as_ref()
+    /// Get the outline style, if any
+    pub fn outline(&self) -> Option<&style::series::Stroke> {
+        self.stroke.as_ref()
     }
 }
 

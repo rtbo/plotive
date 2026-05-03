@@ -43,7 +43,7 @@ fn style_dot() {
 #[test]
 fn style_dash_scales_with_width() {
     let series = line()
-        .with_line(plotive::style::series::Stroke::default().with_width(4.0))
+        .with_stroke(plotive::style::series::Stroke::default().with_width(4.0))
         .with_mpl_style("--")
         .unwrap()
         .into();

@@ -54,7 +54,7 @@ impl SeriesExt for des::series::Histogram {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
         })
     }
 }
@@ -64,7 +64,7 @@ impl SeriesExt for des::series::Bars {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
         })
     }
 }
@@ -74,7 +74,7 @@ impl SeriesExt for des::series::BarSeries {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
         })
     }
 }
@@ -1018,7 +1018,7 @@ impl Histogram {
             bins,
             path: None,
             fill: hist.fill().clone(),
-            line: hist.line().cloned(),
+            line: hist.outline().cloned(),
             updated_once: false,
         })
     }
@@ -1168,7 +1168,7 @@ impl Bars {
             position: des.position().clone(),
             path: None,
             fill: des.fill().clone(),
-            line: des.line().cloned(),
+            line: des.outline().cloned(),
         })
     }
 
@@ -1492,7 +1492,7 @@ impl BarsGroup {
             let rpath = render::Path {
                 path,
                 fill: Some(series.fill().as_paint(&rc)),
-                stroke: series.line().map(|l| l.as_stroke(&rc)),
+                stroke: series.outline().map(|l| l.as_stroke(&rc)),
                 transform: None,
             };
             surface.draw_path(&rpath);

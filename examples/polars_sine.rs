@@ -27,7 +27,7 @@ fn main() {
     let series = des::Series::Line(
         des::series::Line::new(des::data_src_ref("x"), des::data_src_ref("y"))
             .with_name("y=sin(x)")
-            .with_line(style::series::Stroke::default().with_width(4.0)),
+            .with_stroke(style::series::Stroke::default().with_width(4.0)),
     );
 
     let plot = des::Plot::new(vec![series])
