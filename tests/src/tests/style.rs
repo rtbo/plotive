@@ -1,5 +1,5 @@
-use plotive::des;
 use plotive::utils::MplStyle;
+use plotive::{ColorU8, des};
 
 use super::{fig_small, line};
 use crate::{TestHarness, assert_fig_eq_ref};
@@ -12,7 +12,7 @@ fn line_spline() -> des::series::Line {
 }
 
 #[test]
-fn style_mpl_dash() {
+fn style_dash_mpl() {
     let series = line().with_mpl_style("--").unwrap().into();
     let plot = des::Plot::new(vec![series]);
     let fig = fig_small(plot);
@@ -21,7 +21,7 @@ fn style_mpl_dash() {
 }
 
 #[test]
-fn style_mpl_dash_dot() {
+fn style_dash_dot_mpl() {
     let series = line().with_mpl_style("-.").unwrap().into();
     let plot = des::Plot::new(vec![series]);
     let fig = fig_small(plot);
@@ -30,11 +30,8 @@ fn style_mpl_dash_dot() {
 }
 
 #[test]
-fn style_mpl_dash_dot_spline() {
-    let series = line_spline()
-        .with_mpl_style("-.")
-        .unwrap()
-        .into();
+fn style_dash_dot_spline_mpl() {
+    let series = line_spline().with_mpl_style("-.").unwrap().into();
     let plot = des::Plot::new(vec![series]);
     let fig = fig_small(plot);
 
@@ -42,7 +39,7 @@ fn style_mpl_dash_dot_spline() {
 }
 
 #[test]
-fn style_mpl_dot() {
+fn style_dot_mpl() {
     let series = line().with_mpl_style(":").unwrap().into();
     let plot = des::Plot::new(vec![series]);
     let fig = fig_small(plot);
@@ -51,7 +48,7 @@ fn style_mpl_dot() {
 }
 
 #[test]
-fn style_mpl_dash_scales_with_width() {
+fn style_dash_scales_with_width_mpl() {
     let series = line()
         .with_stroke(plotive::style::series::Stroke::default().with_width(4.0))
         .with_mpl_style("--")
@@ -64,9 +61,33 @@ fn style_mpl_dash_scales_with_width() {
 }
 
 #[test]
-fn style_mpl_line_markers() {
+fn style_line_markers_mpl() {
     let plot = line_spline().with_mpl_style("o").unwrap().into_plot();
     let fig = fig_small(plot);
 
-    assert_fig_eq_ref!(&fig, "style/line-plus-markers");
+    assert_fig_eq_ref!(&fig, "style/line-markers");
+}
+
+#[test]
+fn style_line_markers_plus_mpl() {
+    let plot = line_spline().with_mpl_style("+").unwrap().into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-plus");
+}
+
+#[test]
+fn style_line_markers_triup_color() {
+    let plot = line_spline()
+        .with_marker(
+            plotive::style::series::Marker::new_with_color(
+                plotive::ColorU8::from_html(b"#000").into(),
+            )
+            .with_stroke(ColorU8::from_html(b"#080").into())
+            .with_shape(plotive::style::MarkerShape::TriangleUp),
+        )
+        .into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-triup-color");
 }

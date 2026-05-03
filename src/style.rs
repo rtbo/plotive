@@ -375,6 +375,10 @@ pub enum MarkerShape {
     TriangleUp,
     ///  Downward pointing triangle marker
     TriangleDown,
+    ///  Rightward pointing triangle marker
+    TriangleRight,
+    ///  Leftward pointing triangle marker
+    TriangleLeft,
 }
 
 /// Size of a marker, used in scatter plots
@@ -439,17 +443,17 @@ impl<C: Color> Marker<C> {
     }
 
     /// Set the marker fill style, returning self for chaining
-    pub fn with_fill<F: Into<Fill<C>>>(self, fill: F) -> Self {
+    pub fn with_fill(self, fill: Fill<C>) -> Self {
         Self {
-            fill: Some(fill.into()),
+            fill: Some(fill),
             ..self
         }
     }
 
     /// Set the marker stroke style, returning self for chaining
-    pub fn with_stroke<S: Into<Stroke<C>>>(self, stroke: S) -> Self {
+    pub fn with_stroke(self, stroke: Stroke<C>) -> Self {
         Self {
-            stroke: Some(stroke.into()),
+            stroke: Some(stroke),
             ..self
         }
     }
