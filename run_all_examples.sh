@@ -23,6 +23,7 @@ done
 cargo run --example text_line --package plotive-text --features noto-sans
 cargo run --example text_rich --package plotive-text --features noto-sans,noto-serif
 
+cargo run --example area -- ${POS_ARGS[@]}
 cargo run --example bars -- ${POS_ARGS[@]}
 cargo run --example gauss -- ${POS_ARGS[@]}
 cargo run --example sine -- ${POS_ARGS[@]}
