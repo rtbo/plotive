@@ -184,6 +184,7 @@ pub struct Line {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     stroke: style::series::Stroke,
+    marker: Option<style::series::Marker>,
     interpolation: Interpolation,
 }
 
@@ -198,6 +199,7 @@ impl Line {
             x_axis: Default::default(),
             y_axis: Default::default(),
             stroke: style::series::Stroke::default().with_width(defaults::SERIES_LINE_WIDTH),
+            marker: None,
             interpolation: Interpolation::default(),
         }
     }
@@ -227,6 +229,12 @@ impl Line {
     /// Set the line style and return self for chaining
     pub fn with_stroke(mut self, stroke: style::series::Stroke) -> Self {
         self.stroke = stroke;
+        self
+    }
+
+    /// Set the marker style and return self for chaining
+    pub fn with_marker(mut self, marker: style::series::Marker) -> Self {
+        self.marker = Some(marker);
         self
     }
 
@@ -264,6 +272,11 @@ impl Line {
     /// Get the stroke style
     pub fn stroke(&self) -> &style::series::Stroke {
         &self.stroke
+    }
+
+    /// Get the marker style, if any
+    pub fn marker(&self) -> Option<&style::series::Marker> {
+        self.marker.as_ref()
     }
 
     /// Chaining helper to build a plot from this series

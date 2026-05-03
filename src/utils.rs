@@ -91,8 +91,10 @@ impl MplStyle for series::Line {
             }
         };
 
-        if let Some(_) = style.marker_shape {
-            todo!("line marker not implemented yet");
+        if let Some(shape) = style.marker_shape {
+            let mut marker = self.marker().cloned().unwrap_or_default();
+            marker.shape = shape;
+            self = self.with_marker(marker);
         }
 
         if let Some(pattern) = style.pattern {
