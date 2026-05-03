@@ -3,7 +3,8 @@ use plotive_base::geom;
 use plotive_text::{bundled_font_db, font, line};
 
 fn main() {
-    let db = bundled_font_db();
+    let mut db = bundled_font_db();
+    db.load_system_fonts();
 
     let font = font::Font::default().with_families(vec![
         font::Family::Named("Noto Sans".to_string()),
