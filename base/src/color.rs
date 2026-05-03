@@ -1,9 +1,10 @@
 use std::str::FromStr;
 use std::{error, fmt};
 
-mod named;
+mod css4;
+mod xkcd;
 
-pub use named::*;
+pub use css4::*;
 
 pub trait ResolveColor<Color> {
     fn resolve_color(&self, color: &Color) -> ColorU8;
@@ -201,6 +202,10 @@ const fn hex_to_u8(hex: u8) -> u8 {
     }
 }
 
+const fn is_hex_char(c: u8) -> bool {
+    matches!(c, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')
+}
+
 /// Parsing error for ColorU8
 #[derive(Debug)]
 pub enum ParseError {
@@ -297,8 +302,11 @@ impl FromStr for ColorU8 {
             let bytes = raw.as_bytes();
             match bytes.len() {
                 4 | 5 | 7 | 9 => {
-                    // from_html panics if first char != '#', but we checked it
-                    Ok(ColorU8::from_html(bytes))
+                    if bytes[1..].iter().all(|&c| is_hex_char(c)) {
+                        Ok(ColorU8::from_html(bytes))
+                    } else {
+                        Err(ParseError::InvalidHex)
+                    }
                 }
                 _ => Err(ParseError::InvalidHex),
             }
@@ -328,7 +336,9 @@ impl FromStr for ColorU8 {
         }
         // named color
         else {
-            if let Some(col) = named::lookup_name(raw) {
+            if let Some(col) = css4::lookup_name(raw) {
+                Ok(col)
+            } else if let Some(col) = xkcd::lookup_name(raw) {
                 Ok(col)
             } else {
                 Err(ParseError::UnknownName)
