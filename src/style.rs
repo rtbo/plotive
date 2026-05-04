@@ -490,6 +490,36 @@ impl<C: Color> Marker<C> {
             ..self
         }
     }
+
+    /// Shorthand for setting opacity of the fill, returning self for chaining
+    pub fn with_fill_opacity(self, opacity: f32) -> Self {
+        match self.fill {
+            Some(Fill::Solid { color, .. }) => self.with_fill(Fill::Solid {
+                color,
+                opacity: Some(opacity),
+            }),
+            None => self,
+        }
+    }
+
+    /// Shorthand for setting stroke width, returning self for chaining
+    pub fn with_stroke_width(self, width: f32) -> Self {
+        let stroke = match self.stroke {
+            Some(Stroke {
+                color,
+                pattern,
+                opacity,
+                ..
+            }) => Some(Stroke {
+                color,
+                width,
+                pattern,
+                opacity,
+            }),
+            None => None,
+        };
+        Self { stroke, ..self }
+    }
 }
 
 impl<C> Default for Marker<C>

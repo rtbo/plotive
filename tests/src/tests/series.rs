@@ -44,16 +44,9 @@ fn series_scatter_sizes() {
             .with_sizes(des::data_inline(sizes))
             .with_marker(
                 style::series::Marker::default()
-                    .with_fill(style::Fill::Solid {
-                        color: color.into(),
-                        opacity: Some(0.6),
-                    })
-                    .with_stroke(style::series::Stroke {
-                        color: color.into(),
-                        width: 1.0,
-                        pattern: style::LinePattern::Solid,
-                        opacity: None,
-                    }),
+                    .with_color(color.into())
+                    .with_fill_opacity(0.6)
+                    .with_stroke_width(2.0),
             )
             .into(),
     ]);
