@@ -311,6 +311,13 @@ impl Line {
 ///
 /// Plots data as individual scatter points without connecting them.
 /// Useful for visualizing correlations, distributions, and discrete data points.
+///
+/// Optional sizes data column can be used to specify the size of each marker, for bubble charts.
+/// If provided, the size field of the marker is ignored and the size of each marker
+/// is determined by the corresponding value in the sizes data column.
+/// Just like marker size, the size data is interpreted as an area.
+/// (diameter = sqrt(size data) for circle marker).
+/// The sizes data column must have the same length as the x and y data columns.
 #[derive(Debug, Clone)]
 pub struct Scatter {
     x_data: DataCol,
@@ -320,6 +327,7 @@ pub struct Scatter {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     marker: style::series::Marker,
+    sizes_data: Option<DataCol>,
 }
 
 impl Scatter {
@@ -333,6 +341,7 @@ impl Scatter {
             x_axis: Default::default(),
             y_axis: Default::default(),
             marker: style::series::Marker::default(),
+            sizes_data: None,
         }
     }
 
@@ -364,6 +373,12 @@ impl Scatter {
         self
     }
 
+    /// Set the sizes data column and return self for chaining
+    pub fn with_sizes(mut self, sizes_data: DataCol) -> Self {
+        self.sizes_data = Some(sizes_data);
+        self
+    }
+
     /// Get the x data column
     pub fn x_data(&self) -> &DataCol {
         &self.x_data
@@ -392,6 +407,11 @@ impl Scatter {
     /// Get the marker style
     pub fn marker(&self) -> &style::series::Marker {
         &self.marker
+    }
+
+    /// Get the sizes data column, if any
+    pub fn sizes_data(&self) -> Option<&DataCol> {
+        self.sizes_data.as_ref()
     }
 }
 

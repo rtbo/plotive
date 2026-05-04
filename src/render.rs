@@ -73,6 +73,14 @@ pub struct Stroke<'a> {
     pub pattern: LinePattern<'a>,
 }
 
+impl Stroke<'_> {
+    /// Multiply the line width by the given factor, useful for keeping visual width with scaled paths.
+    pub fn with_multiplied_width(mut self, factor: f32) -> Self {
+        self.width *= factor;
+        self
+    }
+}
+
 /// Rectangle to draw
 #[derive(Debug, Clone)]
 pub struct Rect<'a> {

@@ -281,14 +281,19 @@ impl LegendEntry {
                 surface.draw_path(&line);
             }
             Shape::Marker(marker) => {
-                let path = crate::drawing::marker::marker_path(&marker);
+                let path = crate::drawing::marker::marker_path(marker.shape);
+                let scale = style::MarkerSize::default().to_visual_size();
                 let transform =
-                    geom::Transform::from_translate(shape_rect.center_x(), shape_rect.center_y());
+                    geom::Transform::from_translate(shape_rect.center_x(), shape_rect.center_y())
+                        .pre_scale(scale, scale);
 
                 let path = render::Path {
                     path: &path,
                     fill: marker.fill.as_ref().map(|f| f.as_paint(&rc)),
-                    stroke: marker.stroke.as_ref().map(|s| s.as_stroke(&rc)),
+                    stroke: marker
+                        .stroke
+                        .as_ref()
+                        .map(|s| s.as_stroke(&rc).with_multiplied_width(1.0 / scale)),
                     transform: Some(&transform),
                 };
                 surface.draw_path(&path);

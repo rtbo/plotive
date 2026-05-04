@@ -588,13 +588,13 @@ fn calc_xy_line_path(
 #[derive(Debug, Clone)]
 struct MarkerData {
     path: geom::Path,
-    points: Vec<geom::Point>,
+    points: Vec<(geom::Point, f32)>, // pos and scale
     marker: style::series::Marker,
 }
 
 impl MarkerData {
     fn new(marker: style::series::Marker) -> Self {
-        let path = marker::marker_path(&marker);
+        let path = marker::marker_path(marker.shape);
         Self {
             path,
             points: Vec::new(),
@@ -617,11 +617,16 @@ impl MarkerData {
         let rc = (style, index);
 
         for p in &self.points {
-            let transform = geom::Transform::from_translate(p.x, p.y);
+            let transform = geom::Transform::from_translate(p.0.x, p.0.y).pre_scale(p.1, p.1);
+
             let path = render::Path {
                 path: &self.path,
                 fill: self.marker.fill.as_ref().map(|f| f.as_paint(&rc)),
-                stroke: self.marker.stroke.as_ref().map(|l| l.as_stroke(&rc)),
+                stroke: self
+                    .marker
+                    .stroke
+                    .as_ref()
+                    .map(|l| l.as_stroke(&rc).with_multiplied_width(1.0 / p.1)),
                 transform: Some(&transform),
             };
             surface.draw_path(&path);
@@ -688,6 +693,7 @@ impl Line {
         self.path = Some(path);
 
         if let Some(marker_data) = self.marker_data.as_mut() {
+            let size = marker_data.marker.size.to_visual_size();
             let mut points = Vec::with_capacity(x_col.len());
 
             for (x, y) in x_col.sample_iter().zip(y_col.sample_iter()) {
@@ -697,7 +703,7 @@ impl Line {
                 let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
                 let x = rect.left() + x;
                 let y = rect.bottom() - y;
-                points.push(geom::Point { x, y });
+                points.push((geom::Point { x, y }, size));
             }
             marker_data.points = points;
         }
@@ -729,6 +735,7 @@ impl Line {
 struct Scatter {
     index: usize,
     cols: (des::DataCol, des::DataCol),
+    sizes_col: Option<des::DataCol>,
     ab: Option<(axis::Bounds, axis::Bounds)>,
     axes: (des::axis::Ref, des::axis::Ref),
     marker_data: MarkerData,
@@ -740,11 +747,13 @@ impl Scatter {
         D: data::Source + ?Sized,
     {
         let cols = (des.x_data().clone(), des.y_data().clone());
+        let sizes_col = des.sizes_data().cloned();
         let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
         let marker_data = MarkerData::new(des.marker().clone());
         Ok(Scatter {
             index,
             cols,
+            sizes_col,
             ab: xy_bounds,
             axes: (des.x_axis().clone(), des.y_axis().clone()),
             marker_data,
@@ -759,6 +768,12 @@ impl Scatter {
         let y_col = get_column(&self.cols.1, data_source).unwrap();
         debug_assert!(x_col.len() == y_col.len());
 
+        let sizes_col = self
+            .sizes_col
+            .as_ref()
+            .map(|col| get_column(col, data_source).unwrap());
+        debug_assert!(sizes_col.map_or(true, |sc| sc.len() == x_col.len()));
+
         if self.ab.is_none() && x_col.is_empty() {
             self.marker_data.clear();
             return;
@@ -772,15 +787,26 @@ impl Scatter {
         }
 
         let mut points = Vec::with_capacity(x_col.len());
+        let default_vs = self.marker_data.marker.size.to_visual_size();
+
+        let mut sizes_iter = sizes_col.map(|sc| sc.sample_iter());
 
         for (x, y) in x_col.sample_iter().zip(y_col.sample_iter()) {
             if x.is_null() || y.is_null() {
                 continue;
             }
+
             let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
             let x = rect.left() + x;
             let y = rect.bottom() - y;
-            points.push(geom::Point { x, y });
+            let vs = sizes_iter
+                .as_mut()
+                .and_then(|iter| iter.next())
+                .and_then(|v| v.as_num())
+                .map(|v| style::MarkerSize::from(v as f32).to_visual_size())
+                .unwrap_or(default_vs);
+
+            points.push((geom::Point { x, y }, vs));
         }
         self.marker_data.points = points;
     }

@@ -382,8 +382,16 @@ pub enum MarkerShape {
 }
 
 /// Size of a marker, used in scatter plots
+/// The size is interpreted as an area, so it scales quadratically with the visual size of the marker.
 #[derive(Debug, Clone, Copy)]
 pub struct MarkerSize(pub f32);
+
+impl MarkerSize {
+    /// Convert the marker size to a visual size (e.g. diameter for circle marker)
+    pub fn to_visual_size(&self) -> f32 {
+        self.0.sqrt()
+    }
+}
 
 impl Default for MarkerSize {
     fn default() -> Self {
