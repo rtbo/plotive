@@ -90,8 +90,8 @@ impl ThemePalette {
     pub const LIGHT: Self = Self {
         background: color::WHITE,
         foreground: color::BLACK,
-        grid: Rgba8::from_hex(b"#808080").with_opacity(0.6),
-        legend_fill: color::WHITE.with_opacity(0.5),
+        grid: Rgba8::from_hex(b"#808080"),
+        legend_fill: color::WHITE,
         legend_border: color::BLACK,
     };
 
@@ -99,8 +99,8 @@ impl ThemePalette {
     pub const DARK: Self = Self {
         background: Rgba8::from_hex(b"#1e1e2e"),
         foreground: color::WHITE,
-        grid: Rgba8::from_hex(b"#c0c0c0").with_opacity(0.6),
-        legend_fill: Rgba8::from_hex(b"#1e1e2e").with_opacity(0.5),
+        grid: Rgba8::from_hex(b"#c0c0c0"),
+        legend_fill: Rgba8::from_hex(b"#1e1e2e"),
         legend_border: color::WHITE,
     };
 
@@ -121,13 +121,13 @@ impl ThemePalette {
     pub fn new_back_and_fore(background: Rgba8, foreground: Rgba8) -> Self {
         let grid = if background.luminance() < 0.5 {
             // Dark background
-            Rgb8::new(192, 192, 192).with_opacity(0.6)
+            Rgb8::new(192, 192, 192).opaque()
         } else {
             // Light background
-            Rgb8::new(128, 128, 128).with_opacity(0.6)
+            Rgb8::new(128, 128, 128).opaque()
         };
 
-        let legend_fill = background.with_opacity(0.5);
+        let legend_fill = background;
         let legend_border = foreground;
 
         Self {

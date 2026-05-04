@@ -30,86 +30,6 @@ impl ResolveColor<Rgba8> for () {
     }
 }
 
-/// A simple color type with 8-bit RGB components.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Rgb8(u8, u8, u8);
-
-impl Rgb8 {
-    pub const fn new(r: u8, g: u8, b: u8) -> Self {
-        Self(r, g, b)
-    }
-
-    /// Get the red component of the color.
-    pub const fn r(&self) -> u8 {
-        self.0
-    }
-
-    /// Get the green component of the color.
-    pub const fn g(&self) -> u8 {
-        self.1
-    }
-
-    /// Get the blue component of the color.
-    pub const fn b(&self) -> u8 {
-        self.2
-    }
-
-    /// Get the HTML hex string representation of the color, e.g. `#ff0000` for red.
-    pub fn html(&self) -> String {
-        format!("#{:02x}{:02x}{:02x}", self.r(), self.g(), self.b())
-    }
-
-    /// Get the RGB components of the color as an array.
-    pub const fn arr(&self) -> [u8; 3] {
-        [self.0, self.1, self.2]
-    }
-
-    /// Compute the relative luminance of the color, in linear RGB space.
-    pub fn luminance(&self) -> f32 {
-        let lin: LinRgb = (*self).into();
-        lin.luminance()
-    }
-
-    /// Get this color with an alpha channel, with the given alpha value.
-    pub const fn with_a(&self, a: u8) -> Rgba8 {
-        Rgba8(self.0, self.1, self.2, a)
-    }
-
-    /// Get this color with an alpha channel, with alpha specified between 0.0 and 1.0.
-    pub const fn with_opacity(&self, opacity: f32) -> Rgba8 {
-        let a = (opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
-        self.with_a(a)
-    }
-
-    /// Parse a color from an HTML hex string, e.g. `#ff0000` or `#f00` for red.
-    /// The hex string must start with a `#` and be followed by either 3 or 6 hexadecimal digits.
-    ///
-    /// Panics if the hex string is invalid, e.g. if it contains non-hexadecimal characters or has an invalid length.
-    pub const fn from_hex(hex: &[u8]) -> Self {
-        if hex[0] != b'#' {
-            panic!("Hex color must start with a #");
-        }
-        match hex.len() {
-            4 => {
-                let r = hex_to_u8(hex[1]);
-                let g = hex_to_u8(hex[2]);
-                let b = hex_to_u8(hex[3]);
-                let r = r << 4 | r;
-                let g = g << 4 | g;
-                let b = b << 4 | b;
-                Rgb8::new(r, g, b)
-            }
-            7 => {
-                let r = hex_to_u8(hex[1]) << 4 | hex_to_u8(hex[2]);
-                let g = hex_to_u8(hex[3]) << 4 | hex_to_u8(hex[4]);
-                let b = hex_to_u8(hex[5]) << 4 | hex_to_u8(hex[6]);
-                Rgb8::new(r, g, b)
-            }
-            _ => panic!("Invalid hex color"),
-        }
-    }
-}
-
 /// A simple color type with 8-bit RGB components, including an alpha channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rgba8(u8, u8, u8, u8);
@@ -164,28 +84,22 @@ impl Rgba8 {
         Rgb8(self.0, self.1, self.2)
     }
 
+    /// Split the representation into Rgb8 representation and the optional opacity value.
+    /// The opacity value is None if the alpha channel is 255 (fully opaque), otherwise it is Some(alpha / 255.0).
+    pub const fn split_rgb_opacity(&self) -> (Rgb8, Option<f32>) {
+        let opacity = if self.a() == 255 {
+            None
+        } else {
+            Some(self.a() as f32 / 255.0)
+        };
+        (Rgb8(self.0, self.1, self.2), opacity)
+    }
+
     /// Compute the relative luminance of the color, in linear RGB space.
     /// The alpha channel is ignored for this computation.
     pub fn luminance(&self) -> f32 {
         let lin: LinRgb = self.rgb().into();
         lin.luminance()
-    }
-
-    /// Get the alpha channel of the color as a float between 0.0 and 1.0.
-    pub const fn opacity(&self) -> Option<f32> {
-        if self.a() == 255 {
-            None
-        } else {
-            Some(self.a() as f32 / 255.0)
-        }
-    }
-
-    /// Get this color with an alpha channel, with alpha specified between 0.0 and 1.0.
-
-    pub const fn with_opacity(self, opacity: f32) -> Self {
-        assert!(0.0 <= opacity && opacity <= 1.0);
-        let a = self.a() as f32 * opacity;
-        Rgba8(self.r(), self.g(), self.b(), a as u8)
     }
 
     /// Parse a color from an HTML hex string, e.g. `#ff0000` or `#f00` for red.
@@ -230,6 +144,85 @@ impl Rgba8 {
                 let b = hex_to_u8(hex[5]) << 4 | hex_to_u8(hex[6]);
                 let a = hex_to_u8(hex[7]) << 4 | hex_to_u8(hex[8]);
                 Rgba8::new(r, g, b, a)
+            }
+            _ => panic!("Invalid hex color"),
+        }
+    }
+}
+
+/// A simple color type with 8-bit RGB components.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rgb8(u8, u8, u8);
+
+impl Rgb8 {
+    pub const fn new(r: u8, g: u8, b: u8) -> Self {
+        Self(r, g, b)
+    }
+
+    /// Get the red component of the color.
+    pub const fn r(&self) -> u8 {
+        self.0
+    }
+
+    /// Get the green component of the color.
+    pub const fn g(&self) -> u8 {
+        self.1
+    }
+
+    /// Get the blue component of the color.
+    pub const fn b(&self) -> u8 {
+        self.2
+    }
+
+    /// Get the HTML hex string representation of the color, e.g. `#ff0000` for red.
+    pub fn html(&self) -> String {
+        format!("#{:02x}{:02x}{:02x}", self.r(), self.g(), self.b())
+    }
+
+    /// Get the RGB components of the color as an array.
+    pub const fn arr(&self) -> [u8; 3] {
+        [self.0, self.1, self.2]
+    }
+
+    /// Compute the relative luminance of the color, in linear RGB space.
+    pub fn luminance(&self) -> f32 {
+        let lin: LinRgb = (*self).into();
+        lin.luminance()
+    }
+
+    /// Get this color with an alpha channel, with the given alpha value.
+    pub const fn with_a(&self, a: u8) -> Rgba8 {
+        Rgba8(self.0, self.1, self.2, a)
+    }
+
+    /// Get this color with an opaque alpha channel
+    pub const fn opaque(&self) -> Rgba8 {
+        Rgba8(self.0, self.1, self.2, 255)
+    }
+
+    /// Parse a color from an HTML hex string, e.g. `#ff0000` or `#f00` for red.
+    /// The hex string must start with a `#` and be followed by either 3 or 6 hexadecimal digits.
+    ///
+    /// Panics if the hex string is invalid, e.g. if it contains non-hexadecimal characters or has an invalid length.
+    pub const fn from_hex(hex: &[u8]) -> Self {
+        if hex[0] != b'#' {
+            panic!("Hex color must start with a #");
+        }
+        match hex.len() {
+            4 => {
+                let r = hex_to_u8(hex[1]);
+                let g = hex_to_u8(hex[2]);
+                let b = hex_to_u8(hex[3]);
+                let r = r << 4 | r;
+                let g = g << 4 | g;
+                let b = b << 4 | b;
+                Rgb8::new(r, g, b)
+            }
+            7 => {
+                let r = hex_to_u8(hex[1]) << 4 | hex_to_u8(hex[2]);
+                let g = hex_to_u8(hex[3]) << 4 | hex_to_u8(hex[4]);
+                let b = hex_to_u8(hex[5]) << 4 | hex_to_u8(hex[6]);
+                Rgb8::new(r, g, b)
             }
             _ => panic!("Invalid hex color"),
         }

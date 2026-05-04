@@ -6,7 +6,7 @@ pub mod theme;
 
 pub use crate::style::series::Palette;
 pub use crate::style::theme::Theme;
-use crate::{Color, Rgba8, ResolveColor, render};
+use crate::{Color, ResolveColor, Rgba8, render};
 
 /// Overall style definition for figures
 ///
@@ -145,6 +145,15 @@ impl ResolveColor<series::Color> for (&Style, usize) {
     }
 }
 
+fn add_opacity(c: Rgba8, opacity: Option<f32>) -> Rgba8 {
+    debug_assert!(opacity.map_or(true, |t| t >= 0.0 && t <= 1.0));
+
+    match opacity {
+        Some(opacity) => Rgba8::new(c.r(), c.g(), c.b(), (c.a() as f32 * opacity).round() as u8),
+        None => c,
+    }
+}
+
 /// Dash pattern for dashed lines
 /// A dash pattern is a sequence of lengths that specify the lengths of
 /// alternating dashes and gaps.
@@ -228,11 +237,7 @@ impl<C: Color> Stroke<C> {
     where
         R: ResolveColor<C>,
     {
-        let color = if let Some(opacity) = self.opacity {
-            self.color.resolve(rc).with_opacity(opacity)
-        } else {
-            self.color.resolve(rc)
-        };
+        let color = add_opacity(self.color.resolve(rc), self.opacity);
 
         let pattern = match &self.pattern {
             LinePattern::Solid => render::LinePattern::Solid,
@@ -336,14 +341,9 @@ impl<C: Color> Fill<C> {
         R: ResolveColor<C>,
     {
         match self {
-            Fill::Solid {
-                color,
-                opacity: None,
-            } => render::Paint::Solid(color.resolve(rc)),
-            Fill::Solid {
-                color,
-                opacity: Some(opacity),
-            } => render::Paint::Solid(color.resolve(rc).with_opacity(*opacity)),
+            Fill::Solid { color, opacity } => {
+                render::Paint::Solid(add_opacity(color.resolve(rc), *opacity))
+            }
         }
     }
 }

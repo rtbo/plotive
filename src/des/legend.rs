@@ -43,16 +43,17 @@ pub struct Legend<Pos> {
 
 impl<Pos: Default> Default for Legend<Pos> {
     /// Create a default legend configuration
-    /// - Fill color: theme::Col::LegendFill
+    /// - Fill color: theme::Col::LegendFill, opacity 0.5
     /// - Border: theme::Col::LegendBorder, 1.0
     /// - Font: default EntryFont
     /// - Default column layout (depdend on the position and number and width of entries)
     /// - Default padding and spacing
     fn default() -> Self {
+        let fill: theme::Fill = theme::Col::LegendFill.into();
         Self {
             pos: Pos::default(),
             font: EntryFont::default(),
-            fill: Some(theme::Col::LegendFill.into()),
+            fill: Some(fill.with_opacity(0.5)),
             border: Some(theme::Col::LegendBorder.into()),
             columns: None,
             padding: defaults::LEGEND_PADDING.into(),

@@ -349,8 +349,9 @@ where
     N: Node,
 {
     if let Some(render::Paint::Solid(color)) = fill {
-        node.assign("fill", color.rgb().html());
-        if let Some(opacity) = color.opacity() {
+        let (rgb, opacity) = color.split_rgb_opacity();
+        node.assign("fill", rgb.html());
+        if let Some(opacity) = opacity {
             node.assign("fill-opacity", opacity);
         }
     } else {
@@ -363,12 +364,13 @@ where
     N: Node,
 {
     if let Some(stroke) = stroke {
-        let w = stroke.width;
-        node.assign("stroke", stroke.color.rgb().html());
-        node.assign("stroke-width", w);
-        if let Some(opacity) = stroke.color.opacity() {
+        let (rgb, opacity) = stroke.color.split_rgb_opacity();
+        node.assign("stroke", rgb.html());
+        if let Some(opacity) = opacity {
             node.assign("stroke-opacity", opacity);
         }
+        let w = stroke.width;
+        node.assign("stroke-width", w);
         match stroke.pattern {
             render::LinePattern::Solid => (),
             render::LinePattern::Dash(dash) => {
