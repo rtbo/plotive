@@ -54,7 +54,7 @@ impl SeriesExt for des::series::Histogram {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
         })
     }
 }
@@ -64,7 +64,7 @@ impl SeriesExt for des::series::Bars {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
         })
     }
 }
@@ -74,7 +74,7 @@ impl SeriesExt for des::series::BarSeries {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.line()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
         })
     }
 }
@@ -586,6 +586,55 @@ fn calc_xy_line_path(
 }
 
 #[derive(Debug, Clone)]
+struct MarkerData {
+    path: geom::Path,
+    points: Vec<(geom::Point, f32)>, // pos and scale
+    marker: style::series::Marker,
+}
+
+impl MarkerData {
+    fn new(marker: style::series::Marker) -> Self {
+        let path = marker::marker_path(marker.shape);
+        Self {
+            path,
+            points: Vec::new(),
+            marker,
+        }
+    }
+
+    fn clear(&mut self) {
+        self.points.clear();
+    }
+
+    fn draw<S>(&self, surface: &mut S, style: &Style, index: usize)
+    where
+        S: render::Surface,
+    {
+        if self.points.is_empty() {
+            return;
+        }
+
+        let rc = (style, index);
+
+        for p in &self.points {
+            let transform = geom::Transform::from_translate(p.0.x, p.0.y).pre_scale(p.1, p.1);
+
+            let path = render::Path {
+                path: &self.path,
+                fill: self.marker.fill.as_ref().map(|f| f.as_paint(&rc)),
+                stroke: self
+                    .marker
+                    .stroke
+                    .as_ref()
+                    .map(|l| l.as_stroke(&rc).with_multiplied_width(1.0 / p.1)),
+                transform: Some(&transform),
+            };
+            surface.draw_path(&path);
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 struct Line {
     index: usize,
     cols: (des::DataCol, des::DataCol),
@@ -594,6 +643,7 @@ struct Line {
     path: Option<geom::Path>,
     stroke: style::series::Stroke,
     interpolation: des::series::Interpolation,
+    marker_data: Option<MarkerData>,
 }
 
 impl Line {
@@ -603,6 +653,7 @@ impl Line {
     {
         let cols = (des.x_data().clone(), des.y_data().clone());
         let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
+        let marker_data = des.marker().cloned().map(MarkerData::new);
         Ok(Line {
             index,
             cols,
@@ -611,6 +662,7 @@ impl Line {
             path: None,
             stroke: des.stroke().clone(),
             interpolation: des.interpolation(),
+            marker_data,
         })
     }
 
@@ -639,25 +691,43 @@ impl Line {
         let path = calc_xy_line_path(x_col, y_col, self.interpolation, rect, cm);
 
         self.path = Some(path);
+
+        if let Some(marker_data) = self.marker_data.as_mut() {
+            let size = marker_data.marker.size.to_visual_size();
+            let mut points = Vec::with_capacity(x_col.len());
+
+            for (x, y) in x_col.sample_iter().zip(y_col.sample_iter()) {
+                if x.is_null() || y.is_null() {
+                    continue;
+                }
+                let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
+                let x = rect.left() + x;
+                let y = rect.bottom() - y;
+                points.push((geom::Point { x, y }, size));
+            }
+            marker_data.points = points;
+        }
     }
 
     fn draw<S>(&self, surface: &mut S, style: &Style)
     where
         S: render::Surface,
     {
-        if self.path.is_none() {
-            return;
-        }
-
         let rc = (style, self.index);
 
-        let path = render::Path {
-            path: self.path.as_ref().unwrap(),
-            fill: None,
-            stroke: Some(self.stroke.as_stroke(&rc)),
-            transform: None,
-        };
-        surface.draw_path(&path);
+        if let Some(path) = self.path.as_ref() {
+            let rpath = render::Path {
+                path,
+                fill: None,
+                stroke: Some(self.stroke.as_stroke(&rc)),
+                transform: None,
+            };
+            surface.draw_path(&rpath);
+        }
+
+        if let Some(marker) = self.marker_data.as_ref() {
+            marker.draw(surface, style, self.index);
+        }
     }
 }
 
@@ -665,11 +735,10 @@ impl Line {
 struct Scatter {
     index: usize,
     cols: (des::DataCol, des::DataCol),
+    sizes_col: Option<des::DataCol>,
     ab: Option<(axis::Bounds, axis::Bounds)>,
     axes: (des::axis::Ref, des::axis::Ref),
-    path: geom::Path,
-    points: Vec<geom::Point>,
-    marker: style::series::Marker,
+    marker_data: MarkerData,
 }
 
 impl Scatter {
@@ -678,16 +747,16 @@ impl Scatter {
         D: data::Source + ?Sized,
     {
         let cols = (des.x_data().clone(), des.y_data().clone());
+        let sizes_col = des.sizes_data().cloned();
         let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
-        let path = marker::marker_path(des.marker());
+        let marker_data = MarkerData::new(des.marker().clone());
         Ok(Scatter {
             index,
             cols,
+            sizes_col,
             ab: xy_bounds,
             axes: (des.x_axis().clone(), des.y_axis().clone()),
-            path,
-            points: Vec::new(),
-            marker: des.marker().clone(),
+            marker_data,
         })
     }
 
@@ -699,8 +768,14 @@ impl Scatter {
         let y_col = get_column(&self.cols.1, data_source).unwrap();
         debug_assert!(x_col.len() == y_col.len());
 
+        let sizes_col = self
+            .sizes_col
+            .as_ref()
+            .map(|col| get_column(col, data_source).unwrap());
+        debug_assert!(sizes_col.map_or(true, |sc| sc.len() == x_col.len()));
+
         if self.ab.is_none() && x_col.is_empty() {
-            self.points.clear();
+            self.marker_data.clear();
             return;
         }
 
@@ -712,39 +787,35 @@ impl Scatter {
         }
 
         let mut points = Vec::with_capacity(x_col.len());
+        let default_vs = self.marker_data.marker.size.to_visual_size();
+
+        let mut sizes_iter = sizes_col.map(|sc| sc.sample_iter());
 
         for (x, y) in x_col.sample_iter().zip(y_col.sample_iter()) {
             if x.is_null() || y.is_null() {
                 continue;
             }
+
             let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
             let x = rect.left() + x;
             let y = rect.bottom() - y;
-            points.push(geom::Point { x, y });
+            let vs = sizes_iter
+                .as_mut()
+                .and_then(|iter| iter.next())
+                .and_then(|v| v.as_num())
+                .map(|v| style::MarkerSize::from(v as f32).to_visual_size())
+                .unwrap_or(default_vs);
+
+            points.push((geom::Point { x, y }, vs));
         }
-        self.points = points;
+        self.marker_data.points = points;
     }
 
     fn draw<S>(&self, surface: &mut S, style: &Style)
     where
         S: render::Surface,
     {
-        if self.points.is_empty() {
-            return;
-        }
-
-        let rc = (style, self.index);
-
-        for p in &self.points {
-            let transform = geom::Transform::from_translate(p.x, p.y);
-            let path = render::Path {
-                path: &self.path,
-                fill: self.marker.fill.as_ref().map(|f| f.as_paint(&rc)),
-                stroke: self.marker.stroke.as_ref().map(|l| l.as_stroke(&rc)),
-                transform: Some(&transform),
-            };
-            surface.draw_path(&path);
-        }
+        self.marker_data.draw(surface, style, self.index);
     }
 }
 
@@ -1018,7 +1089,7 @@ impl Histogram {
             bins,
             path: None,
             fill: hist.fill().clone(),
-            line: hist.line().cloned(),
+            line: hist.outline().cloned(),
             updated_once: false,
         })
     }
@@ -1168,7 +1239,7 @@ impl Bars {
             position: des.position().clone(),
             path: None,
             fill: des.fill().clone(),
-            line: des.line().cloned(),
+            line: des.outline().cloned(),
         })
     }
 
@@ -1492,7 +1563,7 @@ impl BarsGroup {
             let rpath = render::Path {
                 path,
                 fill: Some(series.fill().as_paint(&rc)),
-                stroke: series.line().map(|l| l.as_stroke(&rc)),
+                stroke: series.outline().map(|l| l.as_stroke(&rc)),
                 transform: None,
             };
             surface.draw_path(&rpath);

@@ -298,14 +298,21 @@ impl Annot {
         let (x, y) = marker.position();
         let x = x_axis.coord_map().map_coord_num(x);
         let y = y_axis.coord_map().map_coord_num(y);
-        let path = marker::marker_path(marker.marker());
+        let marker = marker.marker();
+        let path = marker::marker_path(marker.shape);
+        let scale = marker.size.to_visual_size();
 
         let transform =
-            geom::Transform::from_translate(plot_rect.left() + x, plot_rect.bottom() - y);
+            geom::Transform::from_translate(plot_rect.left() + x, plot_rect.bottom() - y)
+                .pre_scale(scale, scale);
+
         let rpath = render::Path {
             path: &path,
-            fill: marker.marker().fill.as_ref().map(|f| f.as_paint(style)),
-            stroke: marker.marker().stroke.as_ref().map(|l| l.as_stroke(style)),
+            fill: marker.fill.as_ref().map(|f| f.as_paint(style)),
+            stroke: marker
+                .stroke
+                .as_ref()
+                .map(|l| l.as_stroke(style).with_multiplied_width(1.0 / scale)),
             transform: Some(&transform),
         };
         surface.draw_path(&rpath);

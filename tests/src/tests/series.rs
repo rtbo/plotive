@@ -32,6 +32,30 @@ fn series_scatter_nodata() {
 }
 
 #[test]
+fn series_scatter_sizes() {
+    let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let y = vec![1.0, 4.0, 9.0, 16.0, 25.0];
+    let sizes = vec![300.0, 250.0, 200.0, 150.0, 100.0];
+
+    let color: plotive::ColorU8 = "light eggplant".parse().unwrap();
+
+    let plot = des::Plot::new(vec![
+        des::series::Scatter::new(des::data_inline(x), des::data_inline(y))
+            .with_sizes(des::data_inline(sizes))
+            .with_marker(
+                style::series::Marker::default()
+                    .with_color(color.into())
+                    .with_fill_opacity(0.6)
+                    .with_stroke_width(2.0),
+            )
+            .into(),
+    ]);
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "series/scatter-sizes");
+}
+
+#[test]
 fn series_area_double() {
     let x = vec![0.0, 1.0, 2.0, 3.0, 4.0, 5.0];
     let y1 = vec![10.0, 15.0, 8.0, 6.0, 12.0, 10.0];

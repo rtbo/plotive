@@ -47,6 +47,7 @@ mod interp;
 mod legend;
 mod nulls;
 mod series;
+mod style;
 mod subplots;
 
 #[test]

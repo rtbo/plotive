@@ -169,15 +169,7 @@ pub type Marker = style::Marker<Color>;
 
 impl From<ColorU8> for Marker {
     fn from(color: ColorU8) -> Self {
-        Marker {
-            size: Default::default(),
-            shape: Default::default(),
-            fill: Some(Fill::Solid {
-                color: color.into(),
-                opacity: None,
-            }),
-            stroke: None,
-        }
+        Marker::new_with_color(color.into())
     }
 }
 

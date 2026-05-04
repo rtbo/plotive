@@ -184,6 +184,7 @@ pub struct Line {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     stroke: style::series::Stroke,
+    marker: Option<style::series::Marker>,
     interpolation: Interpolation,
 }
 
@@ -198,6 +199,7 @@ impl Line {
             x_axis: Default::default(),
             y_axis: Default::default(),
             stroke: style::series::Stroke::default().with_width(defaults::SERIES_LINE_WIDTH),
+            marker: None,
             interpolation: Interpolation::default(),
         }
     }
@@ -225,8 +227,14 @@ impl Line {
     }
 
     /// Set the line style and return self for chaining
-    pub fn with_line(mut self, line: style::series::Stroke) -> Self {
-        self.stroke = line;
+    pub fn with_stroke(mut self, stroke: style::series::Stroke) -> Self {
+        self.stroke = stroke;
+        self
+    }
+
+    /// Set the marker style and return self for chaining
+    pub fn with_marker(mut self, marker: style::series::Marker) -> Self {
+        self.marker = Some(marker);
         self
     }
 
@@ -266,6 +274,11 @@ impl Line {
         &self.stroke
     }
 
+    /// Get the marker style, if any
+    pub fn marker(&self) -> Option<&style::series::Marker> {
+        self.marker.as_ref()
+    }
+
     /// Chaining helper to build a plot from this series
     /// This can only be used if your plot contains a single series.
     /// This is equivalent to `Plot::new(vec![self.into()])`
@@ -298,6 +311,13 @@ impl Line {
 ///
 /// Plots data as individual scatter points without connecting them.
 /// Useful for visualizing correlations, distributions, and discrete data points.
+///
+/// Optional sizes data column can be used to specify the size of each marker, for bubble charts.
+/// If provided, the size field of the marker is ignored and the size of each marker
+/// is determined by the corresponding value in the sizes data column.
+/// Just like marker size, the size data is interpreted as an area.
+/// (diameter = sqrt(size data) for circle marker).
+/// The sizes data column must have the same length as the x and y data columns.
 #[derive(Debug, Clone)]
 pub struct Scatter {
     x_data: DataCol,
@@ -307,6 +327,7 @@ pub struct Scatter {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     marker: style::series::Marker,
+    sizes_data: Option<DataCol>,
 }
 
 impl Scatter {
@@ -320,6 +341,7 @@ impl Scatter {
             x_axis: Default::default(),
             y_axis: Default::default(),
             marker: style::series::Marker::default(),
+            sizes_data: None,
         }
     }
 
@@ -351,6 +373,12 @@ impl Scatter {
         self
     }
 
+    /// Set the sizes data column and return self for chaining
+    pub fn with_sizes(mut self, sizes_data: DataCol) -> Self {
+        self.sizes_data = Some(sizes_data);
+        self
+    }
+
     /// Get the x data column
     pub fn x_data(&self) -> &DataCol {
         &self.x_data
@@ -379,6 +407,11 @@ impl Scatter {
     /// Get the marker style
     pub fn marker(&self) -> &style::series::Marker {
         &self.marker
+    }
+
+    /// Get the sizes data column, if any
+    pub fn sizes_data(&self) -> Option<&DataCol> {
+        self.sizes_data.as_ref()
     }
 }
 
@@ -585,7 +618,7 @@ pub struct Histogram {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     fill: style::series::Fill,
-    line: Option<style::series::Stroke>,
+    stroke: Option<style::series::Stroke>,
     bins: u32,
     density: bool,
 }
@@ -600,7 +633,7 @@ impl Histogram {
             x_axis: Default::default(),
             y_axis: Default::default(),
             fill: style::series::Fill::default(),
-            line: None,
+            stroke: None,
             bins: 10,
             density: false,
         }
@@ -631,9 +664,9 @@ impl Histogram {
         Self { fill, ..self }
     }
 
-    /// Set the line style for the histogram outline and return self for chaining
-    pub fn with_line(mut self, line: style::series::Stroke) -> Self {
-        self.line = Some(line);
+    /// Set the stroke style for the histogram outline and return self for chaining
+    pub fn with_outline(mut self, stroke: style::series::Stroke) -> Self {
+        self.stroke = Some(stroke);
         self
     }
 
@@ -674,9 +707,9 @@ impl Histogram {
         &self.fill
     }
 
-    /// Get the line style, if any
-    pub fn line(&self) -> Option<&style::series::Stroke> {
-        self.line.as_ref()
+    /// Get the outline style, if any
+    pub fn outline(&self) -> Option<&style::series::Stroke> {
+        self.stroke.as_ref()
     }
 
     /// Get the number of bins
@@ -726,7 +759,7 @@ pub struct Bars {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     fill: style::series::Fill,
-    line: Option<style::series::Stroke>,
+    stroke: Option<style::series::Stroke>,
     position: BarsPosition,
 }
 
@@ -741,7 +774,7 @@ impl Bars {
             x_axis: Default::default(),
             y_axis: Default::default(),
             fill: style::series::Fill::default(),
-            line: None,
+            stroke: None,
             position: BarsPosition::default(),
         }
     }
@@ -759,10 +792,10 @@ impl Bars {
         Self { fill, ..self }
     }
 
-    /// Set the line style for the bar outline and return self for chaining
-    pub fn with_line(self, line: style::series::Stroke) -> Self {
+    /// Set the stroke style for the bar outline and return self for chaining
+    pub fn with_outline(self, stroke: style::series::Stroke) -> Self {
         Self {
-            line: Some(line),
+            stroke: Some(stroke),
             ..self
         }
     }
@@ -802,9 +835,9 @@ impl Bars {
         &self.fill
     }
 
-    /// Get the line style, if any
-    pub fn line(&self) -> Option<&style::series::Stroke> {
-        self.line.as_ref()
+    /// Get the outline style, if any
+    pub fn outline(&self) -> Option<&style::series::Stroke> {
+        self.stroke.as_ref()
     }
 
     /// Get the position configuration
@@ -823,7 +856,7 @@ pub struct BarSeries {
 
     name: Option<String>,
     fill: style::series::Fill,
-    line: Option<style::series::Stroke>,
+    stroke: Option<style::series::Stroke>,
 }
 
 impl BarSeries {
@@ -834,7 +867,7 @@ impl BarSeries {
 
             name: None,
             fill: style::series::Fill::default(),
-            line: None,
+            stroke: None,
         }
     }
 
@@ -851,10 +884,10 @@ impl BarSeries {
         Self { fill, ..self }
     }
 
-    /// Set the line style for the bar outline and return self for chaining
-    pub fn with_line(self, line: style::series::Stroke) -> Self {
+    /// Set the stroke style for the bar outline and return self for chaining
+    pub fn with_outline(self, stroke: style::series::Stroke) -> Self {
         Self {
-            line: Some(line),
+            stroke: Some(stroke),
             ..self
         }
     }
@@ -874,9 +907,9 @@ impl BarSeries {
         &self.fill
     }
 
-    /// Get the line style, if any
-    pub fn line(&self) -> Option<&style::series::Stroke> {
-        self.line.as_ref()
+    /// Get the outline style, if any
+    pub fn outline(&self) -> Option<&style::series::Stroke> {
+        self.stroke.as_ref()
     }
 }
 

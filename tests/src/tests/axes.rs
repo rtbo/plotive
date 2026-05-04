@@ -212,7 +212,7 @@ fn axes_categories() {
     let y = vec![1.0, 1.4, 3.0];
     let series = des::series::Bars::new(x.into(), y.into())
         .with_fill(color::TRANSPARENT.into())
-        .with_line(Default::default());
+        .with_outline(Default::default());
 
     let plot = des::Plot::new(vec![series.into()])
         .with_x_axis(des::Axis::new().with_ticks(Default::default()));

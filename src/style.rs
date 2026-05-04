@@ -167,8 +167,10 @@ pub enum LinePattern {
     Solid,
     /// Dashed line. The pattern is relative to the line width.
     Dash(Dash),
-    /// Dotted line. Equivalent to Dash(1.0, 1.0)
+    /// Dotted line. Equivalent to Dash(vec![1.0, 1.0])
     Dot,
+    /// Dash-dot line. Equivalent to Dash(vec![5.0, 5.0, 1.0, 5.0])
+    DashDot,
 }
 
 impl Default for LinePattern {
@@ -200,6 +202,7 @@ pub struct Stroke<C: Color> {
 }
 
 const DOT_DASH: &[f32] = &[1.0, 1.0];
+const DASH_DOT_DASH: &[f32] = &[5.0, 5.0, 1.0, 5.0];
 
 impl<C: Color> Stroke<C> {
     /// Set the line width in figure units, returning self for chaining
@@ -235,6 +238,7 @@ impl<C: Color> Stroke<C> {
             LinePattern::Solid => render::LinePattern::Solid,
             LinePattern::Dash(Dash(a)) => render::LinePattern::Dash(a.as_slice()),
             LinePattern::Dot => render::LinePattern::Dash(DOT_DASH),
+            LinePattern::DashDot => render::LinePattern::Dash(DASH_DOT_DASH),
         };
 
         render::Stroke {
@@ -371,11 +375,23 @@ pub enum MarkerShape {
     TriangleUp,
     ///  Downward pointing triangle marker
     TriangleDown,
+    ///  Rightward pointing triangle marker
+    TriangleRight,
+    ///  Leftward pointing triangle marker
+    TriangleLeft,
 }
 
 /// Size of a marker, used in scatter plots
+/// The size is interpreted as an area, so it scales quadratically with the visual size of the marker.
 #[derive(Debug, Clone, Copy)]
 pub struct MarkerSize(pub f32);
+
+impl MarkerSize {
+    /// Convert the marker size to a visual size (e.g. diameter for circle marker)
+    pub fn to_visual_size(&self) -> f32 {
+        self.0.sqrt()
+    }
+}
 
 impl Default for MarkerSize {
     fn default() -> Self {
@@ -402,17 +418,116 @@ pub struct Marker<C: Color> {
     pub stroke: Option<Stroke<C>>,
 }
 
+impl<C: Color> Marker<C> {
+    /// Create a new marker with both fill and stroke set to the same color
+    pub fn new_with_color(color: C) -> Self {
+        Marker {
+            size: MarkerSize::default(),
+            shape: MarkerShape::default(),
+            fill: Some(Fill::Solid {
+                color,
+                opacity: None,
+            }),
+            stroke: Some(Stroke {
+                color,
+                width: defaults::SERIES_LINE_WIDTH,
+                pattern: LinePattern::default(),
+                opacity: None,
+            }),
+        }
+    }
+
+    /// Set the marker size, returning self for chaining
+    pub fn with_size<S: Into<MarkerSize>>(self, size: S) -> Self {
+        Self {
+            size: size.into(),
+            ..self
+        }
+    }
+
+    /// Set the marker shape, returning self for chaining
+    pub fn with_shape(self, shape: MarkerShape) -> Self {
+        Self { shape, ..self }
+    }
+
+    /// Set the marker fill style, returning self for chaining
+    pub fn with_fill(self, fill: Fill<C>) -> Self {
+        Self {
+            fill: Some(fill),
+            ..self
+        }
+    }
+
+    /// Set the marker stroke style, returning self for chaining
+    pub fn with_stroke(self, stroke: Stroke<C>) -> Self {
+        Self {
+            stroke: Some(stroke),
+            ..self
+        }
+    }
+
+    /// Shorthand for setting both fill and stroke to the same color, returning self for chaining
+    pub fn with_color(self, color: C) -> Self {
+        let mut fill = self.fill.unwrap_or_else(|| Fill::Solid {
+            color,
+            opacity: None,
+        });
+        match &mut fill {
+            Fill::Solid { color: col, .. } => *col = color,
+        }
+
+        let mut stroke = self.stroke.unwrap_or_else(|| Stroke {
+            color,
+            width: defaults::SERIES_LINE_WIDTH,
+            opacity: None,
+            pattern: LinePattern::default(),
+        });
+        stroke.color = color;
+
+        Self {
+            fill: Some(fill),
+            stroke: Some(stroke),
+            ..self
+        }
+    }
+
+    /// Shorthand for setting opacity of the fill, returning self for chaining
+    pub fn with_fill_opacity(self, opacity: f32) -> Self {
+        match self.fill {
+            Some(Fill::Solid { color, .. }) => self.with_fill(Fill::Solid {
+                color,
+                opacity: Some(opacity),
+            }),
+            None => self,
+        }
+    }
+
+    /// Shorthand for setting stroke width, returning self for chaining
+    pub fn with_stroke_width(self, width: f32) -> Self {
+        let stroke = match self.stroke {
+            Some(Stroke {
+                color,
+                pattern,
+                opacity,
+                ..
+            }) => Some(Stroke {
+                color,
+                width,
+                pattern,
+                opacity,
+            }),
+            None => None,
+        };
+        Self { stroke, ..self }
+    }
+}
+
 impl<C> Default for Marker<C>
 where
     C: Color + Default,
 {
     fn default() -> Self {
-        Marker {
-            size: MarkerSize::default(),
-            shape: MarkerShape::default(),
-            fill: Some(Fill::default()),
-            stroke: None,
-        }
+        Marker::new_with_color(C::default())
     }
 }
 

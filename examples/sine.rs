@@ -7,7 +7,7 @@ mod common;
 fn main() {
     let fig = des::series::Line::new(des::data_src_ref("x"), des::data_src_ref("y"))
         .with_name("y=sin(x)")
-        .with_line(style::series::Stroke::default().with_width(4.0))
+        .with_stroke(style::series::Stroke::default().with_width(4.0))
         .into_plot()
         .with_x_axis(
             des::Axis::new()
