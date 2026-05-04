@@ -451,6 +451,12 @@ impl FromStr for Rgba8 {
     }
 }
 
+/// A trait for interpolating between two colors, used for color scales in heatmaps and similar plots.
+pub trait Lerp {
+    /// Interpolate between two colors using a parameter t in the range [0.0, 1.0].
+    fn lerp(self, other: Self, t: f32) -> Self;
+}
+
 /// Non-linear sRGB color with f32 RGB components in the range [0.0, 1.0].
 /// This is the same colorspace as Rgb8 but represented as f32.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -527,9 +533,13 @@ impl LinRgb {
     pub const fn luminance(&self) -> f32 {
         0.2126 * self.0 + 0.7152 * self.1 + 0.0722 * self.2
     }
+}
 
-    /// Interpolate between two linear RGB colors using a parameter t in the range [0.0, 1.0].
-    pub const fn lerp(self, other: Self, t: f32) -> Self {
+// It is checked that the components of the color are valid, so we can safely implement Eq.
+impl Eq for LinRgb {}
+
+impl Lerp for LinRgb {
+    fn lerp(self, other: Self, t: f32) -> Self {
         debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0]");
         let r = self.0 * (1.0 - t) + other.0 * t;
         let g = self.1 * (1.0 - t) + other.1 * t;
@@ -537,9 +547,6 @@ impl LinRgb {
         Self(r, g, b)
     }
 }
-
-// It is checked that the components of the color are valid, so we can safely implement Eq.
-impl Eq for LinRgb {}
 
 /// A perceptually uniform color space based on the OkLab model, with f32 components.
 /// Very useful for interpolation of colors, as it produces much smoother gradients than sRGB or linear RGB.
@@ -572,9 +579,13 @@ impl OkLab {
     pub const fn b(&self) -> f32 {
         self.2
     }
+}
 
-    /// Interpolate between two OkLab colors using a parameter t in the range [0.0, 1.0].
-    pub const fn lerp(self, other: Self, t: f32) -> Self {
+// It is checked that the components of the color are valid, so we can safely implement Eq.
+impl Eq for OkLab {}
+
+impl Lerp for OkLab {
+    fn lerp(self, other: Self, t: f32) -> Self {
         debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0]");
         let r = self.0 * (1.0 - t) + other.0 * t;
         let g = self.1 * (1.0 - t) + other.1 * t;
@@ -582,9 +593,6 @@ impl OkLab {
         Self(r, g, b)
     }
 }
-
-// It is checked that the components of the color are valid, so we can safely implement Eq.
-impl Eq for OkLab {}
 
 impl From<SRgb> for Rgb8 {
     fn from(srgb: SRgb) -> Self {

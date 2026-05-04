@@ -5,6 +5,7 @@
  */
 pub mod annot;
 pub mod axis;
+pub mod cmap;
 pub mod figure;
 pub mod legend;
 pub mod plot;

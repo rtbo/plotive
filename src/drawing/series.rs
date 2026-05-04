@@ -1,7 +1,13 @@
+use std::fmt;
+use std::sync::Arc;
+
 use axis::AsBoundRef;
+use plotive_base::Rgb8;
 use plotive_base::geom::PathSegment;
 use scale::{CoordMap, CoordMapXy};
 
+use crate::color::ColorMap;
+use crate::des::cmap::AsColorMap;
 use crate::drawing::axis::Bounds;
 use crate::drawing::plot::Orientation;
 use crate::drawing::{
@@ -586,9 +592,28 @@ fn calc_xy_line_path(
 }
 
 #[derive(Debug, Clone)]
+struct MarkerPoint {
+    pos: geom::Point,
+    scale: f32,
+    fill: Option<Rgb8>,
+    stroke: Option<Rgb8>,
+}
+
+impl Default for MarkerPoint {
+    fn default() -> Self {
+        MarkerPoint {
+            pos: geom::Point { x: 0.0, y: 0.0 },
+            scale: 1.0,
+            fill: None,
+            stroke: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 struct MarkerData {
     path: geom::Path,
-    points: Vec<(geom::Point, f32)>, // pos and scale
+    points: Vec<MarkerPoint>,
     marker: style::series::Marker,
 }
 
@@ -617,17 +642,32 @@ impl MarkerData {
         let rc = (style, index);
 
         for p in &self.points {
-            let scale = self.marker.size.scale(p.1).to_visual_size();
-            let transform = geom::Transform::from_translate(p.0.x, p.0.y).pre_scale(scale, scale);
+            let scale = self.marker.size.scale(p.scale).to_visual_size();
+            let transform =
+                geom::Transform::from_translate(p.pos.x, p.pos.y).pre_scale(scale, scale);
+
+            let fill = self.marker.fill.as_ref().map(|f| {
+                let f = f.as_paint(&rc);
+                if let Some(rgb) = p.fill {
+                    f.with_rgb(rgb)
+                } else {
+                    f
+                }
+            });
+
+            let stroke = self.marker.stroke.as_ref().map(|s| {
+                let s = s.as_stroke(&rc).with_multiplied_width(1.0 / scale);
+                if let Some(rgb) = p.stroke {
+                    s.with_rgb(rgb)
+                } else {
+                    s
+                }
+            });
 
             let path = render::Path {
                 path: &self.path,
-                fill: self.marker.fill.as_ref().map(|f| f.as_paint(&rc)),
-                stroke: self
-                    .marker
-                    .stroke
-                    .as_ref()
-                    .map(|l| l.as_stroke(&rc).with_multiplied_width(1.0 / scale)),
+                fill,
+                stroke,
                 transform: Some(&transform),
             };
             surface.draw_path(&path);
@@ -703,7 +743,10 @@ impl Line {
                 let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
                 let x = rect.left() + x;
                 let y = rect.bottom() - y;
-                points.push((geom::Point { x, y }, 1.0));
+                points.push(MarkerPoint {
+                    pos: geom::Point { x, y },
+                    ..Default::default()
+                });
             }
             marker_data.points = points;
         }
@@ -731,14 +774,31 @@ impl Line {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct Scatter {
     index: usize,
     cols: (des::DataCol, des::DataCol),
-    sizes_col: Option<des::DataCol>,
+    size_col: Option<des::DataCol>,
+    color_data: Option<(des::DataCol, Option<String>, Arc<dyn ColorMap>)>,
     ab: Option<(axis::Bounds, axis::Bounds)>,
     axes: (des::axis::Ref, des::axis::Ref),
     marker_data: MarkerData,
+}
+
+impl fmt::Debug for Scatter {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Scatter")
+            .field("index", &self.index)
+            .field("cols", &self.cols)
+            .field("size_col", &self.size_col)
+            .field(
+                "color_data",
+                &(self.color_data.as_ref().map(|(col, label, _)| (col, label))),
+            )
+            .field("ab", &self.ab)
+            .field("axes", &self.axes)
+            .finish()
+    }
 }
 
 impl Scatter {
@@ -747,13 +807,20 @@ impl Scatter {
         D: data::Source + ?Sized,
     {
         let cols = (des.x_data().clone(), des.y_data().clone());
-        let sizes_col = des.sizes_data().cloned();
+        let size_col = des.size_data().cloned();
+        let color_data = des.color_data().map(|(col, cmap)| {
+            let col = col.clone();
+            let name = cmap.name().map(|l| l.to_string());
+            let cmap = cmap.as_color_map();
+            (col, name, cmap)
+        });
         let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
         let marker_data = MarkerData::new(des.marker().clone());
         Ok(Scatter {
             index,
             cols,
-            sizes_col,
+            size_col,
+            color_data,
             ab: xy_bounds,
             axes: (des.x_axis().clone(), des.y_axis().clone()),
             marker_data,
@@ -768,11 +835,11 @@ impl Scatter {
         let y_col = get_column(&self.cols.1, data_source).unwrap();
         debug_assert!(x_col.len() == y_col.len());
 
-        let sizes_col = self
-            .sizes_col
+        let size_col = self
+            .size_col
             .as_ref()
             .map(|col| get_column(col, data_source).unwrap());
-        debug_assert!(sizes_col.map_or(true, |sc| sc.len() == x_col.len()));
+        debug_assert!(size_col.map_or(true, |sc| sc.len() == x_col.len()));
 
         if self.ab.is_none() && x_col.is_empty() {
             self.marker_data.clear();
@@ -788,7 +855,15 @@ impl Scatter {
 
         let mut points = Vec::with_capacity(x_col.len());
 
-        let mut sizes_iter = sizes_col.map(|sc| sc.sample_iter());
+        let mut size_iter = size_col.map(|sc| sc.sample_iter());
+        let mut color_iter = self
+            .color_data
+            .as_ref()
+            .map(|(col, _, _)| get_column(col, data_source).unwrap().sample_iter());
+        let cmap = self.color_data.as_ref().map(|(_, _, cmap)| cmap.clone());
+
+        let has_fill = self.marker_data.marker.fill.is_some();
+        let has_stroke = self.marker_data.marker.stroke.is_some();
 
         for (x, y) in x_col.sample_iter().zip(y_col.sample_iter()) {
             if x.is_null() || y.is_null() {
@@ -798,13 +873,36 @@ impl Scatter {
             let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
             let x = rect.left() + x;
             let y = rect.bottom() - y;
-            let vs = sizes_iter
+            let scale = size_iter
                 .as_mut()
                 .and_then(|iter| iter.next())
                 .and_then(|v| v.as_num())
+                .map(|v| v as f32)
                 .unwrap_or(1.0);
 
-            points.push((geom::Point { x, y }, vs as f32));
+            let color_sample = color_iter.as_mut().and_then(|iter| iter.next());
+
+            let fill = if has_fill {
+                color_sample
+                    .zip(cmap.as_ref())
+                    .map(|(v, cmap)| cmap.map_color(v))
+            } else {
+                None
+            };
+            let stroke = if has_stroke {
+                color_sample
+                    .zip(cmap.as_ref())
+                    .map(|(v, cmap)| cmap.map_color(v))
+            } else {
+                None
+            };
+
+            points.push(MarkerPoint {
+                pos: geom::Point { x, y },
+                scale,
+                fill,
+                stroke,
+            });
         }
         self.marker_data.points = points;
     }

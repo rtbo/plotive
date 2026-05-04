@@ -101,6 +101,10 @@ name = "readme"
 name = "sine"
 
 [[example]]
+name = "stars"
+required-features = ["data-csv"]
+
+[[example]]
 name = "subplots"
 required-features = ["utils"]
 

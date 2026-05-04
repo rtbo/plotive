@@ -3,6 +3,8 @@
 //! All rendering surfaces must implement the `Surface` trait.
 //! See the `plotive-pxl` and `plotive-svg` crates for examples.
 
+use plotive_base::Rgb8;
+
 use crate::{Rgba8, geom};
 
 /// Surface trait: defines the rendering surface API
@@ -46,6 +48,15 @@ pub enum Paint {
     Solid(Rgba8),
 }
 
+impl Paint {
+    /// Return a new `Paint` with the same alpha as the original, but with the RGB values replaced by the given color.
+    pub fn with_rgb(self, rgb: Rgb8) -> Self {
+        match self {
+            Paint::Solid(rgba) => Paint::Solid(rgb.with_a(rgba.a())),
+        }
+    }
+}
+
 impl From<Rgba8> for Paint {
     fn from(value: Rgba8) -> Self {
         Paint::Solid(value)
@@ -78,6 +89,14 @@ impl Stroke<'_> {
     pub fn with_multiplied_width(mut self, factor: f32) -> Self {
         self.width *= factor;
         self
+    }
+
+    /// Return a new `Stroke` with the same alpha as the original, but with the RGB values replaced by the given color.
+    pub fn with_rgb(self, rgb: Rgb8) -> Self {
+        Stroke {
+            color: rgb.with_a(self.color.a()),
+            ..self
+        }
     }
 }
 

@@ -69,8 +69,9 @@ where
         }
 
         if let Some(stroke) = path.stroke.as_ref() {
+            let tr_scale = (transform.sx.abs() + transform.sy.abs()) / 2.0;
             let mut pattern = Vec::new();
-            let iced_stroke = to_iced_stroke(stroke, &mut pattern, self.scale);
+            let iced_stroke = to_iced_stroke(stroke, &mut pattern, self.scale * tr_scale);
             self.frames
                 .last_mut()
                 .unwrap()

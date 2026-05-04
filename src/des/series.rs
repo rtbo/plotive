@@ -1,6 +1,6 @@
 //! Data series definitions for plots.
 use crate::data;
-use crate::des::axis;
+use crate::des::{axis, cmap};
 use crate::style::{self, defaults};
 #[cfg(feature = "time")]
 use crate::time;
@@ -29,6 +29,18 @@ pub enum DataCol {
 /// ```
 pub fn data_src_ref<S: Into<String>>(src: S) -> DataCol {
     DataCol::SrcRef(src.into())
+}
+
+impl From<String> for DataCol {
+    fn from(value: String) -> Self {
+        DataCol::SrcRef(value)
+    }
+}
+
+impl From<&str> for DataCol {
+    fn from(value: &str) -> Self {
+        DataCol::SrcRef(value.to_string())
+    }
 }
 
 /// Build a inline data column.
@@ -326,7 +338,8 @@ pub struct Scatter {
     x_axis: axis::Ref,
     y_axis: axis::Ref,
     marker: style::series::Marker,
-    sizes_data: Option<DataCol>,
+    size_data: Option<DataCol>,
+    color_data: Option<(DataCol, cmap::LerpColorMap)>,
 }
 
 impl Scatter {
@@ -340,7 +353,8 @@ impl Scatter {
             x_axis: Default::default(),
             y_axis: Default::default(),
             marker: style::series::Marker::default(),
-            sizes_data: None,
+            size_data: None,
+            color_data: None,
         }
     }
 
@@ -373,8 +387,14 @@ impl Scatter {
     }
 
     /// Set the sizes data column and return self for chaining
-    pub fn with_sizes(mut self, sizes_data: DataCol) -> Self {
-        self.sizes_data = Some(sizes_data);
+    pub fn with_size_data(mut self, size_data: DataCol) -> Self {
+        self.size_data = Some(size_data);
+        self
+    }
+
+    /// Set the color data column and color map, and return self for chaining
+    pub fn with_color_data(mut self, color_data: DataCol, color_map: cmap::LerpColorMap) -> Self {
+        self.color_data = Some((color_data, color_map));
         self
     }
 
@@ -409,8 +429,13 @@ impl Scatter {
     }
 
     /// Get the sizes data column, if any
-    pub fn sizes_data(&self) -> Option<&DataCol> {
-        self.sizes_data.as_ref()
+    pub fn size_data(&self) -> Option<&DataCol> {
+        self.size_data.as_ref()
+    }
+
+    /// Get the color data column and color map, if any
+    pub fn color_data(&self) -> Option<&(DataCol, cmap::LerpColorMap)> {
+        self.color_data.as_ref()
     }
 }
 

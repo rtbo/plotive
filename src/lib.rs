@@ -164,10 +164,7 @@ pub mod time;
 pub use drawing::Prepare;
 pub use style::Style;
 
-/// Rexports of [`plotive_base::color`]` items
-pub mod color {
-    pub use plotive_base::color::*;
-}
+pub mod color;
 pub use color::{Color, Rgba8, ResolveColor};
 
 /// Rexports of [`plotive_base::geom`]` items

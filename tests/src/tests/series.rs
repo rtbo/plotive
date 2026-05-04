@@ -41,7 +41,7 @@ fn series_scatter_sizes() {
 
     let plot = des::Plot::new(vec![
         des::series::Scatter::new(des::data_inline(x), des::data_inline(y))
-            .with_sizes(des::data_inline(sizes))
+            .with_size_data(des::data_inline(sizes))
             .with_marker(
                 style::series::Marker::default()
                     .with_color(color.into())
