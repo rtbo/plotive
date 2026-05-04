@@ -137,6 +137,8 @@ impl LineMplStyle {
                 '+' => style.set_marker_shape(style::MarkerShape::Plus)?,
                 'v' => style.set_marker_shape(style::MarkerShape::TriangleDown)?,
                 '^' => style.set_marker_shape(style::MarkerShape::TriangleUp)?,
+                '>' => style.set_marker_shape(style::MarkerShape::TriangleRight)?,
+                '<' => style.set_marker_shape(style::MarkerShape::TriangleLeft)?,
                 '-' => {
                     if let Some((_, next)) = chars.peek() {
                         match next {

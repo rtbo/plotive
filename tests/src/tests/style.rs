@@ -61,11 +61,35 @@ fn style_dash_scales_with_width_mpl() {
 }
 
 #[test]
-fn style_line_markers_mpl() {
+fn style_line_markers_circle_mpl() {
     let plot = line_spline().with_mpl_style("o").unwrap().into_plot();
     let fig = fig_small(plot);
 
-    assert_fig_eq_ref!(&fig, "style/line-markers");
+    assert_fig_eq_ref!(&fig, "style/line-markers-circle");
+}
+
+#[test]
+fn style_line_markers_square_mpl() {
+    let plot = line_spline().with_mpl_style("s").unwrap().into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-square");
+}
+
+#[test]
+fn style_line_markers_diamond_mpl() {
+    let plot = line_spline().with_mpl_style("D").unwrap().into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-diamond");
+}
+
+#[test]
+fn style_line_markers_cross_mpl() {
+    let plot = line_spline().with_mpl_style("x").unwrap().into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-cross");
 }
 
 #[test]
@@ -74,6 +98,38 @@ fn style_line_markers_plus_mpl() {
     let fig = fig_small(plot);
 
     assert_fig_eq_ref!(&fig, "style/line-markers-plus");
+}
+
+#[test]
+fn style_line_markers_triup_mpl() {
+    let plot = line_spline().with_mpl_style("^").unwrap().into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-triup");
+}
+
+#[test]
+fn style_line_markers_tridown_mpl() {
+    let plot = line_spline().with_mpl_style("v").unwrap().into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-tridown");
+}
+
+#[test]
+fn style_line_markers_trileft_mpl() {
+    let plot = line_spline().with_mpl_style("<").unwrap().into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-trileft");
+}
+
+#[test]
+fn style_line_markers_triright_mpl() {
+    let plot = line_spline().with_mpl_style(">").unwrap().into_plot();
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "style/line-markers-triright");
 }
 
 #[test]
