@@ -694,7 +694,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use plotive_base::ColorU8;
+    use plotive_base::Rgba8;
 
     use super::*;
     use crate::bundled_font_db;
@@ -702,7 +702,7 @@ mod tests {
     #[test]
     fn underline_span() {
         let db = bundled_font_db();
-        let mut builder: RichTextBuilder<ColorU8> =
+        let mut builder: RichTextBuilder<Rgba8> =
             RichTextBuilder::new("Some RICH\ntext string".to_string(), TextProps::new(12.0));
         builder.add_span(
             5,

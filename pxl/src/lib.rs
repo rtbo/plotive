@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::{fmt, io};
 
-use plotive::{ColorU8, Style, drawing, geom, render};
+use plotive::{Rgba8, Style, drawing, geom, render};
 use tiny_skia::{self, FillRule, Mask, Pixmap, PixmapMut};
 
 #[derive(Debug)]
@@ -336,8 +336,8 @@ impl render::Surface for PxlSurfaceRef<'_> {
     }
 }
 
-fn ts_color(color: ColorU8) -> tiny_skia::Color {
-    tiny_skia::Color::from_rgba8(color.red(), color.green(), color.blue(), color.alpha())
+fn ts_color(color: Rgba8) -> tiny_skia::Color {
+    tiny_skia::Color::from_rgba8(color.r(), color.g(), color.b(), color.a())
 }
 
 fn ts_fill(fill: render::Paint, paint: &mut tiny_skia::Paint) {

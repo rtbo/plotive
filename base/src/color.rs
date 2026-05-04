@@ -1,3 +1,4 @@
+//! This module defines color types and conversions between them.
 use std::str::FromStr;
 use std::{error, fmt};
 
@@ -7,12 +8,12 @@ mod xkcd;
 pub use css4::*;
 
 pub trait ResolveColor<Color> {
-    fn resolve_color(&self, color: &Color) -> ColorU8;
+    fn resolve_color(&self, color: &Color) -> Rgba8;
 }
 
 pub trait Color: Clone + Copy {
     #[inline]
-    fn resolve<R>(&self, rc: &R) -> ColorU8
+    fn resolve<R>(&self, rc: &R) -> Rgba8
     where
         R: ResolveColor<Self>,
         Self: Sized,
@@ -21,51 +22,72 @@ pub trait Color: Clone + Copy {
     }
 }
 
-impl Color for ColorU8 {}
+impl Color for Rgba8 {}
 
-impl ResolveColor<ColorU8> for () {
-    fn resolve_color(&self, color: &ColorU8) -> ColorU8 {
+impl ResolveColor<Rgba8> for () {
+    fn resolve_color(&self, color: &Rgba8) -> Rgba8 {
         *color
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ColorU8 {
-    r: u8,
-    g: u8,
-    b: u8,
-    a: u8,
-}
+/// A simple color type with 8-bit RGB components.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rgb8(u8, u8, u8);
 
-impl ColorU8 {
-    pub const fn from_rgb_f32(r: f32, g: f32, b: f32) -> Self {
-        let r = (r.clamp(0.0, 1.0) * 255.0) as u8;
-        let g = (g.clamp(0.0, 1.0) * 255.0) as u8;
-        let b = (b.clamp(0.0, 1.0) * 255.0) as u8;
-        ColorU8 { r, g, b, a: 255 }
+impl Rgb8 {
+    pub const fn new(r: u8, g: u8, b: u8) -> Self {
+        Self(r, g, b)
     }
 
-    pub const fn from_rgba_f32(r: f32, g: f32, b: f32, a: f32) -> Self {
-        let r = (r.clamp(0.0, 1.0) * 255.0) as u8;
-        let g = (g.clamp(0.0, 1.0) * 255.0) as u8;
-        let b = (b.clamp(0.0, 1.0) * 255.0) as u8;
-        let a = (a.clamp(0.0, 1.0) * 255.0) as u8;
-        ColorU8 { r, g, b, a }
+    /// Get the red component of the color.
+    pub const fn r(&self) -> u8 {
+        self.0
     }
 
-    pub const fn from_rgb(r: u8, g: u8, b: u8) -> Self {
-        ColorU8 { r, g, b, a: 255 }
+    /// Get the green component of the color.
+    pub const fn g(&self) -> u8 {
+        self.1
     }
 
-    pub const fn from_rgba(r: u8, g: u8, b: u8, a: u8) -> Self {
-        ColorU8 { r, g, b, a }
+    /// Get the blue component of the color.
+    pub const fn b(&self) -> u8 {
+        self.2
+    }
+
+    /// Get the HTML hex string representation of the color, e.g. `#ff0000` for red.
+    pub fn html(&self) -> String {
+        format!("#{:02x}{:02x}{:02x}", self.r(), self.g(), self.b())
+    }
+
+    /// Get the RGB components of the color as an array.
+    pub const fn arr(&self) -> [u8; 3] {
+        [self.0, self.1, self.2]
+    }
+
+    /// Compute the relative luminance of the color, in linear RGB space.
+    pub fn luminance(&self) -> f32 {
+        let lin: LinRgb = (*self).into();
+        lin.luminance()
+    }
+
+    /// Get this color with an alpha channel, with the given alpha value.
+    pub const fn with_a(&self, a: u8) -> Rgba8 {
+        Rgba8(self.0, self.1, self.2, a)
+    }
+
+    /// Get this color with an alpha channel, with alpha specified between 0.0 and 1.0.
+    pub const fn with_opacity(&self, opacity: f32) -> Rgba8 {
+        let a = (opacity.clamp(0.0, 1.0) * 255.0).round() as u8;
+        self.with_a(a)
     }
 
     /// Parse a color from an HTML hex string, e.g. `#ff0000` or `#f00` for red.
-    /// Supports also alpha channel: `#ff000080` or `#f008`.
-    pub const fn from_html(hex: &[u8]) -> Self {
+    /// The hex string must start with a `#` and be followed by either 3 or 6 hexadecimal digits.
+    ///
+    /// Panics if the hex string is invalid, e.g. if it contains non-hexadecimal characters or has an invalid length.
+    pub const fn from_hex(hex: &[u8]) -> Self {
         if hex[0] != b'#' {
-            panic!("Invalid hex color");
+            panic!("Hex color must start with a #");
         }
         match hex.len() {
             4 => {
@@ -75,7 +97,115 @@ impl ColorU8 {
                 let r = r << 4 | r;
                 let g = g << 4 | g;
                 let b = b << 4 | b;
-                ColorU8::from_rgb(r, g, b)
+                Rgb8::new(r, g, b)
+            }
+            7 => {
+                let r = hex_to_u8(hex[1]) << 4 | hex_to_u8(hex[2]);
+                let g = hex_to_u8(hex[3]) << 4 | hex_to_u8(hex[4]);
+                let b = hex_to_u8(hex[5]) << 4 | hex_to_u8(hex[6]);
+                Rgb8::new(r, g, b)
+            }
+            _ => panic!("Invalid hex color"),
+        }
+    }
+}
+
+/// A simple color type with 8-bit RGB components, including an alpha channel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Rgba8(u8, u8, u8, u8);
+
+impl Rgba8 {
+    pub const fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+        Self(r, g, b, a)
+    }
+
+    /// Get the red component of the color.
+    pub const fn r(&self) -> u8 {
+        self.0
+    }
+
+    /// Get the green component of the color.
+    pub const fn g(&self) -> u8 {
+        self.1
+    }
+
+    /// Get the blue component of the color.
+    pub const fn b(&self) -> u8 {
+        self.2
+    }
+
+    /// Get the alpha channel of the color.
+    pub const fn a(&self) -> u8 {
+        self.3
+    }
+
+    /// Get the HTML hex string representation of the color, e.g. `#ff0000` for red.
+    pub fn html(&self) -> String {
+        if self.a() == 255 {
+            format!("#{:02x}{:02x}{:02x}", self.r(), self.g(), self.b())
+        } else {
+            format!(
+                "#{:02x}{:02x}{:02x}{:02x}",
+                self.r(),
+                self.g(),
+                self.b(),
+                self.a()
+            )
+        }
+    }
+
+    /// Get the RGBA components of the color as an array.
+    pub const fn arr(&self) -> [u8; 4] {
+        [self.0, self.1, self.2, self.3]
+    }
+
+    /// Get the Rgb8 representation of the color, ignoring the alpha channel.
+    pub const fn rgb(&self) -> Rgb8 {
+        Rgb8(self.0, self.1, self.2)
+    }
+
+    /// Compute the relative luminance of the color, in linear RGB space.
+    /// The alpha channel is ignored for this computation.
+    pub fn luminance(&self) -> f32 {
+        let lin: LinRgb = self.rgb().into();
+        lin.luminance()
+    }
+
+    /// Get the alpha channel of the color as a float between 0.0 and 1.0.
+    pub const fn opacity(&self) -> Option<f32> {
+        if self.a() == 255 {
+            None
+        } else {
+            Some(self.a() as f32 / 255.0)
+        }
+    }
+
+    /// Get this color with an alpha channel, with alpha specified between 0.0 and 1.0.
+
+    pub const fn with_opacity(self, opacity: f32) -> Self {
+        assert!(0.0 <= opacity && opacity <= 1.0);
+        let a = self.a() as f32 * opacity;
+        Rgba8(self.r(), self.g(), self.b(), a as u8)
+    }
+
+    /// Parse a color from an HTML hex string, e.g. `#ff0000` or `#f00` for red.
+    /// Supports also alpha channel: `#ff000080` or `#f008`.
+    /// The hex string must start with a `#` and be followed by either 3, 4, 6, or 8 hexadecimal digits.
+    ///
+    /// Panics if the hex string is invalid, e.g. if it contains non-hexadecimal characters or has an invalid length.
+    pub const fn from_hex(hex: &[u8]) -> Self {
+        if hex[0] != b'#' {
+            panic!("Hex color must start with a #");
+        }
+        match hex.len() {
+            4 => {
+                let r = hex_to_u8(hex[1]);
+                let g = hex_to_u8(hex[2]);
+                let b = hex_to_u8(hex[3]);
+                let r = r << 4 | r;
+                let g = g << 4 | g;
+                let b = b << 4 | b;
+                Rgba8::new(r, g, b, 255)
             }
             5 => {
                 let r = hex_to_u8(hex[1]);
@@ -86,110 +216,23 @@ impl ColorU8 {
                 let g = g << 4 | g;
                 let b = b << 4 | b;
                 let a = a << 4 | a;
-                ColorU8::from_rgba(r, g, b, a)
+                Rgba8::new(r, g, b, a)
             }
             7 => {
                 let r = hex_to_u8(hex[1]) << 4 | hex_to_u8(hex[2]);
                 let g = hex_to_u8(hex[3]) << 4 | hex_to_u8(hex[4]);
                 let b = hex_to_u8(hex[5]) << 4 | hex_to_u8(hex[6]);
-                ColorU8::from_rgb(r, g, b)
+                Rgba8::new(r, g, b, 255)
             }
             9 => {
                 let r = hex_to_u8(hex[1]) << 4 | hex_to_u8(hex[2]);
                 let g = hex_to_u8(hex[3]) << 4 | hex_to_u8(hex[4]);
                 let b = hex_to_u8(hex[5]) << 4 | hex_to_u8(hex[6]);
                 let a = hex_to_u8(hex[7]) << 4 | hex_to_u8(hex[8]);
-                ColorU8::from_rgba(r, g, b, a)
+                Rgba8::new(r, g, b, a)
             }
             _ => panic!("Invalid hex color"),
         }
-    }
-
-    pub const fn rgb(&self) -> [u8; 3] {
-        [self.r, self.g, self.b]
-    }
-
-    pub const fn rgba(&self) -> [u8; 4] {
-        [self.r, self.g, self.b, self.a]
-    }
-
-    pub const fn rgb_f32(&self) -> [f32; 3] {
-        [
-            self.r as f32 / 255.0,
-            self.g as f32 / 255.0,
-            self.b as f32 / 255.0,
-        ]
-    }
-
-    pub const fn rgba_f32(&self) -> [f32; 4] {
-        [
-            self.r as f32 / 255.0,
-            self.g as f32 / 255.0,
-            self.b as f32 / 255.0,
-            self.a as f32 / 255.0,
-        ]
-    }
-
-    pub const fn red(&self) -> u8 {
-        self.r
-    }
-
-    pub const fn green(&self) -> u8 {
-        self.g
-    }
-
-    pub const fn blue(&self) -> u8 {
-        self.b
-    }
-
-    pub const fn alpha(&self) -> u8 {
-        self.a
-    }
-
-    pub const fn opacity(&self) -> Option<f32> {
-        if self.a == 255 {
-            None
-        } else {
-            Some(self.a as f32 / 255.0)
-        }
-    }
-
-    pub fn html(&self) -> String {
-        format!("#{:02x}{:02x}{:02x}", self.r, self.g, self.b)
-    }
-
-    pub const fn with_red(self, r: u8) -> Self {
-        ColorU8 { r, ..self }
-    }
-
-    pub const fn with_green(self, g: u8) -> Self {
-        ColorU8 { g, ..self }
-    }
-
-    pub const fn with_blue(self, b: u8) -> Self {
-        ColorU8 { b, ..self }
-    }
-
-    pub const fn with_alpha(self, a: u8) -> Self {
-        ColorU8 { a, ..self }
-    }
-
-    pub const fn with_opacity(self, opacity: f32) -> Self {
-        assert!(0.0 <= opacity && opacity <= 1.0);
-        ColorU8 {
-            a: (self.a as f32 * opacity) as u8,
-            ..self
-        }
-    }
-
-    pub const fn without_opacity(self) -> Self {
-        ColorU8 { a: 255, ..self }
-    }
-
-    pub const fn luminance(&self) -> f32 {
-        0.2126 * (self.r as f32 / 255.0)
-            + 0.7152 * (self.g as f32 / 255.0)
-            + 0.0722 * (self.b as f32 / 255.0)
     }
 }
 
@@ -206,7 +249,21 @@ const fn is_hex_char(c: u8) -> bool {
     matches!(c, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F')
 }
 
-/// Parsing error for ColorU8
+/// Rgba8 and Rgb8 are considered equal if their RGB components are equal and the alpha channel of Rgba8 is 255.
+impl PartialEq<Rgb8> for Rgba8 {
+    fn eq(&self, other: &Rgb8) -> bool {
+        self.0 == other.0 && self.1 == other.1 && self.2 == other.2 && self.3 == 255
+    }
+}
+
+/// Rgba8 and Rgb8 are considered equal if their RGB components are equal and the alpha channel of Rgba8 is 255.
+impl PartialEq<Rgba8> for Rgb8 {
+    fn eq(&self, other: &Rgba8) -> bool {
+        self.0 == other.0 && self.1 == other.1 && self.2 == other.2 && other.3 == 255
+    }
+}
+
+/// Parsing error for Rgba8
 #[derive(Debug)]
 pub enum ParseError {
     InvalidFormat,
@@ -282,12 +339,12 @@ fn parse_alpha(s: &str) -> Result<u8, ParseError> {
     }
 }
 
-/// Implement FromStr for ColorU8 to parse color from strings
+/// Implement FromStr for Rgb8 to parse color from strings
 /// Supported formats:
-///  - HTML hex: `#rrggbb`, `#rgb`, `#rrggbbaa`, `#rgba`
+///  - HTML hex: `#rrggbb`, `#rgb`
 ///  - CSS rgb(): `rgb(r,g,b)` where r,g,b are 0-255 or percentages
-///  - CSS rgba(): `rgba(r,g,b,a)` where r,g,b are 0-255 or percentages, a is 0.0-1.0
-impl FromStr for ColorU8 {
+///  - named color from CSS4 or XKCD color names
+impl FromStr for Rgb8 {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -298,12 +355,66 @@ impl FromStr for ColorU8 {
 
         // HTML hex: starts with '#'
         if raw.starts_with('#') {
-            // safe to call from_html, but we should validate length first
+            // safe to call from_hex, but we should validate length first
+            let bytes = raw.as_bytes();
+            match bytes.len() {
+                4 | 7 => {
+                    if bytes[1..].iter().all(|&c| is_hex_char(c)) {
+                        Ok(Rgb8::from_hex(bytes))
+                    } else {
+                        Err(ParseError::InvalidHex)
+                    }
+                }
+                _ => Err(ParseError::InvalidHex),
+            }
+        }
+        // rgb(...)
+        else if raw.to_ascii_lowercase().starts_with("rgb(") && raw.ends_with(')') {
+            let inner = &raw[4..raw.len() - 1];
+            let parts: Vec<&str> = inner.split(',').collect();
+            if parts.len() != 3 {
+                return Err(ParseError::InvalidFormat);
+            }
+            let r = parse_component_0_255(parts[0])?;
+            let g = parse_component_0_255(parts[1])?;
+            let b = parse_component_0_255(parts[2])?;
+            Ok(Rgb8::new(r, g, b))
+        }
+        // named color
+        else {
+            if let Some(col) = css4::lookup_name(raw) {
+                Ok(col.rgb())
+            } else if let Some(col) = xkcd::lookup_name(raw) {
+                Ok(col.rgb())
+            } else {
+                Err(ParseError::UnknownName)
+            }
+        }
+    }
+}
+
+/// Implement FromStr for Rgba8 to parse color from strings
+/// Supported formats:
+///  - HTML hex: `#rrggbb`, `#rgb`, `#rrggbbaa`, `#rgba`
+///  - CSS rgb(): `rgb(r,g,b)` where r,g,b are 0-255 or percentages
+///  - CSS rgba(): `rgba(r,g,b,a)` where r,g,b are 0-255 or percentages, a is 0.0-1.0
+impl FromStr for Rgba8 {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let raw = s.trim();
+        if raw.is_empty() {
+            return Err(ParseError::InvalidFormat);
+        }
+
+        // HTML hex: starts with '#'
+        if raw.starts_with('#') {
+            // safe to call from_hex, but we should validate length first
             let bytes = raw.as_bytes();
             match bytes.len() {
                 4 | 5 | 7 | 9 => {
                     if bytes[1..].iter().all(|&c| is_hex_char(c)) {
-                        Ok(ColorU8::from_html(bytes))
+                        Ok(Rgba8::from_hex(bytes))
                     } else {
                         Err(ParseError::InvalidHex)
                     }
@@ -321,7 +432,7 @@ impl FromStr for ColorU8 {
             let r = parse_component_0_255(parts[0])?;
             let g = parse_component_0_255(parts[1])?;
             let b = parse_component_0_255(parts[2])?;
-            Ok(ColorU8::from_rgb(r, g, b))
+            Ok(Rgb8::new(r, g, b).with_a(255))
         } else if raw.to_ascii_lowercase().starts_with("rgba(") && raw.ends_with(')') {
             let inner = &raw[5..raw.len() - 1];
             let parts: Vec<&str> = inner.split(',').collect();
@@ -332,7 +443,7 @@ impl FromStr for ColorU8 {
             let g = parse_component_0_255(parts[1])?;
             let b = parse_component_0_255(parts[2])?;
             let a = parse_alpha(parts[3])?;
-            Ok(ColorU8::from_rgba(r, g, b, a))
+            Ok(Rgba8::new(r, g, b, a))
         }
         // named color
         else {
@@ -347,6 +458,265 @@ impl FromStr for ColorU8 {
     }
 }
 
+/// Non-linear sRGB color with f32 RGB components in the range [0.0, 1.0].
+/// This is the same colorspace as Rgb8 but represented as f32.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SRgb(f32, f32, f32);
+
+impl SRgb {
+    /// Create a Srgb from the 3 components, already in the sRGB colorspace, in the range [0.0, 1.0].
+    /// Returns None if any component is out of range.
+    pub const fn new(r: f32, g: f32, b: f32) -> Option<Self> {
+        if r >= 0.0 && r <= 1.0 && g >= 0.0 && g <= 1.0 && b >= 0.0 && b <= 1.0 {
+            Some(Self(r, g, b))
+        } else {
+            None
+        }
+    }
+
+    /// Get the red component of the color.
+    pub const fn r(&self) -> f32 {
+        self.0
+    }
+
+    /// Get the green component of the color.
+    pub const fn g(&self) -> f32 {
+        self.1
+    }
+
+    /// Get the blue component of the color.
+    pub const fn b(&self) -> f32 {
+        self.2
+    }
+
+    /// Compute the relative luminance of the color, in linear RGB space.
+    pub fn luminance(&self) -> f32 {
+        let lin: LinRgb = (*self).into();
+        lin.luminance()
+    }
+}
+
+// It is checked that the components of the color are valid, so we can safely implement Eq.
+impl Eq for SRgb {}
+
+/// A linear RGB color with f32 components in the range [0.0, 1.0].
+/// This is a linear colorspace where the components are proportional to the actual light intensity.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LinRgb(f32, f32, f32);
+
+impl LinRgb {
+    /// Create a LinRgb from the 3 components, already in the linear RGB colorspace, in the range [0.0, 1.0].
+    /// Returns None if any component is out of range.
+    pub const fn new(r: f32, g: f32, b: f32) -> Option<Self> {
+        if r >= 0.0 && r <= 1.0 && g >= 0.0 && g <= 1.0 && b >= 0.0 && b <= 1.0 {
+            Some(Self(r, g, b))
+        } else {
+            None
+        }
+    }
+
+    /// Get the red component of the color.
+    pub const fn r(&self) -> f32 {
+        self.0
+    }
+
+    /// Get the green component of the color.
+    pub const fn g(&self) -> f32 {
+        self.1
+    }
+
+    /// Get the blue component of the color.
+    pub const fn b(&self) -> f32 {
+        self.2
+    }
+
+    /// Compute the relative luminance of the color, in linear RGB space.
+    pub const fn luminance(&self) -> f32 {
+        0.2126 * self.0 + 0.7152 * self.1 + 0.0722 * self.2
+    }
+
+    /// Interpolate between two linear RGB colors using a parameter t in the range [0.0, 1.0].
+    pub const fn lerp(self, other: Self, t: f32) -> Self {
+        debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0]");
+        let r = self.0 * (1.0 - t) + other.0 * t;
+        let g = self.1 * (1.0 - t) + other.1 * t;
+        let b = self.2 * (1.0 - t) + other.2 * t;
+        Self(r, g, b)
+    }
+}
+
+// It is checked that the components of the color are valid, so we can safely implement Eq.
+impl Eq for LinRgb {}
+
+/// A perceptually uniform color space based on the OkLab model, with f32 components.
+/// Very useful for interpolation of colors, as it produces much smoother gradients than sRGB or linear RGB.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OkLab(f32, f32, f32);
+
+impl OkLab {
+    /// Create a OkLab from the 3 components, already in the OkLab colorspace.
+    /// Returns None if it can't be mapped to a valid linear RGB color.
+    pub fn new(l: f32, a: f32, b: f32) -> Option<Self> {
+        let lin: LinRgb = LinRgb::from(Self(l, a, b));
+        if LinRgb::new(lin.0, lin.1, lin.2).is_none() {
+            return None;
+        }
+
+        Some(Self(l, a, b))
+    }
+
+    /// Get the L component of the color.
+    pub const fn l(&self) -> f32 {
+        self.0
+    }
+
+    /// Get the a component of the color.
+    pub const fn a(&self) -> f32 {
+        self.1
+    }
+
+    /// Get the b component of the color.
+    pub const fn b(&self) -> f32 {
+        self.2
+    }
+
+    /// Interpolate between two OkLab colors using a parameter t in the range [0.0, 1.0].
+    pub const fn lerp(self, other: Self, t: f32) -> Self {
+        debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0]");
+        let r = self.0 * (1.0 - t) + other.0 * t;
+        let g = self.1 * (1.0 - t) + other.1 * t;
+        let b = self.2 * (1.0 - t) + other.2 * t;
+        Self(r, g, b)
+    }
+}
+
+// It is checked that the components of the color are valid, so we can safely implement Eq.
+impl Eq for OkLab {}
+
+impl From<SRgb> for Rgb8 {
+    fn from(srgb: SRgb) -> Self {
+        let r = (srgb.0 * 255.0).round() as u8;
+        let g = (srgb.1 * 255.0).round() as u8;
+        let b = (srgb.2 * 255.0).round() as u8;
+        Self(r, g, b)
+    }
+}
+
+impl From<Rgb8> for SRgb {
+    fn from(rgb: Rgb8) -> Self {
+        let r = rgb.0 as f32 / 255.0;
+        let g = rgb.1 as f32 / 255.0;
+        let b = rgb.2 as f32 / 255.0;
+        Self(r, g, b)
+    }
+}
+
+impl From<SRgb> for LinRgb {
+    fn from(srgb: SRgb) -> Self {
+        fn comp(c: f32) -> f32 {
+            if c >= 0.04045 {
+                ((c + 0.055) / 1.055).powf(2.4)
+            } else {
+                c / 12.92
+            }
+        }
+
+        Self(comp(srgb.0), comp(srgb.1), comp(srgb.2))
+    }
+}
+
+impl From<LinRgb> for SRgb {
+    fn from(linrgb: LinRgb) -> Self {
+        fn comp(c: f32) -> f32 {
+            if c >= 0.0031308 {
+                1.055 * c.powf(1.0 / 2.4) - 0.055
+            } else {
+                12.92 * c
+            }
+        }
+
+        Self(comp(linrgb.0), comp(linrgb.1), comp(linrgb.2))
+    }
+}
+
+impl From<LinRgb> for OkLab {
+    fn from(linrgb: LinRgb) -> Self {
+        let l = 0.4122214708 * linrgb.0 + 0.5363325363 * linrgb.1 + 0.0514459929 * linrgb.2;
+        let m = 0.2119034982 * linrgb.0 + 0.6806995451 * linrgb.1 + 0.1073969566 * linrgb.2;
+        let s = 0.0883024619 * linrgb.0 + 0.2817188376 * linrgb.1 + 0.6299787005 * linrgb.2;
+
+        let l = l.cbrt();
+        let m = m.cbrt();
+        let s = s.cbrt();
+
+        Self(
+            0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+            1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+            0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s,
+        )
+    }
+}
+
+impl From<OkLab> for LinRgb {
+    fn from(oklab: OkLab) -> Self {
+        let l = oklab.0 + 0.3963377774 * oklab.1 + 0.2158037573 * oklab.2;
+        let m = oklab.0 - 0.1055613458 * oklab.1 - 0.0638541728 * oklab.2;
+        let s = oklab.0 - 0.0894841775 * oklab.1 - 1.2914855480 * oklab.2;
+
+        let l = l * l * l;
+        let m = m * m * m;
+        let s = s * s * s;
+
+        Self(
+            4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+            -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+            -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+        )
+    }
+}
+
+impl From<Rgb8> for LinRgb {
+    fn from(rgb: Rgb8) -> Self {
+        let srgb: SRgb = SRgb::from(rgb);
+        Self::from(srgb)
+    }
+}
+
+impl From<Rgb8> for OkLab {
+    fn from(rgb: Rgb8) -> Self {
+        let linrgb: LinRgb = LinRgb::from(rgb);
+        Self::from(linrgb)
+    }
+}
+
+impl From<LinRgb> for Rgb8 {
+    fn from(linrgb: LinRgb) -> Self {
+        let srgb: SRgb = SRgb::from(linrgb);
+        Self::from(srgb)
+    }
+}
+
+impl From<OkLab> for Rgb8 {
+    fn from(oklab: OkLab) -> Self {
+        let linrgb: LinRgb = LinRgb::from(oklab);
+        Self::from(linrgb)
+    }
+}
+
+impl From<SRgb> for OkLab {
+    fn from(srgb: SRgb) -> Self {
+        let linrgb: LinRgb = LinRgb::from(srgb);
+        Self::from(linrgb)
+    }
+}
+
+impl From<OkLab> for SRgb {
+    fn from(oklab: OkLab) -> Self {
+        let linrgb: LinRgb = LinRgb::from(oklab);
+        Self::from(linrgb)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -354,77 +724,88 @@ mod tests {
     #[test]
     fn parse_html_hex() {
         // full and short hex
-        assert_eq!("#ff0000".parse::<ColorU8>().unwrap(), RED);
-        assert_eq!("#f00".parse::<ColorU8>().unwrap(), RED);
+        assert_eq!("#ff0000".parse::<Rgb8>().unwrap(), RED);
+        assert_eq!("#f00".parse::<Rgb8>().unwrap(), RED);
 
         // hex with alpha
-        let c = "#ff000080".parse::<ColorU8>().unwrap();
-        assert_eq!(c.rgba(), [255, 0, 0, 128]);
+        let c = "#ff000080".parse::<Rgba8>().unwrap();
+        assert_eq!(c.arr(), [255, 0, 0, 128]);
     }
 
     #[test]
     fn parse_css_rgb_rgba() {
         // integer rgb
-        assert_eq!("rgb(255,0,0)".parse::<ColorU8>().unwrap(), RED);
+        assert_eq!("rgb(255,0,0)".parse::<Rgb8>().unwrap(), RED);
 
         // percentage rgb
         assert_eq!(
-            "rgb(40.5%,0%,0%)".parse::<ColorU8>().unwrap(),
-            ColorU8::from_rgb(103, 0, 0)
+            "rgb(40.5%,0%,0%)".parse::<Rgb8>().unwrap(),
+            Rgb8::new(103, 0, 0)
         );
 
+        // rgb with spaces
+        let c = "rgb(255, 0, 0)".parse::<Rgb8>().unwrap();
+        assert_eq!(c.arr(), [255, 0, 0]);
+
         // rgba with float alpha
-        let c = "rgba(255,0,0,0.5)".parse::<ColorU8>().unwrap();
-        assert_eq!(c.rgba(), [255, 0, 0, 128]);
+        let c = "rgba(255,0,0,0.5)".parse::<Rgba8>().unwrap();
+        assert_eq!(c.arr(), [255, 0, 0, 128]);
 
         // rgba with percentage alpha
-        let c2 = "rgba(255,0,0,50%)".parse::<ColorU8>().unwrap();
-        assert_eq!(c2.rgba(), [255, 0, 0, 128]);
+        let c = "rgba(255,0,0,50%)".parse::<Rgba8>().unwrap();
+        assert_eq!(c.arr(), [255, 0, 0, 128]);
 
         // rgba with float alpha 0.0-1.0
-        let c3 = "rgba(255, 0, 0, 0.5)".parse::<ColorU8>().unwrap();
-        assert_eq!(c3.rgba(), [255, 0, 0, 128]);
+        let c = "rgba(255, 0, 0, 0.5)".parse::<Rgba8>().unwrap();
+        assert_eq!(c.arr(), [255, 0, 0, 128]);
     }
 
     #[test]
     fn parse_named_colors() {
         // simple name
-        assert_eq!("red".parse::<ColorU8>().unwrap(), RED);
+        assert_eq!("red".parse::<Rgb8>().unwrap(), RED);
 
         // case-insensitive
-        assert_eq!("AliceBlue".parse::<ColorU8>().unwrap(), ALICEBLUE);
+        assert_eq!("AliceBlue".parse::<Rgb8>().unwrap(), ALICEBLUE);
     }
 
     #[test]
     fn parse_errors() {
         // empty
         assert!(matches!(
-            "".parse::<ColorU8>(),
+            "".parse::<Rgba8>(),
             Err(ParseError::InvalidFormat)
         ));
 
         // invalid hex length
         assert!(matches!(
-            "#12345".parse::<ColorU8>(),
+            "#12345".parse::<Rgba8>(),
             Err(ParseError::InvalidHex)
         ));
 
         // invalid rgb component (out of 0-255)
         assert!(matches!(
-            "rgb(300,0,0)".parse::<ColorU8>(),
+            "rgb(300,0,0)".parse::<Rgba8>(),
             Err(ParseError::InvalidComponent)
         ));
 
         // invalid rgba alpha (float > 1.0)
         assert!(matches!(
-            "rgba(255,0,0,2.0)".parse::<ColorU8>(),
+            "rgba(255,0,0,2.0)".parse::<Rgba8>(),
             Err(ParseError::InvalidAlphaComponent)
         ));
 
         // unknown name
         assert!(matches!(
-            "notacolor".parse::<ColorU8>(),
+            "notacolor".parse::<Rgba8>(),
             Err(ParseError::UnknownName)
         ));
+    }
+
+    #[test]
+    fn test_srgb_nan_fails() {
+        assert!(SRgb::new(f32::NAN, 0.0, 0.0).is_none());
+        assert!(SRgb::new(0.0, f32::NAN, 0.0).is_none());
+        assert!(SRgb::new(0.0, 0.0, f32::NAN).is_none());
     }
 }

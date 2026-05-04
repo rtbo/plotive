@@ -3,7 +3,7 @@
 //! All rendering surfaces must implement the `Surface` trait.
 //! See the `plotive-pxl` and `plotive-svg` crates for examples.
 
-use crate::{ColorU8, geom};
+use crate::{Rgba8, geom};
 
 /// Surface trait: defines the rendering surface API
 pub trait Surface {
@@ -43,11 +43,11 @@ pub trait Surface {
 #[derive(Debug, Clone, Copy)]
 pub enum Paint {
     /// Solid color fill
-    Solid(ColorU8),
+    Solid(Rgba8),
 }
 
-impl From<ColorU8> for Paint {
-    fn from(value: ColorU8) -> Self {
+impl From<Rgba8> for Paint {
+    fn from(value: Rgba8) -> Self {
         Paint::Solid(value)
     }
 }
@@ -66,7 +66,7 @@ pub enum LinePattern<'a> {
 #[derive(Debug, Clone, Copy)]
 pub struct Stroke<'a> {
     /// Line color
-    pub color: ColorU8,
+    pub color: Rgba8,
     /// Line width in figure units
     pub width: f32,
     /// Line pattern

@@ -6,7 +6,7 @@ pub mod theme;
 
 pub use crate::style::series::Palette;
 pub use crate::style::theme::Theme;
-use crate::{Color, ColorU8, ResolveColor, render};
+use crate::{Color, Rgba8, ResolveColor, render};
 
 /// Overall style definition for figures
 ///
@@ -118,25 +118,25 @@ impl Style {
 }
 
 impl ResolveColor<theme::Color> for Style {
-    fn resolve_color(&self, col: &theme::Color) -> ColorU8 {
+    fn resolve_color(&self, col: &theme::Color) -> Rgba8 {
         self.theme().resolve_color(col)
     }
 }
 
 impl ResolveColor<series::IndexColor> for Style {
-    fn resolve_color(&self, col: &series::IndexColor) -> ColorU8 {
+    fn resolve_color(&self, col: &series::IndexColor) -> Rgba8 {
         self.palette.get(*col)
     }
 }
 
 impl ResolveColor<series::AutoColor> for (&Style, usize) {
-    fn resolve_color(&self, _col: &series::AutoColor) -> ColorU8 {
+    fn resolve_color(&self, _col: &series::AutoColor) -> Rgba8 {
         self.0.palette.get(series::IndexColor(self.1))
     }
 }
 
 impl ResolveColor<series::Color> for (&Style, usize) {
-    fn resolve_color(&self, col: &series::Color) -> ColorU8 {
+    fn resolve_color(&self, col: &series::Color) -> Rgba8 {
         match col {
             series::Color::Auto => self.0.palette.get(series::IndexColor(self.1)),
             series::Color::Index(idx) => self.0.palette.get(*idx),
@@ -534,7 +534,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ColorU8;
+    use crate::Rgba8;
     use crate::style::theme;
 
     #[test]
@@ -543,18 +543,18 @@ mod tests {
 
         let theme_line: theme::Stroke = (theme::Color::Theme(theme::Col::LegendBorder), 2.0).into();
         let stroke = theme_line.as_stroke(&style);
-        assert_eq!(stroke.color, ColorU8::from_html(b"#000000"));
+        assert_eq!(stroke.color, Rgba8::from_hex(b"#000000"));
 
         let series_line: Stroke<series::IndexColor> = (series::IndexColor(2), 2.0).into();
         let stroke = series_line.as_stroke(&style);
-        assert_eq!(stroke.color, ColorU8::from_html(b"#2ca02c"));
+        assert_eq!(stroke.color, Rgba8::from_hex(b"#2ca02c"));
 
         let series_line: Stroke<series::AutoColor> = (series::AutoColor, 2.0).into();
         let stroke = series_line.as_stroke(&(&style, 2));
-        assert_eq!(stroke.color, ColorU8::from_html(b"#2ca02c"));
+        assert_eq!(stroke.color, Rgba8::from_hex(b"#2ca02c"));
 
-        let fixed_color: Stroke<ColorU8> = (ColorU8::from_html(b"#123456"), 2.0).into();
+        let fixed_color: Stroke<Rgba8> = (Rgba8::from_hex(b"#123456"), 2.0).into();
         let stroke = fixed_color.as_stroke(&());
-        assert_eq!(stroke.color, ColorU8::from_html(b"#123456"));
+        assert_eq!(stroke.color, Rgba8::from_hex(b"#123456"));
     }
 }

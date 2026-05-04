@@ -1,5 +1,5 @@
 use plotive::utils::MplStyle;
-use plotive::{ColorU8, des};
+use plotive::{Rgba8, des};
 
 use super::{fig_small, line};
 use crate::{TestHarness, assert_fig_eq_ref};
@@ -137,9 +137,9 @@ fn style_line_markers_triup_color() {
     let plot = line_spline()
         .with_marker(
             plotive::style::series::Marker::new_with_color(
-                plotive::ColorU8::from_html(b"#000").into(),
+                plotive::Rgba8::from_hex(b"#000").into(),
             )
-            .with_stroke(ColorU8::from_html(b"#080").into())
+            .with_stroke(Rgba8::from_hex(b"#080").into())
             .with_shape(plotive::style::MarkerShape::TriangleUp),
         )
         .into_plot();

@@ -275,7 +275,7 @@ impl SvgSurface {
     //                 let span_txt = &whole_txt[span.start()..span.end()];
     //                 let mut span_node = element::TSpan::new(span_txt);
     //                 let paint = span.props().fill().map(|c| {
-    //                     render::Paint::Solid(ColorU8::from_rgba(
+    //                     render::Paint::Solid(Rgba8::from_rgba(
     //                         c.red(),
     //                         c.green(),
     //                         c.blue(),
@@ -349,7 +349,7 @@ where
     N: Node,
 {
     if let Some(render::Paint::Solid(color)) = fill {
-        node.assign("fill", color.html());
+        node.assign("fill", color.rgb().html());
         if let Some(opacity) = color.opacity() {
             node.assign("fill-opacity", opacity);
         }
@@ -364,7 +364,7 @@ where
 {
     if let Some(stroke) = stroke {
         let w = stroke.width;
-        node.assign("stroke", stroke.color.html());
+        node.assign("stroke", stroke.color.rgb().html());
         node.assign("stroke-width", w);
         if let Some(opacity) = stroke.color.opacity() {
             node.assign("stroke-opacity", opacity);

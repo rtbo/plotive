@@ -2,7 +2,7 @@
  * This module deals with colors and style of data series.
  */
 use crate::style::{self, catppuccin, defaults};
-use crate::{ColorU8, ResolveColor};
+use crate::{Rgba8, ResolveColor};
 
 /// A palette for data series.
 /// It provides ordered colors for series in a figure.
@@ -30,12 +30,12 @@ pub enum Palette {
     /// Catppuccin Latte palette
     CatppuccinLatte,
     /// A custom palette
-    Custom(Vec<ColorU8>),
+    Custom(Vec<Rgba8>),
 }
 
 impl Palette {
     /// Get the colors in the palette
-    pub const fn colors(&self) -> &[ColorU8] {
+    pub const fn colors(&self) -> &[Rgba8] {
         match self {
             Palette::Black => palettes::BLACK,
             Palette::Standard => palettes::STANDARD,
@@ -56,7 +56,7 @@ impl Palette {
     }
 
     /// Get a color from the palette by its index
-    pub const fn get(&self, col: IndexColor) -> ColorU8 {
+    pub const fn get(&self, col: IndexColor) -> Rgba8 {
         self.colors()[col.0 % self.len()]
     }
 }
@@ -82,7 +82,7 @@ pub enum Color {
     /// Color from the palette by index
     Index(IndexColor),
     /// Fixed RGB color
-    Fixed(ColorU8),
+    Fixed(Rgba8),
 }
 
 impl From<IndexColor> for Color {
@@ -97,8 +97,8 @@ impl From<AutoColor> for Color {
     }
 }
 
-impl From<ColorU8> for Color {
-    fn from(color: ColorU8) -> Self {
+impl From<Rgba8> for Color {
+    fn from(color: Rgba8) -> Self {
         Color::Fixed(color)
     }
 }
@@ -106,19 +106,19 @@ impl From<ColorU8> for Color {
 impl style::Color for Color {}
 
 impl ResolveColor<IndexColor> for Palette {
-    fn resolve_color(&self, col: &IndexColor) -> ColorU8 {
+    fn resolve_color(&self, col: &IndexColor) -> Rgba8 {
         self.get(*col)
     }
 }
 
 impl ResolveColor<AutoColor> for (&Palette, usize) {
-    fn resolve_color(&self, _col: &AutoColor) -> ColorU8 {
+    fn resolve_color(&self, _col: &AutoColor) -> Rgba8 {
         self.0.get(IndexColor(self.1))
     }
 }
 
 impl ResolveColor<Color> for (&Palette, usize) {
-    fn resolve_color(&self, col: &Color) -> ColorU8 {
+    fn resolve_color(&self, col: &Color) -> Rgba8 {
         match col {
             Color::Auto => self.0.get(IndexColor(self.1)),
             Color::Index(idx) => self.0.get(*idx),
@@ -141,8 +141,8 @@ impl Default for Stroke {
     }
 }
 
-impl From<ColorU8> for Stroke {
-    fn from(color: ColorU8) -> Self {
+impl From<Rgba8> for Stroke {
+    fn from(color: Rgba8) -> Self {
         Stroke {
             color: color.into(),
             width: defaults::SERIES_LINE_WIDTH,
@@ -155,8 +155,8 @@ impl From<ColorU8> for Stroke {
 /// Fill style for theme elements
 pub type Fill = style::Fill<Color>;
 
-impl From<ColorU8> for Fill {
-    fn from(color: ColorU8) -> Self {
+impl From<Rgba8> for Fill {
+    fn from(color: Rgba8) -> Self {
         Fill::Solid {
             color: color.into(),
             opacity: None,
@@ -167,57 +167,57 @@ impl From<ColorU8> for Fill {
 /// Marker style for theme elements
 pub type Marker = style::Marker<Color>;
 
-impl From<ColorU8> for Marker {
-    fn from(color: ColorU8) -> Self {
+impl From<Rgba8> for Marker {
+    fn from(color: Rgba8) -> Self {
         Marker::new_with_color(color.into())
     }
 }
 
 /// Types for built-in and custom palettes
 mod palettes {
-    use crate::ColorU8;
+    use crate::Rgba8;
 
-    pub const BLACK: &[ColorU8] = &[ColorU8::from_html(b"#000000")];
-    pub const STANDARD: &[ColorU8] = &[
-        ColorU8::from_html(b"#1f77b4"), // blue
-        ColorU8::from_html(b"#ff7f0e"), // orange
-        ColorU8::from_html(b"#2ca02c"), // green
-        ColorU8::from_html(b"#d62728"), // red
-        ColorU8::from_html(b"#9467bd"), // purple
-        ColorU8::from_html(b"#8c564b"), // brown
-        ColorU8::from_html(b"#e377c2"), // pink
-        ColorU8::from_html(b"#7f7f7f"), // gray
-        ColorU8::from_html(b"#bcbd22"), // olive
-        ColorU8::from_html(b"#17becf"), // cyan
+    pub const BLACK: &[Rgba8] = &[Rgba8::from_hex(b"#000000")];
+    pub const STANDARD: &[Rgba8] = &[
+        Rgba8::from_hex(b"#1f77b4"), // blue
+        Rgba8::from_hex(b"#ff7f0e"), // orange
+        Rgba8::from_hex(b"#2ca02c"), // green
+        Rgba8::from_hex(b"#d62728"), // red
+        Rgba8::from_hex(b"#9467bd"), // purple
+        Rgba8::from_hex(b"#8c564b"), // brown
+        Rgba8::from_hex(b"#e377c2"), // pink
+        Rgba8::from_hex(b"#7f7f7f"), // gray
+        Rgba8::from_hex(b"#bcbd22"), // olive
+        Rgba8::from_hex(b"#17becf"), // cyan
     ];
-    pub const PASTEL: &[ColorU8] = &[
-        ColorU8::from_html(b"#aec7e8"), // light blue
-        ColorU8::from_html(b"#ffbb78"), // light orange
-        ColorU8::from_html(b"#98df8a"), // light green
-        ColorU8::from_html(b"#ff9896"), // light red
-        ColorU8::from_html(b"#c5b0d5"), // light purple
-        ColorU8::from_html(b"#c49c94"), // light brown
-        ColorU8::from_html(b"#f7b6d2"), // light pink
-        ColorU8::from_html(b"#c7c7c7"), // light gray
-        ColorU8::from_html(b"#dbdb8d"), // light olive
-        ColorU8::from_html(b"#9edae5"), // light cyan
+    pub const PASTEL: &[Rgba8] = &[
+        Rgba8::from_hex(b"#aec7e8"), // light blue
+        Rgba8::from_hex(b"#ffbb78"), // light orange
+        Rgba8::from_hex(b"#98df8a"), // light green
+        Rgba8::from_hex(b"#ff9896"), // light red
+        Rgba8::from_hex(b"#c5b0d5"), // light purple
+        Rgba8::from_hex(b"#c49c94"), // light brown
+        Rgba8::from_hex(b"#f7b6d2"), // light pink
+        Rgba8::from_hex(b"#c7c7c7"), // light gray
+        Rgba8::from_hex(b"#dbdb8d"), // light olive
+        Rgba8::from_hex(b"#9edae5"), // light cyan
     ];
-    pub const TOL_BRIGHT: &[ColorU8] = &[
-        ColorU8::from_html(b"#4477AA"), // blue
-        ColorU8::from_html(b"#EE6677"), // red
-        ColorU8::from_html(b"#228833"), // green
-        ColorU8::from_html(b"#CCBB44"), // yellow
-        ColorU8::from_html(b"#66CCEE"), // cyan
-        ColorU8::from_html(b"#AA3377"), // purple
-        ColorU8::from_html(b"#BBBBBB"), // gray
+    pub const TOL_BRIGHT: &[Rgba8] = &[
+        Rgba8::from_hex(b"#4477AA"), // blue
+        Rgba8::from_hex(b"#EE6677"), // red
+        Rgba8::from_hex(b"#228833"), // green
+        Rgba8::from_hex(b"#CCBB44"), // yellow
+        Rgba8::from_hex(b"#66CCEE"), // cyan
+        Rgba8::from_hex(b"#AA3377"), // purple
+        Rgba8::from_hex(b"#BBBBBB"), // gray
     ];
-    pub const OKABE_ITO: &[ColorU8] = &[
-        ColorU8::from_html(b"#E69F00"), // orange
-        ColorU8::from_html(b"#56B4E9"), // sky blue
-        ColorU8::from_html(b"#009E73"), // bluish green
-        ColorU8::from_html(b"#F0E442"), // yellow
-        ColorU8::from_html(b"#0072B2"), // blue
-        ColorU8::from_html(b"#D55E00"), // vermillion
-        ColorU8::from_html(b"#CC79A7"), // reddish purple
+    pub const OKABE_ITO: &[Rgba8] = &[
+        Rgba8::from_hex(b"#E69F00"), // orange
+        Rgba8::from_hex(b"#56B4E9"), // sky blue
+        Rgba8::from_hex(b"#009E73"), // bluish green
+        Rgba8::from_hex(b"#F0E442"), // yellow
+        Rgba8::from_hex(b"#0072B2"), // blue
+        Rgba8::from_hex(b"#D55E00"), // vermillion
+        Rgba8::from_hex(b"#CC79A7"), // reddish purple
     ];
 }

@@ -168,7 +168,7 @@ pub use style::Style;
 pub mod color {
     pub use plotive_base::color::*;
 }
-pub use color::{Color, ColorU8, ResolveColor};
+pub use color::{Color, Rgba8, ResolveColor};
 
 /// Rexports of [`plotive_base::geom`]` items
 pub mod geom {
