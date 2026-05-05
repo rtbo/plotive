@@ -11,7 +11,7 @@ use crate::des::cmap::AsColorMap;
 use crate::drawing::axis::Bounds;
 use crate::drawing::plot::Orientation;
 use crate::drawing::{
-    Categories, ColumnExt, Error, F64ColumnExt, axis, legend, marker, plot_to_fig, scale,
+    Categories, ColumnExt, Error, F64ColumnExt, axis, colorbar, legend, marker, plot_to_fig, scale
 };
 use crate::{Style, data, des, geom, render, style};
 
@@ -19,6 +19,9 @@ use crate::{Style, data, des, geom, render, style};
 /// has to populate the legend
 pub trait SeriesExt {
     fn legend_entry(&self) -> Option<legend::Entry<'_>>;
+    fn colorbar_entry(&self) -> Option<colorbar::Entry<'_>> {
+        None
+    }
 }
 
 impl SeriesExt for des::series::Line {
@@ -37,6 +40,14 @@ impl SeriesExt for des::series::Scatter {
             label: n.as_ref(),
             font: None,
             shape: legend::ShapeRef::Marker(self.marker()),
+        })
+    }
+
+    fn colorbar_entry(&self) -> Option<colorbar::Entry<'_>> {
+        self.color_data().map(|(_, cmap)| colorbar::Entry {
+            hash: cmap.hash(),
+            label: cmap.name(),
+            cmap: cmap.as_color_map(),
         })
     }
 }

@@ -31,7 +31,7 @@ impl ResolveColor<Rgba8> for () {
 }
 
 /// A simple color type with 8-bit RGB components, including an alpha channel.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Rgba8(u8, u8, u8, u8);
 
 impl Rgba8 {
@@ -151,7 +151,7 @@ impl Rgba8 {
 }
 
 /// A simple color type with 8-bit RGB components.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Rgb8(u8, u8, u8);
 
 impl Rgb8 {
@@ -540,7 +540,7 @@ impl Eq for LinRgb {}
 
 impl Lerp for LinRgb {
     fn lerp(self, other: Self, t: f32) -> Self {
-        debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0]");
+        debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0] (got {})", t);
         let r = self.0 * (1.0 - t) + other.0 * t;
         let g = self.1 * (1.0 - t) + other.1 * t;
         let b = self.2 * (1.0 - t) + other.2 * t;

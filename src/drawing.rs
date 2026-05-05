@@ -12,6 +12,7 @@ use crate::{Style, data, des, geom, render, text};
 
 mod annot;
 mod axis;
+mod colorbar;
 mod figure;
 mod hit_test;
 mod legend;

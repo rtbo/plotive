@@ -97,6 +97,7 @@ fn main() {
                 )
                 .into(),
         ])
+        .with_colorbar(Default::default())
         .into(),
     );
 

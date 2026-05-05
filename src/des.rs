@@ -6,6 +6,7 @@
 pub mod annot;
 pub mod axis;
 pub mod cmap;
+pub mod colorbar;
 pub mod figure;
 pub mod legend;
 pub mod plot;
@@ -16,6 +17,7 @@ pub use axis::Axis;
 pub use figure::{FigLegend, Figure};
 pub use legend::Legend;
 pub use plot::{Plot, PlotLegend, Subplots};
+pub use colorbar::{ColorBar, ColorBarPos};
 pub use series::{DataCol, Series, data_inline, data_src_ref};
 
 /// Index of a plot in a subplot grid

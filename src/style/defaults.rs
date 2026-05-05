@@ -20,6 +20,11 @@ pub const LEGEND_H_SPACING: f32 = 16.0;
 pub const LEGEND_V_SPACING: f32 = 10.0;
 pub const LEGEND_MARGIN: f32 = 12.0;
 
+pub const COLORBAR_WIDTH: f32 = 20.0;
+pub const COLORBAR_LABEL_FONT_SIZE: f32 = 16.0;
+pub const COLORBAR_TICKS_FONT_SIZE: f32 = 12.0;
+pub const COLORBAR_MARGIN: f32 = LEGEND_MARGIN;
+
 pub const PLOT_XY_AUTO_INSETS: geom::Padding = geom::Padding::Even(20.0);
 pub const PLOT_VER_BARS_AUTO_INSETS: geom::Padding = geom::Padding::Custom {
     t: 20.0,
