@@ -617,7 +617,8 @@ impl MarkerData {
         let rc = (style, index);
 
         for p in &self.points {
-            let transform = geom::Transform::from_translate(p.0.x, p.0.y).pre_scale(p.1, p.1);
+            let scale = self.marker.size.scale(p.1).to_visual_size();
+            let transform = geom::Transform::from_translate(p.0.x, p.0.y).pre_scale(scale, scale);
 
             let path = render::Path {
                 path: &self.path,
@@ -626,7 +627,7 @@ impl MarkerData {
                     .marker
                     .stroke
                     .as_ref()
-                    .map(|l| l.as_stroke(&rc).with_multiplied_width(1.0 / p.1)),
+                    .map(|l| l.as_stroke(&rc).with_multiplied_width(1.0 / scale)),
                 transform: Some(&transform),
             };
             surface.draw_path(&path);
@@ -693,7 +694,6 @@ impl Line {
         self.path = Some(path);
 
         if let Some(marker_data) = self.marker_data.as_mut() {
-            let size = marker_data.marker.size.to_visual_size();
             let mut points = Vec::with_capacity(x_col.len());
 
             for (x, y) in x_col.sample_iter().zip(y_col.sample_iter()) {
@@ -703,7 +703,7 @@ impl Line {
                 let (x, y) = cm.map_coord((x, y)).expect("Should be valid coordinates");
                 let x = rect.left() + x;
                 let y = rect.bottom() - y;
-                points.push((geom::Point { x, y }, size));
+                points.push((geom::Point { x, y }, 1.0));
             }
             marker_data.points = points;
         }
@@ -787,7 +787,6 @@ impl Scatter {
         }
 
         let mut points = Vec::with_capacity(x_col.len());
-        let default_vs = self.marker_data.marker.size.to_visual_size();
 
         let mut sizes_iter = sizes_col.map(|sc| sc.sample_iter());
 
@@ -803,10 +802,9 @@ impl Scatter {
                 .as_mut()
                 .and_then(|iter| iter.next())
                 .and_then(|v| v.as_num())
-                .map(|v| style::MarkerSize::from(v as f32).to_visual_size())
-                .unwrap_or(default_vs);
+                .unwrap_or(1.0);
 
-            points.push((geom::Point { x, y }, vs));
+            points.push((geom::Point { x, y }, vs as f32));
         }
         self.marker_data.points = points;
     }

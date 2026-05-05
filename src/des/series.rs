@@ -313,10 +313,9 @@ impl Line {
 /// Useful for visualizing correlations, distributions, and discrete data points.
 ///
 /// Optional sizes data column can be used to specify the size of each marker, for bubble charts.
-/// If provided, the size field of the marker is ignored and the size of each marker
-/// is determined by the corresponding value in the sizes data column.
-/// Just like marker size, the size data is interpreted as an area.
-/// (diameter = sqrt(size data) for circle marker).
+/// If provided, the marker size will be determined by the values in the sizes data column, scaled by the marker size in the style (e.g. `marker.size`).
+/// Marker size is interpreted as an area, so the actual size of the marker will be proportional to the square root of the sizes data value
+/// (e.g. for circle marker: diameter = sqrt(marker size * size column data)).
 /// The sizes data column must have the same length as the x and y data columns.
 #[derive(Debug, Clone)]
 pub struct Scatter {

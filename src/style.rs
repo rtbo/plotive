@@ -387,6 +387,11 @@ pub enum MarkerShape {
 pub struct MarkerSize(pub f32);
 
 impl MarkerSize {
+    /// Scale the marker area by the given factor, returning self for chaining
+    pub fn scale(self, factor: f32) -> Self {
+        MarkerSize(self.0 * factor)
+    }
+
     /// Convert the marker size to a visual size (e.g. diameter for circle marker)
     pub fn to_visual_size(&self) -> f32 {
         self.0.sqrt()
