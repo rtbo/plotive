@@ -82,7 +82,7 @@ fn main() {
                 .with_color_data("temp".into(), cmap::stellar())
                 .with_marker(
                     style::series::Marker::default()
-                        .with_fill_opacity(0.6)
+                        .with_fill_opacity(0.85)
                 )
                 .into(),
         ])

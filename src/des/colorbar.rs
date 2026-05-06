@@ -63,6 +63,7 @@ impl Default for TicksFont {
 pub struct ColorBar {
     pos: ColorBarPos,
     width: f32,
+    label: Option<String>,
     label_font: LabelFont,
     ticks_font: TicksFont,
     border: Option<theme::Stroke>,
@@ -74,6 +75,7 @@ impl Default for ColorBar {
         Self {
             pos: ColorBarPos::default(),
             width: defaults::COLORBAR_WIDTH,
+            label: None,
             label_font: LabelFont::default(),
             ticks_font: TicksFont::default(),
             border: Some(theme::Stroke {
@@ -99,6 +101,12 @@ impl ColorBar {
     /// Set the width of the color bar and return self for chaining
     pub fn with_width(mut self, width: f32) -> Self {
         self.width = width;
+        self
+    }
+
+    /// Set the label text and return self for chaining
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
         self
     }
 
@@ -134,6 +142,11 @@ impl ColorBar {
     /// Get the width of the color bar
     pub fn width(&self) -> f32 {
         self.width
+    }
+
+    /// Get the label text of the color bar, if it has one
+    pub fn label(&self) -> Option<&str> {
+        self.label.as_deref()
     }
 
     /// Get the label font properties

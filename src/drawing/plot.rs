@@ -4,12 +4,12 @@ use std::rc::Rc;
 
 use crate::des::{PlotIdx, annot};
 use crate::drawing::annot::Annot;
-use crate::drawing::axis::{Axis, AxisScale, Bounds, Side};
-use crate::drawing::colorbar::ColorBar;
+use crate::drawing::axis::{AsBoundRef, Axis, AxisScale, Bounds, Side};
+use crate::drawing::colorbar::{ColorBar, ColorBarBuilder};
 use crate::drawing::legend::{Legend, LegendBuilder};
 use crate::drawing::scale::CoordMapXy;
 use crate::drawing::series::{self, Series, SeriesExt};
-use crate::drawing::{Ctx, Error};
+use crate::drawing::{ColumnExt, Ctx, Error, get_column};
 use crate::style::{defaults, theme};
 use crate::{Style, data, des, geom, missing_params, render};
 
@@ -511,20 +511,46 @@ where
         let Some(des_colorbar) = des_plot.colorbar() else {
             return Ok(vec![]);
         };
-        let mut colorbars: Vec<ColorBar> = Vec::new();
+        let mut builders: Vec<ColorBarBuilder> = Vec::new();
 
         for_each_series(des_plot, |s| {
             if let Some(entry) = s.colorbar_entry() {
-                if colorbars.iter().any(|cb| cb.hash() == entry.hash) {
-                    // colorbar with same colormap already exists, skip
-                    return Ok(());
+                let forced_bounds = entry.cmap.data_range();
+                let has_forced_bounds = forced_bounds.is_some();
+                let bounds = if let Some(range) = forced_bounds {
+                    range
+                } else {
+                    let col = get_column(entry.data_col, self.data_source())?;
+                    col.bounds()
+                        .expect("Should get bounds for colormap data column")
+                };
+
+                let hash = entry.cmap.hash();
+
+                if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
+                    if !has_forced_bounds {
+                        cbb.unite_bounds(bounds.as_bound_ref())?;
+                    } else {
+                        debug_assert!(
+                            cbb.data_bounds() == bounds.as_bound_ref(),
+                            "Two color bars with same color map but different forced data range, this should not happen since the color map should be different if the data range is different"
+                        );
+                    }
+                } else {
+                    builders.push(ColorBarBuilder::new(
+                        hash,
+                        entry.cmap.as_color_map(),
+                        bounds,
+                    ));
                 }
-                colorbars.push(ColorBar::new(des_colorbar.clone(), entry));
             }
             Ok(())
         })?;
 
-        Ok(colorbars)
+        Ok(builders
+            .into_iter()
+            .map(|b| b.build(des_colorbar.clone()))
+            .collect())
     }
 
     fn calc_estimated_x_heights(
@@ -928,7 +954,7 @@ impl Plot {
                 y: &*y_cm,
             };
 
-            series.update_data(data_source, &self.rect, &cm)?;
+            series.update_data(data_source, &self.rect, &cm, &self.colorbars)?;
         }
         Ok(())
     }

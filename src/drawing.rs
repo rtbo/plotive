@@ -12,6 +12,7 @@ use crate::{Style, data, des, geom, render, text};
 
 mod annot;
 mod axis;
+mod cmap;
 mod colorbar;
 mod figure;
 mod hit_test;
@@ -147,6 +148,21 @@ impl Prepare for des::Figure {
         D: data::Source + ?Sized,
     {
         with_ctx(data_source, fontdb, |ctx| ctx.setup_figure(self))
+    }
+}
+
+fn get_column<'a, D>(
+    col: &'a des::series::DataCol,
+    data_source: &'a D,
+) -> Result<&'a dyn data::Column, Error>
+where
+    D: data::Source + ?Sized,
+{
+    match col {
+        des::series::DataCol::Inline(col) => Ok(col),
+        des::series::DataCol::SrcRef(name) => data_source
+            .column(name)
+            .ok_or_else(|| Error::MissingDataSrc(name.to_string())),
     }
 }
 

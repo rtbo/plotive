@@ -1,107 +1,144 @@
 use std::fmt;
 use std::sync::Arc;
 
-use super::axis::NumTicks;
-use crate::color::ColorMap;
 use crate::des::{self, ColorBarPos};
-use crate::{Style, data, geom, render, style};
+use crate::drawing::axis::{self, AsBoundRef};
+use crate::drawing::cmap::{AsColorMap, ColorMap};
+use crate::style::theme;
+use crate::{Style, data, geom, render};
 
 /// A colorbar entry, used to populate one colorbar
 #[derive(Clone)]
 pub struct Entry<'a> {
-    pub hash: u64,
-    pub label: Option<&'a str>,
-    pub range: (f32, f32),
-    pub cmap: Arc<dyn ColorMap>,
+    pub data_col: &'a des::DataCol,
+    pub cmap: &'a dyn AsColorMap
+}
+
+/// A trait that maps data to a 0..1 range, used for color bars and similar features.
+pub trait ColorDataMap {
+    // identifies the right colorbar when multiple color bars are present
+    fn hash(&self) -> u64;
+    fn map_color_data(&self, data: data::SampleRef<'_>) -> Option<f32>;
 }
 
 #[derive(Clone)]
-pub struct ColorBar {
+pub struct ColorBarBuilder {
     hash: u64,
-    pos: ColorBarPos,
-    width: f32,
-    label: Option<String>,
-    ticks: Option<NumTicks>,
-    border: Option<style::theme::Stroke>,
-    margin: f32,
-    range: (f32, f32),
     cmap: Arc<dyn ColorMap>,
+    data_bounds: axis::Bounds,
 }
 
-impl fmt::Debug for ColorBar {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ColorBar")
-            .field("hash", &self.hash)
-            .field("pos", &self.pos)
-            .field("width", &self.width)
-            .field("label", &self.label)
-            .field("ticks", &self.ticks)
-            .field("border", &self.border)
-            .field("margin", &self.margin)
-            .finish()
-    }
-}
-
-impl ColorBar {
-    pub fn new(des_cbar: des::ColorBar, entry: Entry<'_>) -> Self {
-        Self {
-            hash: entry.hash,
-            pos: des_cbar.pos(),
-            width: des_cbar.width(),
-            label: entry.label.map(|s| s.to_string()),
-            ticks: None,
-            border: des_cbar.border().cloned(),
-            margin: des_cbar.margin(),
-            range: entry.range,
-            cmap: entry.cmap,
-        }
+impl ColorBarBuilder {
+    pub fn new(hash: u64, cmap: Arc<dyn ColorMap>, data_bounds: axis::Bounds) -> Self {
+        Self { hash, cmap, data_bounds }
     }
 
     pub fn hash(&self) -> u64 {
         self.hash
     }
 
+    pub fn data_bounds(&self) -> axis::BoundsRef<'_> {
+        self.data_bounds.as_bound_ref()
+    }
+
+    pub fn unite_bounds(&mut self, data_bounds: axis::BoundsRef<'_>) -> Result<(), super::Error> {
+        self.data_bounds.unite_with(&data_bounds)
+    }
+
+    pub fn build(self, des: des::ColorBar) -> ColorBar {
+        ColorBar{
+            hash: self.hash,
+            des,
+            data_bounds: self.data_bounds,
+            cmap: self.cmap,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ColorBar {
+    hash: u64,
+    des: des::ColorBar,
+    data_bounds: axis::Bounds,
+    cmap: Arc<dyn ColorMap>,
+}
+
+impl fmt::Debug for ColorBar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ColorBar")
+            .field("des", &self.des)
+            .field("data_bounds", &self.data_bounds)
+            .finish()
+    }
+}
+
+impl ColorDataMap for ColorBar {
+    fn hash(&self) -> u64 {
+        self.hash
+    }
+
+    fn map_color_data(&self, data: data::SampleRef<'_>) -> Option<f32> {
+        let bounds = self.data_bounds.as_bound_ref().as_num()?;
+        let val = data.as_num()?;
+        let min = bounds.start();
+        let max = bounds.end();
+
+        if val.is_finite() && min.is_finite() && max.is_finite() && max > min {
+            Some(((val - min) / (max - min)).clamp(0.0, 1.0) as f32)
+        } else {
+            None
+        }
+    }
+}
+
+impl ColorBar {
     pub fn pos(&self) -> ColorBarPos {
-        self.pos
+        self.des.pos()
     }
 
     pub fn width(&self) -> f32 {
-        self.width
+        self.des.width()
     }
 
     pub fn label(&self) -> Option<&str> {
-        self.label.as_deref()
+        self.des.label()
     }
 
     pub fn margin(&self) -> f32 {
-        self.margin
+        self.des.margin()
+    }
+
+    pub fn border(&self) -> Option<&theme::Stroke> {
+        self.des.border()
     }
 
     pub fn calc_size_across(&self) -> f32 {
-        self.width
+        self.des.width()
     }
 
     pub fn draw<S>(&self, surface: &mut S, style: &Style, plot_rect: &geom::Rect, plot_box: &geom::Rect)
     where
         S: render::Surface,
     {
-        match self.pos {
+        match self.pos() {
             ColorBarPos::Right => {
-                let x_left = plot_box.right() + self.margin;
+                let x_left = plot_box.right() + self.margin();
                 self.draw_vertical(surface, style, plot_rect, x_left);
             }
             ColorBarPos::Left => {
-                let x_left = plot_box.left() - self.margin - self.width;
+                let x_left = plot_box.left() - self.margin() - self.width();
                 self.draw_vertical(surface, style, plot_rect, x_left);
             }
             _ => unimplemented!("only right colorbar is implemented for now"),
         }
     }
+
     pub fn draw_vertical<S>(&self, surface: &mut S, style: &Style, plot_rect: &geom::Rect, left: f32)
     where
         S: render::Surface,
     {
-        let right = left + self.width;
+        //let data_bounds = self.data_bounds.as_num().expect("Only numeric color bars are supported for now");
+        let right = left + self.width();
         let bottom = plot_rect.bottom();
         let height = plot_rect.height();
 
@@ -110,13 +147,13 @@ impl ColorBar {
         let mut y = bottom;
         let yshift = height / num_pts  as f32;
 
-        let mut t = self.range.0;
-        let tshift = (self.range.1 - self.range.0) / num_pts as f32;
+        let mut t = 0.0;
+        let tshift = 1.0 / num_pts as f32;
 
         let mut pb = geom::PathBuilder::with_capacity(5, 4);
 
         for i in 0..=num_pts {
-            let color = self.cmap.map_color(data::SampleRef::Num(t as f64));
+            let color = self.cmap.map_color(t);
             let py = bottom - i as f32 * yshift;
             let y2 = if i == num_pts {
                 py
@@ -143,8 +180,8 @@ impl ColorBar {
             t += tshift;
         }
 
-        if let Some(border) = &self.border {
-            let path = geom::Rect::from_trbl(bottom -height, left + self.width, bottom, left).to_path();
+        if let Some(border) = self.border() {
+            let path = geom::Rect::from_trbl(bottom -height, left + self.width(), bottom, left).to_path();
             let rpath = render::Path {
                 path: &path,
                 fill: None,
