@@ -42,7 +42,7 @@ fn main() {
     const APP_MAG: &str = "Apparent Magnitude";
 
     let mag_col = table.column(APP_MAG).unwrap().f64().unwrap();
-    let temp_col = table.column(TEMP_COL).unwrap().f64().unwrap();
+    let temp_col = table.column(TEMP_COL).unwrap();
 
     /// Map the apparent magnitude to a size factor for the star markers,
     const MIN_SIZE: f64 = 0.2;
@@ -54,17 +54,6 @@ fn main() {
             let mag = mag.unwrap();
             let norm = (mag - mag_bounds.0) / (mag_bounds.1 - mag_bounds.0);
             MAX_SIZE - norm * (MAX_SIZE - MIN_SIZE)
-        })
-        .collect::<Vec<_>>();
-
-    // Map the surface temperatures range from 1000:40000 to 0:1
-    const MIN_TEMP: f64 = 1000.0;
-    const MAX_TEMP: f64 = 40000.0;
-    let temp_colors = temp_col
-        .f64_iter()
-        .map(|temp| {
-            let temp = temp.unwrap();
-            (temp - MIN_TEMP) / (MAX_TEMP - MIN_TEMP)
         })
         .collect::<Vec<_>>();
 
@@ -84,13 +73,13 @@ fn main() {
         .with_column("x", &x_coords)
         .with_column("y", &y_coords)
         .with_column("mag_sizes", &mag_sizes)
-        .with_column("temp_colors", &temp_colors);
+        .with_column("temp", temp_col);
 
     let fig = des::Figure::new(
         des::Plot::new(vec![
             des::series::Scatter::new("x".into(), "y".into())
                 .with_size_data("mag_sizes".into())
-                .with_color_data("temp_colors".into(), cmap::stellar())
+                .with_color_data("temp".into(), cmap::stellar())
                 .with_marker(
                     style::series::Marker::default()
                         .with_fill_opacity(0.6)

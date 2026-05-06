@@ -19,18 +19,23 @@ pub type LinearColorMap = GenColorMap<LinRgb>;
 /// A color map that interpolates between two colors and optional stops in a perceptual color space
 pub type PerceptualColorMap = GenColorMap<OkLab>;
 
+/// A color map that interpolates between two colors and optional stops in a XYZ color space
+pub type XyzColorMap = GenColorMap<Xyz>;
+
 /// A generic color map that interpolates between two colors and optional stops in the color space defined by the color type `C`.
 #[derive(Debug, Clone)]
 pub struct GenColorMap<C> {
     start: C,
     end: C,
     stops: Vec<(f32, C)>,
+    range: (f32, f32),
 }
 
 impl<C: From<Rgb8>> GenColorMap<C> {
     /// Creates a new `CColorMap` with the specified start and end colors, and optional stops.
-    pub fn new(start: Rgb8, end: Rgb8) -> Self {
+    pub fn new(range: (f32, f32), start: Rgb8, end: Rgb8) -> Self {
         Self {
+            range,
             start: start.into(),
             end: end.into(),
             stops: Vec::new(),
@@ -40,8 +45,9 @@ impl<C: From<Rgb8>> GenColorMap<C> {
     /// Add a color stop at the specified position (between 0.0 and 1.0) with the given color.
     pub fn with_stop(mut self, position: f32, color: Rgb8) -> Self {
         assert!(
-            (0.0..=1.0).contains(&position),
-            "Color stop position must be between 0.0 and 1.0"
+            position >= self.range.0 && position <= self.range.1,
+            "Color stop position must be between {} and {}",
+            self.range.0, self.range.1
         );
         self.stops.push((position, color.into()));
         self.stops.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
@@ -55,8 +61,9 @@ impl<C: From<Rgb8>> GenColorMap<C> {
     {
         self.stops = stops.into_iter().map(|(position, color)| {
             assert!(
-                (0.0..=1.0).contains(&position),
-                "Color stop position must be between 0.0 and 1.0"
+                position >= self.range.0 && position <= self.range.1,
+                "Color stop position must be between {} and {}",
+                self.range.0, self.range.1
             );
             (position, color.into())
         }).collect();
@@ -71,8 +78,8 @@ impl<C: Lerp + Copy + Into<Rgb8>> ColorMap for GenColorMap<C> {
             .as_num()
             .expect("Color mapping requires numeric values") as f32;
 
-        let mut start = (0.0, self.start);
-        let mut end = (1.0, self.end);
+        let mut start = (self.range.0, self.start);
+        let mut end = (self.range.1, self.end);
 
         for stop in &self.stops {
             if stop.0 <= value {
@@ -82,7 +89,7 @@ impl<C: Lerp + Copy + Into<Rgb8>> ColorMap for GenColorMap<C> {
                 break;
             }
         }
-        let t = if end.0 > start.0 {
+        let t = if end.0 != start.0 {
             (value - start.0) / (end.0 - start.0)
         } else {
             0.0

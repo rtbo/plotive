@@ -48,6 +48,7 @@ impl SeriesExt for des::series::Scatter {
             hash: cmap.hash(),
             label: cmap.name(),
             cmap: cmap.as_color_map(),
+            range: cmap.range(),
         })
     }
 }

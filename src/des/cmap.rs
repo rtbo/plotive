@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use crate::color::{LinearColorMap, ColorMap, PerceptualColorMap, Rgb8};
+use crate::color::{ColorMap, LinearColorMap, PerceptualColorMap, Rgb8, XyzColorMap};
 
 /// A trait for types that can be converted to a `ColorMap` implementation at draw time.
 pub trait AsColorMap {
@@ -17,6 +17,9 @@ pub trait AsColorMap {
     /// It is used when drawing a color bar for this color map, to display the name as a label.
     fn name(&self) -> Option<&str>;
 
+    /// The range of scalar values that this color map maps to, as (min, max).
+    fn range(&self) -> (f32, f32);
+
     /// Convert this type to a `ColorMap` implementation that can be used for color mapping.
     fn as_color_map(&self) -> Arc<dyn ColorMap>;
 }
@@ -24,19 +27,22 @@ pub trait AsColorMap {
 /// Describes how to interpolate between colors in a color map, either in linear RGB or perceptual color space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LerpMethod {
-    /// Interpolate colors in the linear RGB color space, which is faster but can produce less smooth gradients.
+    /// Interpolate colors in the linear RGB color space.
     LinearRgb,
-    /// Interpolate colors in a perceptual color space, which produces smoother gradients but is slower.
+    /// Interpolate colors in a perceptual color space.
     Perceptual,
+    /// Interpolate colors in the XYZ color space.
+    Xyz,
 }
 
 /// A color map that can be converted to a `MapColor` implementation at draw time.
 #[derive(Debug, Clone)]
 pub struct LerpColorMap {
     method: LerpMethod,
-    name: Option<String>,
     start: Rgb8,
     end: Rgb8,
+    range: (f32, f32),
+    name: Option<String>,
     stops: Vec<(f32, Rgb8)>,
 }
 
@@ -48,6 +54,20 @@ impl LerpColorMap {
             name: None,
             start,
             end,
+            range: (0.0, 1.0),
+            stops: Vec::new(),
+        }
+    }
+
+    /// Creates a new `LerpColorMap` with the specified interpolation method, start and end colors, and optional stops.
+    /// The range of scalar values that this color map maps to is set to the given range (min, max).
+    pub fn new_with_range(method: LerpMethod, start: Rgb8, end: Rgb8, range: (f32, f32)) -> Self {
+        Self {
+            method,
+            name: None,
+            start,
+            end,
+            range,
             stops: Vec::new(),
         }
     }
@@ -60,10 +80,10 @@ impl LerpColorMap {
     }
 
     /// Adds a color stop at the specified position (between 0.0 and 1.0) with the given color.
-    pub fn with_stop(mut self, position: f32, color: Rgb8) -> Self {
+    pub fn with_stop(mut self, (position, color): (f32, Rgb8)) -> Self {
         assert!(
-            position > 0.0 && position < 1.0,
-            "Color stop position must be between 0.0 and 1.0"
+            position > self.range.0 && position < self.range.1,
+            "Color stop position must be in range"
         );
         self.stops.push((position, color));
         self.stops.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
@@ -78,7 +98,7 @@ impl LerpColorMap {
 
 impl AsColorMap for LerpColorMap {
     fn hash(&self) -> u64 {
-        use std::hash::{Hash, Hasher, DefaultHasher};
+        use std::hash::{DefaultHasher, Hash, Hasher};
         let mut hasher = DefaultHasher::new();
         self.method.hash(&mut hasher);
         self.start.hash(&mut hasher);
@@ -97,17 +117,28 @@ impl AsColorMap for LerpColorMap {
         self.name()
     }
 
+    fn range(&self) -> (f32, f32) {
+        self.range
+    }
+
     fn as_color_map(&self) -> Arc<dyn ColorMap> {
         match self.method {
             LerpMethod::LinearRgb => {
-                let mut map = LinearColorMap::new(self.start, self.end);
+                let mut map = LinearColorMap::new(self.range, self.start, self.end);
                 if !self.stops.is_empty() {
                     map = map.with_stops(self.stops.iter().copied());
                 }
                 Arc::new(map)
             }
             LerpMethod::Perceptual => {
-                let mut map = PerceptualColorMap::new(self.start, self.end);
+                let mut map = PerceptualColorMap::new(self.range, self.start, self.end);
+                if !self.stops.is_empty() {
+                    map = map.with_stops(self.stops.iter().copied());
+                }
+                Arc::new(map)
+            }
+            LerpMethod::Xyz => {
+                let mut map = XyzColorMap::new(self.range, self.start, self.end);
                 if !self.stops.is_empty() {
                     map = map.with_stops(self.stops.iter().copied());
                 }
@@ -117,12 +148,59 @@ impl AsColorMap for LerpColorMap {
     }
 }
 
-/// A colormap that maps kelvin temperatures to colors, with a range from 1000K to 40000K.
+/// A colormap that maps kelvin temperatures to black body color, with a range from 1000K to 30000K.
 pub fn stellar() -> LerpColorMap {
-    LerpColorMap::new(
-        LerpMethod::LinearRgb,
-        Rgb8::from_hex(b"#ff3800"), // 1000K
-        Rgb8::from_hex(b"#9bb0ff"), // 40000K
+    const MIN_TEMP: f32 = 1000.0;
+    const MAX_TEMP: f32 = 30000.0;
+    fn stop_for_temp(temp: f32) -> (f32, Rgb8) {
+        // Approximate the color of a black body at the given temperature in kelvin.
+        // The formula is based on the on the Tanner Helland's approximation:
+        // https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
+
+        let t = temp / 100.0;
+        let r = if t <= 66.0 {
+            255
+        } else {
+            let r = 329.698727446 * (t - 60.0).powf(-0.1332047592);
+            r.clamp(0.0, 255.0) as u8
+        };
+        let g = if t <= 66.0 {
+            let g = 99.4708025861 * t.ln() - 161.1195681661;
+            g.clamp(0.0, 255.0) as u8
+        } else {
+            let g = 288.1221695283 * (t - 60.0).powf(-0.0755148492);
+            g.clamp(0.0, 255.0) as u8
+        };
+        let b = if t >= 66.0 {
+            255
+        } else if t <= 19.0 {
+            0
+        } else {
+            let b = 138.5177312231 * (t - 10.0).ln() - 305.0447927307;
+            b.clamp(0.0, 255.0) as u8
+        };
+
+        (temp, Rgb8::new(r, g, b))
+    }
+
+    LerpColorMap::new_with_range(
+        LerpMethod::Xyz,
+        stop_for_temp(MIN_TEMP).1,
+        stop_for_temp(MAX_TEMP).1,
+        (MIN_TEMP, MAX_TEMP),
     )
+    .with_stop(stop_for_temp(2000.0))
+    .with_stop(stop_for_temp(3000.0))
+    .with_stop(stop_for_temp(4000.0))
+    .with_stop(stop_for_temp(5000.0))
+    .with_stop(stop_for_temp(6000.0))
+    .with_stop(stop_for_temp(6500.0))
+    .with_stop(stop_for_temp(7000.0))
+    .with_stop(stop_for_temp(8000.0))
+    .with_stop(stop_for_temp(9000.0))
+    .with_stop(stop_for_temp(10000.0))
+    .with_stop(stop_for_temp(12000.0))
+    .with_stop(stop_for_temp(15000.0))
+    .with_stop(stop_for_temp(20000.0))
     .with_name("Stellar")
 }

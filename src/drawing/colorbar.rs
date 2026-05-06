@@ -11,6 +11,7 @@ use crate::{Style, data, geom, render, style};
 pub struct Entry<'a> {
     pub hash: u64,
     pub label: Option<&'a str>,
+    pub range: (f32, f32),
     pub cmap: Arc<dyn ColorMap>,
 }
 
@@ -23,6 +24,7 @@ pub struct ColorBar {
     ticks: Option<NumTicks>,
     border: Option<style::theme::Stroke>,
     margin: f32,
+    range: (f32, f32),
     cmap: Arc<dyn ColorMap>,
 }
 
@@ -50,6 +52,7 @@ impl ColorBar {
             ticks: None,
             border: des_cbar.border().cloned(),
             margin: des_cbar.margin(),
+            range: entry.range,
             cmap: entry.cmap,
         }
     }
@@ -107,13 +110,13 @@ impl ColorBar {
         let mut y = bottom;
         let yshift = height / num_pts  as f32;
 
-        let mut t = 0.0;
-        let tshift = 1.0 / num_pts as f32;
+        let mut t = self.range.0;
+        let tshift = (self.range.1 - self.range.0) / num_pts as f32;
 
         let mut pb = geom::PathBuilder::with_capacity(5, 4);
 
         for i in 0..=num_pts {
-            let color = self.cmap.map_color(data::SampleRef::Num((t as f64).clamp(0.0, 1.0)));
+            let color = self.cmap.map_color(data::SampleRef::Num(t as f64));
             let py = bottom - i as f32 * yshift;
             let y2 = if i == num_pts {
                 py
