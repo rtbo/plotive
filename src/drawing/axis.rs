@@ -463,7 +463,8 @@ where
         let mut major_locs = ticks::locate_num(major_ticks.locator(), nb, scale)?;
         major_locs.retain(|l| nb.contains(*l));
 
-        let lbl_formatter = ticks::num_label_formatter(major_ticks, nb, scale);
+        let lbl_formatter =
+            ticks::num_label_formatter(major_ticks.locator(), major_ticks.formatter(), nb, scale);
         let mut ticks = Vec::new();
         for loc in major_locs.into_iter() {
             let text = lbl_formatter.format_label(loc.into());
@@ -546,7 +547,7 @@ where
         let mut major_locs = ticks::locate_datetime(major_ticks.locator(), tb)?;
         major_locs.retain(|l| tb.contains(*l));
 
-        let lbl_formatter = ticks::datetime_label_formatter(major_ticks, tb, scale)?;
+        let lbl_formatter = ticks::datetime_label_formatter(major_ticks.formatter(), tb, scale)?;
         let mut ticks = Vec::new();
         for loc in major_locs.into_iter() {
             let text = lbl_formatter.format_label(loc.into());

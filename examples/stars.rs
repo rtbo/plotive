@@ -80,15 +80,13 @@ fn main() {
             des::series::Scatter::new("x".into(), "y".into())
                 .with_size_data("mag_sizes".into())
                 .with_color_data("temp".into(), cmap::stellar())
-                .with_marker(
-                    style::series::Marker::default()
-                        .with_fill_opacity(0.85)
-                )
+                .with_marker(style::series::Marker::default().with_fill_opacity(0.85))
                 .into(),
         ])
-        .with_colorbar(Default::default())
+        .with_colorbar(des::ColorBar::default().with_title("Surface Temperature [K]".into()))
         .into(),
-    );
+    )
+    .with_title("45 bright stars".into());
 
     common::save_figure(&fig, &data_source, Default::default(), "stars");
 }

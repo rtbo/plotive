@@ -1,4 +1,4 @@
-use crate::drawing::{Categories, Error};
+use crate::{data, drawing::{Categories, Error}};
 #[cfg(feature = "time")]
 use crate::time::{DateTime, TimeDelta};
 
@@ -59,6 +59,16 @@ impl Bounds {
             _ => Err(Error::InconsistentAxisBounds(
                 "Cannot unite different axis bounds types".into(),
             )),
+        }
+    }
+
+    pub fn contains(&self, point: data::SampleRef<'_>) -> bool {
+        match (self, point) {
+            (Bounds::Num(nb), data::SampleRef::Num(n)) => nb.contains(n),
+            (Bounds::Cat(c), data::SampleRef::Cat(s)) => c.contains(s),
+            #[cfg(feature = "time")]
+            (Bounds::Time(tb), data::SampleRef::Time(t)) => tb.contains(t),
+            _ => false,
         }
     }
 }

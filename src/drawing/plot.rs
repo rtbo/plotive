@@ -549,8 +549,8 @@ where
 
         Ok(builders
             .into_iter()
-            .map(|b| b.build(des_colorbar.clone()))
-            .collect())
+            .map(|b| b.build(des_colorbar.clone(), self))
+            .collect::<Result<Vec<_>, _>>()?)
     }
 
     fn calc_estimated_x_heights(
@@ -573,6 +573,7 @@ where
                             height += leg.size().height() + des_leg.margin();
                         }
                     }
+
                     max_height = max_height.max(height);
                 }
             }

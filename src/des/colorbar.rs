@@ -2,6 +2,14 @@
 use crate::style::{defaults, theme};
 use crate::text;
 
+super::define_rich_text_structs!(Title, TitleProps, TitleOptProps);
+
+impl Default for TitleProps {
+    fn default() -> Self {
+        TitleProps::new(defaults::COLORBAR_TITLE_FONT_SIZE)
+    }
+}
+
 /// Position of a color bar relatively to the plot
 #[derive(Debug, Default, Clone, Copy)]
 pub enum ColorBarPos {
@@ -14,27 +22,6 @@ pub enum ColorBarPos {
     Bottom,
     /// Position the color bar to the left of the plot area
     Left,
-}
-
-/// Font configuration for a color bar label
-#[derive(Debug, Clone)]
-pub struct LabelFont {
-    /// The font size in figure units
-    pub size: f32,
-    /// The font
-    pub font: text::Font,
-    /// The font color
-    pub color: theme::Color,
-}
-
-impl Default for LabelFont {
-    fn default() -> Self {
-        Self {
-            size: defaults::COLORBAR_LABEL_FONT_SIZE,
-            font: text::Font::default(),
-            color: theme::Col::Foreground.into(),
-        }
-    }
 }
 
 /// Font configuration for color bar ticks
@@ -63,8 +50,7 @@ impl Default for TicksFont {
 pub struct ColorBar {
     pos: ColorBarPos,
     width: f32,
-    label: Option<String>,
-    label_font: LabelFont,
+    title: Option<Title>,
     ticks_font: TicksFont,
     border: Option<theme::Stroke>,
     margin: f32,
@@ -75,8 +61,7 @@ impl Default for ColorBar {
         Self {
             pos: ColorBarPos::default(),
             width: defaults::COLORBAR_WIDTH,
-            label: None,
-            label_font: LabelFont::default(),
+            title: None,
             ticks_font: TicksFont::default(),
             border: Some(theme::Stroke {
                 color: theme::Col::Foreground.into(),
@@ -104,15 +89,9 @@ impl ColorBar {
         self
     }
 
-    /// Set the label text and return self for chaining
-    pub fn with_label(mut self, label: impl Into<String>) -> Self {
-        self.label = Some(label.into());
-        self
-    }
-
-    /// Set the label font properties and return self for chaining
-    pub fn with_label_font(mut self, label_font: LabelFont) -> Self {
-        self.label_font = label_font;
+    /// Set the title text and return self for chaining
+    pub fn with_title(mut self, title: Title) -> Self {
+        self.title = Some(title);
         self
     }
 
@@ -144,14 +123,9 @@ impl ColorBar {
         self.width
     }
 
-    /// Get the label text of the color bar, if it has one
-    pub fn label(&self) -> Option<&str> {
-        self.label.as_deref()
-    }
-
-    /// Get the label font properties
-    pub fn label_font(&self) -> &LabelFont {
-        &self.label_font
+    /// Get the title text of the color bar, if it has one
+    pub fn title(&self) -> Option<&Title> {
+        self.title.as_ref()
     }
 
     /// Get the ticks font properties

@@ -386,7 +386,7 @@ impl Categories {
         self.cats.get(idx).map(|c| c.0.as_str())
     }
 
-    fn _contains(&self, cat: &str) -> bool {
+    fn contains(&self, cat: &str) -> bool {
         self.cats.iter().any(|c| c.0 == cat)
     }
 
