@@ -594,6 +594,32 @@ impl Lerp for OkLab {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Xyz(f32, f32, f32);
+
+impl Xyz {
+    pub const fn new(x: f32, y: f32, z: f32) -> Option<Self> {
+        if x >= 0.0 && y >= 0.0 && z >= 0.0 {
+            Some(Self(x, y, z))
+        } else {
+            None
+        }
+    }
+}
+
+impl Eq for Xyz {}
+
+impl Lerp for Xyz {
+    fn lerp(self, other: Self, t: f32) -> Self {
+        debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0]");
+        let x = self.0 * (1.0 - t) + other.0 * t;
+        let y = self.1 * (1.0 - t) + other.1 * t;
+        let z = self.2 * (1.0 - t) + other.2 * t;
+        Self(x, y, z)
+    }
+}
+
+
 impl From<SRgb> for Rgb8 {
     fn from(srgb: SRgb) -> Self {
         let r = (srgb.0 * 255.0).round() as u8;
@@ -676,6 +702,25 @@ impl From<OkLab> for LinRgb {
     }
 }
 
+impl From<LinRgb> for Xyz {
+    fn from(LinRgb(r, g, b): LinRgb) -> Self {
+        let x = 0.4124564 * r + 0.3575761 * g + 0.1804375 * b;
+        let y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
+        let z = 0.0193339 * r + 0.1191920 * g + 0.9503041 * b;
+        Self(x, y, z)
+    }
+}
+
+impl From<Xyz> for LinRgb {
+    fn from(Xyz(x, y, z): Xyz) -> Self {
+        let r = 3.2404542 * x - 1.5371385 * y - 0.4985314 * z;
+        let g = -0.9692660 * x + 1.8760108 * y + 0.0415560 * z;
+        let b = 0.0556434 * x - 0.2040259 * y + 1.0572252 * z;
+        Self(r, g, b)
+    }
+}
+
+
 impl From<Rgb8> for LinRgb {
     fn from(rgb: Rgb8) -> Self {
         let srgb: SRgb = SRgb::from(rgb);
@@ -684,6 +729,13 @@ impl From<Rgb8> for LinRgb {
 }
 
 impl From<Rgb8> for OkLab {
+    fn from(rgb: Rgb8) -> Self {
+        let linrgb: LinRgb = LinRgb::from(rgb);
+        Self::from(linrgb)
+    }
+}
+
+impl From<Rgb8> for Xyz {
     fn from(rgb: Rgb8) -> Self {
         let linrgb: LinRgb = LinRgb::from(rgb);
         Self::from(linrgb)
@@ -704,7 +756,21 @@ impl From<OkLab> for Rgb8 {
     }
 }
 
+impl From<Xyz> for Rgb8 {
+    fn from(xyz: Xyz) -> Self {
+        let linrgb: LinRgb = LinRgb::from(xyz);
+        Self::from(linrgb)
+    }
+}
+
 impl From<SRgb> for OkLab {
+    fn from(srgb: SRgb) -> Self {
+        let linrgb: LinRgb = LinRgb::from(srgb);
+        Self::from(linrgb)
+    }
+}
+
+impl From<SRgb> for Xyz {
     fn from(srgb: SRgb) -> Self {
         let linrgb: LinRgb = LinRgb::from(srgb);
         Self::from(linrgb)
@@ -714,6 +780,13 @@ impl From<SRgb> for OkLab {
 impl From<OkLab> for SRgb {
     fn from(oklab: OkLab) -> Self {
         let linrgb: LinRgb = LinRgb::from(oklab);
+        Self::from(linrgb)
+    }
+}
+
+impl From<Xyz> for SRgb {
+    fn from(xyz: Xyz) -> Self {
+        let linrgb: LinRgb = LinRgb::from(xyz);
         Self::from(linrgb)
     }
 }
