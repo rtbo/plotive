@@ -1,14 +1,13 @@
 //! A module for defining color maps that can be used in the design of plots to map scalar values to colors.
 
-use crate::color::{Rgb8};
-
+use crate::color::Rgb8;
 
 /// Describes how to interpolate between colors in a color map, either in linear RGB or perceptual color space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LerpMethod {
     /// Interpolate colors in the linear RGB color space.
     LinearRgb,
-    /// Interpolate colors in a perceptual color space.
+    /// Interpolate colors in a perceptual color space (OkLab).
     Perceptual,
     /// Interpolate colors in the XYZ color space.
     Xyz,
@@ -60,7 +59,6 @@ impl LerpColorMap {
         self
     }
 
-
     /// Get the interpolation method used by this color map.
     pub fn method(&self) -> LerpMethod {
         self.method
@@ -88,42 +86,57 @@ impl LerpColorMap {
     }
 }
 
-/// A colormap that maps kelvin temperatures to black body color, with a range from 1000K to 30000K.
+impl From<(LerpMethod, &[Rgb8])> for LerpColorMap {
+    fn from((method, stops): (LerpMethod, &[Rgb8])) -> Self {
+        assert!(stops.len() >= 2, "At least two colors must be provided");
+        let start = stops[0];
+        let end = stops[stops.len() - 1];
+
+        let mut cmap = Self::new(method, start, end);
+        for (i, stop) in stops.iter().enumerate().skip(1).take(stops.len() - 2) {
+            let position = i as f32 / (stops.len() - 1) as f32;
+            cmap = cmap.with_stop((position, *stop));
+        }
+        cmap
+    }
+}
+
+/// A colormap that maps kelvin temperatures to black body color, with a range from 1000K to 15000K.
+/// Based on the approximation from Tanner Helland:
+/// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
 pub fn stellar() -> LerpColorMap {
     const MIN_TEMP: f64 = 1000.0;
     const MAX_TEMP: f64 = 15000.0;
 
     fn stop_for_temp(temp: f64) -> (f32, Rgb8) {
-        // Approximate the color of a black body at the given temperature in kelvin.
-        // The formula is based on the on the Tanner Helland's approximation:
-        // https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
-
         let t = temp / 100.0;
         let r = if t <= 66.0 {
-            255
+            255.0
         } else {
-            let r = 329.698727446 * (t - 60.0).powf(-0.1332047592);
-            r.clamp(0.0, 255.0) as u8
+            329.698727446 * (t - 60.0).powf(-0.1332047592)
         };
+
         let g = if t <= 66.0 {
-            let g = 99.4708025861 * t.ln() - 161.1195681661;
-            g.clamp(0.0, 255.0) as u8
+            99.4708025861 * t.ln() - 161.1195681661
         } else {
-            let g = 288.1221695283 * (t - 60.0).powf(-0.0755148492);
-            g.clamp(0.0, 255.0) as u8
+            288.1221695283 * (t - 60.0).powf(-0.0755148492)
         };
         let b = if t >= 66.0 {
-            255
+            255.0
         } else if t <= 19.0 {
-            0
+            0.0
         } else {
-            let b = 138.5177312231 * (t - 10.0).ln() - 305.0447927307;
-            b.clamp(0.0, 255.0) as u8
+             138.5177312231 * (t - 10.0).ln() - 305.0447927307
         };
 
         let stop_pos = ((temp - MIN_TEMP) / (MAX_TEMP - MIN_TEMP)) as f32;
 
-        (stop_pos, Rgb8::new(r, g, b))
+        let r = r.clamp(0.0, 255.0) as u8;
+        let g = g.clamp(0.0, 255.0) as u8;
+        let b = b.clamp(0.0, 255.0) as u8;
+        let color = Rgb8::new(r, g, b);
+
+        (stop_pos, color)
     }
 
     LerpColorMap::new(
@@ -142,7 +155,17 @@ pub fn stellar() -> LerpColorMap {
     .with_stop(stop_for_temp(9000.0))
     .with_stop(stop_for_temp(10000.0))
     .with_stop(stop_for_temp(12000.0))
-    // .with_stop(stop_for_temp(15000.0))
-    // .with_stop(stop_for_temp(20000.0))
     .with_data_range((MIN_TEMP, MAX_TEMP))
+}
+
+/// The famous "viridis" color map from matplotlib
+pub fn viridis() -> LerpColorMap {
+    const STOPS: &[Rgb8] = &[
+        Rgb8::from_hex(b"#440154"),
+        Rgb8::from_hex(b"#3b518a"),
+        Rgb8::from_hex(b"#208f8c"),
+        Rgb8::from_hex(b"#5bc862"),
+        Rgb8::from_hex(b"#fde724"),
+    ];
+    (LerpMethod::Perceptual, STOPS).into()
 }
