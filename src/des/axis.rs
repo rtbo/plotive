@@ -385,6 +385,8 @@ pub mod ticks {
         /// on the axis data range (bounds) and whether the ticks are major or minor
         #[default]
         Auto,
+        /// Specifies the exact locations of the ticks in data space.
+        List(ListLocator),
         /// Places ticks automatically, using the specified number of bins and steps
         MaxN(MaxNLocator),
         /// Places the ticks automatically, using the specified number of bins and multiples of PI.
@@ -401,6 +403,28 @@ pub mod ticks {
         /// The series data can be either numeric or TimeDelta.
         /// In the case of numeric data, seconds are assumed.
         TimeDelta(TimeDeltaLocator),
+    }
+
+    /// A locator that places ticks at the specified locations in data space
+    #[derive(Debug, Clone)]
+    pub struct ListLocator(pub Vec<f64>);
+
+    impl From<Vec<f64>> for Locator {
+        fn from(loc: Vec<f64>) -> Self {
+            Locator::List(ListLocator(loc))
+        }
+    }
+
+    impl From<Vec<f64>> for ListLocator {
+        fn from(loc: Vec<f64>) -> Self {
+            ListLocator(loc)
+        }
+    }
+
+    impl From<ListLocator> for Locator {
+        fn from(loc: ListLocator) -> Self {
+            Locator::List(loc)
+        }
     }
 
     /// A locator that places ticks automatically, using the specified number of bins and steps

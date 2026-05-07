@@ -29,9 +29,11 @@ fn main() {
     let title: des::figure::Title =
         format!("Normal distribution (\u{03bc}={}, \u{03c3}={})", MU, SIGMA).into();
 
+    let ticks = vec![5.0, 9.0, 11.0, 13.0, 15.0, 17.0, 21.0];
+
     let x_axis = des::Axis::new()
         .with_title("x".into())
-        .with_ticks(Default::default());
+        .with_ticks(des::axis::Ticks::new().with_locator(ticks.into()));
     let y_axis = des::Axis::new().with_title("y".into()).with_ticks(
         des::axis::Ticks::new()
             .with_formatter(Some(des::axis::ticks::PercentFormatter::default().into())),
