@@ -43,17 +43,33 @@ fn line2(x: &[f64], y: &[f64]) -> des::series::Line {
     des::series::Line::new(x.into(), y.into())
 }
 
-/// Get a predictable random number generator
-fn rng(seed: Option<u64>) -> impl rand::Rng {
-    let seed = seed.unwrap_or(1234567890987654321);
-    rand_chacha::ChaCha8Rng::seed_from_u64(seed)
+/// Seed for NotRandom generator
+struct RngSeed(u64);
+
+impl Default for RngSeed {
+    fn default() -> Self {
+        RngSeed(1234567890987654321)
+    }
 }
 
-fn make_col<D>(n: usize, distr: D, rng: &mut impl rand::Rng) -> Vec<f64>
-where
-    D: rand_distr::Distribution<f64>,
-{
-    (0..n).map(|_| distr.sample(rng)).collect()
+/// Predictable random number generator
+struct NotRandom {
+    rng: rand_chacha::ChaCha8Rng,
+}
+
+impl NotRandom {
+    fn new(seed: RngSeed) -> Self {
+        NotRandom {
+            rng: rand_chacha::ChaCha8Rng::seed_from_u64(seed.0),
+        }
+    }
+
+    fn make_col<D>(&mut self, n: usize, distr: D) -> Vec<f64>
+    where
+        D: rand_distr::Distribution<f64>,
+    {
+        (0..n).map(|_| distr.sample(&mut self.rng)).collect()
+    }
 }
 
 mod axes;

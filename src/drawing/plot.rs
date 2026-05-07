@@ -515,7 +515,7 @@ where
 
         for_each_series(des_plot, |s| {
             if let Some(entry) = s.colorbar_entry() {
-                let forced_bounds = entry.cmap.data_range();
+                let forced_bounds = entry.cmap.forced_data_range();
                 let has_forced_bounds = forced_bounds.is_some();
                 let bounds = if let Some(range) = forced_bounds {
                     range
@@ -525,6 +525,10 @@ where
                         .expect("Should get bounds for colormap data column")
                 };
 
+                let locator = entry
+                    .cmap
+                    .forced_ticks_locator()
+                    .unwrap_or(des_colorbar.ticks_locator());
                 let hash = entry.cmap.hash();
 
                 if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
@@ -541,6 +545,7 @@ where
                         hash,
                         entry.cmap.as_color_map(),
                         bounds,
+                        locator.clone(),
                     ));
                 }
             }

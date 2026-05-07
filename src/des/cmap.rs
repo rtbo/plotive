@@ -1,6 +1,7 @@
 //! A module for defining color maps that can be used in the design of plots to map scalar values to colors.
 
 use crate::color::Rgb8;
+use crate::des::axis;
 
 /// Describes how to interpolate between colors in a color map, either in linear RGB or perceptual color space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -21,6 +22,7 @@ pub struct LerpColorMap {
     end: Rgb8,
     stops: Vec<(f32, Rgb8)>,
     data_range: Option<(f64, f64)>,
+    locator: Option<axis::ticks::Locator>,
 }
 
 impl LerpColorMap {
@@ -31,6 +33,7 @@ impl LerpColorMap {
             start,
             end,
             data_range: None,
+            locator: None,
             stops: Vec::new(),
         }
     }
@@ -45,8 +48,11 @@ impl LerpColorMap {
         self
     }
 
-    /// Set the range of scalar values that this color map maps to, as (min, max).
-    pub fn with_data_range(mut self, range: (f64, f64)) -> Self {
+    /// Force the range of scalar data values that this color map maps to, as (min, max).
+    ///
+    /// By default, the colormap will map the range of data values in the plot, but this can be overridden with this method.
+    /// Use this if only a specific range of data are meaningful to map to colors.
+    pub fn force_data_range(mut self, range: (f64, f64)) -> Self {
         assert!(
             range.0.is_finite() && range.1.is_finite(),
             "Color map data range must be finite"
@@ -56,6 +62,14 @@ impl LerpColorMap {
             "Color map data range must have min < max"
         );
         self.data_range = Some(range);
+        self
+    }
+
+    /// Force the ticks of colorbar mapping this colormap to be located according to the given locator.
+    /// By default, the locator is automatic, but this can be overridden with this method.
+    /// Use this if you want to have specific control over the ticks of the colorbar, for example to place them at specific data values.
+    pub fn force_ticks_locator(mut self, locator: axis::ticks::Locator) -> Self {
+        self.locator = Some(locator);
         self
     }
 
@@ -79,10 +93,15 @@ impl LerpColorMap {
         &self.stops
     }
 
-    /// Get the range of scalar values that this color map maps to, if it has one.
+    /// Get the range of scalar values that this colormap is forced to map to, if it has one.
     /// If None, the color map is assumed to map the range of data values in the plot.
-    pub fn data_range(&self) -> Option<(f64, f64)> {
+    pub fn forced_data_range(&self) -> Option<(f64, f64)> {
         self.data_range
+    }
+
+    /// Get the ticks locator that this colormap is forced to use for its colorbar, if it has one.
+    pub fn forced_ticks_locator(&self) -> Option<&axis::ticks::Locator> {
+        self.locator.as_ref()
     }
 }
 
@@ -154,8 +173,14 @@ pub fn stellar() -> LerpColorMap {
     .with_stop(stop_for_temp(8000.0))
     .with_stop(stop_for_temp(9000.0))
     .with_stop(stop_for_temp(10000.0))
-    .with_stop(stop_for_temp(12000.0))
-    .with_data_range((MIN_TEMP, MAX_TEMP))
+    .with_stop(stop_for_temp(12500.0))
+    .force_data_range((MIN_TEMP, MAX_TEMP))
+    .force_ticks_locator(axis::ticks::Locator::List(
+        vec![
+            1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6500.0, 8000.0, 10000.0, 12500.0, 15000.0,
+        ]
+        .into(),
+    ))
 }
 
 /// The famous "viridis" color map from matplotlib

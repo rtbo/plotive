@@ -1,4 +1,5 @@
 //! Color bar configuration
+use crate::des::axis;
 use crate::style::{defaults, theme};
 use crate::text;
 
@@ -53,6 +54,7 @@ pub struct ColorBar {
     title: Option<Title>,
     ticks_font: TicksFont,
     border: Option<theme::Stroke>,
+    locator: axis::ticks::Locator,
     margin: f32,
 }
 
@@ -69,6 +71,7 @@ impl Default for ColorBar {
                 pattern: Default::default(),
                 opacity: None,
             }),
+            locator: axis::ticks::Locator::Auto,
             margin: defaults::COLORBAR_MARGIN,
         }
     }
@@ -107,6 +110,12 @@ impl ColorBar {
         self
     }
 
+    /// Set the ticks locator and return self for chaining
+    pub fn with_ticks_locator(mut self, locator: axis::ticks::Locator) -> Self {
+        self.locator = locator;
+        self
+    }
+
     /// Set the margin between the color bar and the plot area and return self for chaining
     pub fn with_margin(mut self, margin: f32) -> Self {
         self.margin = margin;
@@ -136,6 +145,11 @@ impl ColorBar {
     /// Get the border properties
     pub fn border(&self) -> Option<&theme::Stroke> {
         self.border.as_ref()
+    }
+
+    /// Get the ticks locator
+    pub fn ticks_locator(&self) -> &axis::ticks::Locator {
+        &self.locator
     }
 
     /// Get the margin between the color bar and the plot area
