@@ -22,6 +22,7 @@ pub fn locate_num(
         (Locator::Auto, Scale::Log(LogScale { base, .. })) => {
             Ok(LogLocator::new_major(*base).ticks(nb))
         }
+        (Locator::List(locator), _) => Ok(locator.0.clone()),
         (Locator::MaxN(locator), Scale::Auto | Scale::Linear { .. }) => {
             let ticker = MaxN::new(locator.bins, locator.steps.as_slice());
             Ok(ticker.ticks(nb))
@@ -530,7 +531,7 @@ fn auto_label_formatter(
         (Locator::Auto, Scale::Log(LogScale { base, .. })) if *base == 10.0 => {
             Arc::new(SciLabelFormat)
         }
-        (Locator::Auto, _) => {
+        (Locator::Auto, _) | (Locator::List(..), _) => {
             let max = ab.start().abs().max(ab.end().abs());
             if max >= 100000.0 || max < 0.001 {
                 Arc::new(SciLabelFormat)
