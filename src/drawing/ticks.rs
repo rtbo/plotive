@@ -6,7 +6,7 @@ use crate::data;
 use crate::des::axis::ticks::{
     DateTimeFormatter, DateTimeLocator, TimeDeltaFormatter, TimeDeltaLocator,
 };
-use crate::des::axis::ticks::{Formatter, Locator, Ticks};
+use crate::des::axis::ticks::{Formatter, Locator};
 use crate::des::axis::{LogScale, Scale};
 use crate::drawing::{Categories, Error, axis};
 #[cfg(feature = "time")]
@@ -318,7 +318,7 @@ const AUTO_STEPS: &[f64] = &[1.0, 2.0, 2.5, 5.0];
 const PI: f64 = std::f64::consts::PI;
 const PI_STEPS: &[f64] = &[PI / 8.0, PI / 6.0, PI / 4.0, PI / 3.0, PI / 2.0, PI];
 
-struct MaxN<'a> {
+pub(super) struct MaxN<'a> {
     bins: u32,
     steps: &'a [f64],
 }
@@ -328,7 +328,7 @@ impl<'a> MaxN<'a> {
         Self { bins, steps }
     }
 
-    fn new_auto() -> Self {
+    pub(super) fn new_auto() -> Self {
         Self::new(AUTO_BINS, AUTO_STEPS)
     }
 
@@ -340,7 +340,7 @@ impl<'a> MaxN<'a> {
         Self::new(bins, PI_STEPS)
     }
 
-    fn ticks(&self, nb: axis::NumBounds) -> Vec<f64> {
+    pub(super) fn ticks(&self, nb: axis::NumBounds) -> Vec<f64> {
         let target_step = nb.span() / self.bins as f64;
 
         // getting quite about where we need to be
@@ -492,14 +492,17 @@ impl LogLocator {
 }
 
 pub fn num_label_formatter(
-    ticks: &Ticks,
+    locator: &Locator,
+    formatter: Option<&Formatter>,
     ab: axis::NumBounds,
     scale: &Scale,
 ) -> Arc<dyn LabelFormatter> {
-    match ticks.formatter() {
+    match formatter {
         None => Arc::new(NullFormat),
         Some(Formatter::Auto) if scale.is_shared() => Arc::new(NullFormat),
-        Some(Formatter::Auto | Formatter::SharedAuto) => auto_label_formatter(ticks, ab, scale),
+        Some(Formatter::Auto | Formatter::SharedAuto) => {
+            auto_label_formatter(locator, formatter, ab, scale)
+        }
         Some(Formatter::Prec(prec)) => Arc::new(PrecLabelFormat(*prec)),
         Some(Formatter::Percent(fmt)) => {
             let prec = fmt
@@ -510,23 +513,26 @@ pub fn num_label_formatter(
         #[cfg(feature = "time")]
         Some(Formatter::TimeDelta(tdfmt)) => timedelta_label_formatter(ab, tdfmt),
         #[cfg(feature = "time")]
-        Some(Formatter::DateTime(_)) => datetime_label_formatter(ticks, ab.into(), scale).unwrap(),
+        Some(Formatter::DateTime(_)) => {
+            datetime_label_formatter(formatter, ab.into(), scale).unwrap()
+        }
     }
 }
 
 fn auto_label_formatter(
-    ticks: &Ticks,
+    locator: &Locator,
+    #[allow(unused_variables)] formatter: Option<&Formatter>,
     ab: axis::NumBounds,
     scale: &Scale,
 ) -> Arc<dyn LabelFormatter> {
-    match (ticks.locator(), scale) {
+    match (locator, scale) {
         (Locator::PiMultiple { .. }, _) => Arc::new(PiMultipleLabelFormat { prec: 2 }),
         (Locator::Auto, Scale::Log(LogScale { base, .. })) if *base == 10.0 => {
             Arc::new(SciLabelFormat)
         }
         (Locator::Auto, _) => {
             let max = ab.start().abs().max(ab.end().abs());
-            if max >= 10000.0 || max < 0.01 {
+            if max >= 100000.0 || max < 0.001 {
                 Arc::new(SciLabelFormat)
             } else if max >= 100.0 {
                 Arc::new(PrecLabelFormat(0))
@@ -537,10 +543,10 @@ fn auto_label_formatter(
             }
         }
         #[cfg(feature = "time")]
-        (Locator::DateTime(_), _) => datetime_label_formatter(ticks, ab.into(), scale).unwrap(),
+        (Locator::DateTime(_), _) => datetime_label_formatter(formatter, ab.into(), scale).unwrap(),
         _ => todo!(
             "auto label formatter for locator {:?} and scale {:?}",
-            ticks.locator(),
+            locator,
             scale
         ),
     }
@@ -561,11 +567,11 @@ fn percent_auto_precision(ab: axis::NumBounds) -> usize {
 
 #[cfg(feature = "time")]
 pub fn datetime_label_formatter(
-    ticks: &Ticks,
+    formatter: Option<&Formatter>,
     tb: axis::TimeBounds,
     scale: &Scale,
 ) -> Result<Arc<dyn LabelFormatter>, Error> {
-    match ticks.formatter() {
+    match formatter {
         Some(Formatter::Auto) if scale.is_shared() => Ok(Arc::new(NullFormat)),
         Some(Formatter::Auto | Formatter::SharedAuto) => auto_datetime_label_formatter(tb),
         Some(Formatter::DateTime(DateTimeFormatter::Auto)) => auto_datetime_label_formatter(tb),

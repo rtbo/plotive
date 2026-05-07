@@ -275,7 +275,7 @@ impl SvgSurface {
     //                 let span_txt = &whole_txt[span.start()..span.end()];
     //                 let mut span_node = element::TSpan::new(span_txt);
     //                 let paint = span.props().fill().map(|c| {
-    //                     render::Paint::Solid(ColorU8::from_rgba(
+    //                     render::Paint::Solid(Rgba8::from_rgba(
     //                         c.red(),
     //                         c.green(),
     //                         c.blue(),
@@ -349,8 +349,9 @@ where
     N: Node,
 {
     if let Some(render::Paint::Solid(color)) = fill {
-        node.assign("fill", color.html());
-        if let Some(opacity) = color.opacity() {
+        let (rgb, opacity) = color.split_rgb_opacity();
+        node.assign("fill", rgb.html());
+        if let Some(opacity) = opacity {
             node.assign("fill-opacity", opacity);
         }
     } else {
@@ -363,12 +364,13 @@ where
     N: Node,
 {
     if let Some(stroke) = stroke {
-        let w = stroke.width;
-        node.assign("stroke", stroke.color.html());
-        node.assign("stroke-width", w);
-        if let Some(opacity) = stroke.color.opacity() {
+        let (rgb, opacity) = stroke.color.split_rgb_opacity();
+        node.assign("stroke", rgb.html());
+        if let Some(opacity) = opacity {
             node.assign("stroke-opacity", opacity);
         }
+        let w = stroke.width;
+        node.assign("stroke-width", w);
         match stroke.pattern {
             render::LinePattern::Solid => (),
             render::LinePattern::Dash(dash) => {

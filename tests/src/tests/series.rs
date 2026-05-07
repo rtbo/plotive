@@ -35,13 +35,13 @@ fn series_scatter_nodata() {
 fn series_scatter_sizes() {
     let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     let y = vec![1.0, 4.0, 9.0, 16.0, 25.0];
-    let sizes = vec![300.0, 250.0, 200.0, 150.0, 100.0];
+    let sizes = vec![8.0, 4.0, 2.0, 1.0, 0.5];
 
-    let color: plotive::ColorU8 = "light eggplant".parse().unwrap();
+    let color: plotive::Rgba8 = "light eggplant".parse().unwrap();
 
     let plot = des::Plot::new(vec![
         des::series::Scatter::new(des::data_inline(x), des::data_inline(y))
-            .with_sizes(des::data_inline(sizes))
+            .with_size_data(des::data_inline(sizes))
             .with_marker(
                 style::series::Marker::default()
                     .with_color(color.into())
@@ -61,8 +61,8 @@ fn series_area_double() {
     let y1 = vec![10.0, 15.0, 8.0, 6.0, 12.0, 10.0];
     let y2 = vec![4.0, 9.0, 2.0, 0.0, 6.0, 4.0];
 
-    let fill = plotive::ColorU8::from_html(b"#888").into();
-    let stroke: style::series::Stroke = plotive::ColorU8::from_html(b"#000").into();
+    let fill = plotive::Rgba8::from_hex(b"#888").into();
+    let stroke: style::series::Stroke = plotive::Rgba8::from_hex(b"#000").into();
 
     let plot = des::Plot::new(vec![
         des::series::Area::new(
@@ -95,9 +95,9 @@ fn series_area_double_legend() {
     let y1 = vec![10.0, 15.0, 8.0, 6.0, 12.0, 10.0];
     let y2 = vec![4.0, 9.0, 2.0, 0.0, 6.0, 4.0];
 
-    let fill1 = plotive::ColorU8::from_html(b"#888").into();
-    let fill2 = plotive::ColorU8::from_html(b"#444").into();
-    let stroke: style::series::Stroke = plotive::ColorU8::from_html(b"#000").into();
+    let fill1 = plotive::Rgba8::from_hex(b"#888").into();
+    let fill2 = plotive::Rgba8::from_hex(b"#444").into();
+    let stroke: style::series::Stroke = plotive::Rgba8::from_hex(b"#000").into();
 
     let plot = des::Plot::new(vec![
         des::series::Area::new(

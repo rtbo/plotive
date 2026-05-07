@@ -14,4 +14,4 @@ cargo run --example subplots --features utils -- png=gallery/subplots.png
 
 cargo run --example bitcoin --features data-csv,time -- png=gallery/bitcoin.png
 cargo run --example iris --features data-csv -- png=gallery/iris.png
-
+cargo run --example stars --features data-csv -- png=gallery/stars.png dark

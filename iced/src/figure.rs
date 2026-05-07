@@ -352,9 +352,9 @@ pub trait Catalog: Sized {
 }
 
 #[inline]
-fn from_iced_color(color: iced::Color) -> plotive::ColorU8 {
+fn from_iced_color(color: iced::Color) -> plotive::Rgba8 {
     let [r, g, b, a] = color.into_rgba8();
-    plotive::ColorU8::from_rgba(r, g, b, a)
+    plotive::Rgba8::new(r, g, b, a)
 }
 
 /// Map an `iced::Theme` to an plotive theme.

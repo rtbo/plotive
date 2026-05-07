@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use plotive_base::{ColorU8, color};
+use plotive_base::{Rgba8, color};
 
 use crate::des::series;
 use crate::style;
@@ -75,7 +75,7 @@ pub trait MplStyle {
 
 impl MplStyle for series::Line {
     fn with_mpl_style(mut self, mpl_style: &str) -> Result<Self, MplStyleError> {
-        if let Ok(c) = mpl_style.parse::<color::ColorU8>() {
+        if let Ok(c) = mpl_style.parse::<color::Rgba8>() {
             let mut s = self.stroke().clone();
             s.color = c.into();
             return Ok(self.with_stroke(s));
@@ -157,14 +157,14 @@ impl LineMplStyle {
                     }
                 }
                 ':' => style.set_pattern(style::LinePattern::Dot)?,
-                'b' => style.set_color(ColorU8::from_html(b"#0000ff").into())?,
-                'g' => style.set_color(ColorU8::from_html(b"#008000").into())?,
-                'r' => style.set_color(ColorU8::from_html(b"#ff0000").into())?,
-                'c' => style.set_color(ColorU8::from_html(b"#00bfbf").into())?,
-                'm' => style.set_color(ColorU8::from_html(b"#bf00bf").into())?,
-                'y' => style.set_color(ColorU8::from_html(b"#bfbf00").into())?,
-                'k' => style.set_color(ColorU8::from_html(b"#000000").into())?,
-                'w' => style.set_color(ColorU8::from_html(b"#ffffff").into())?,
+                'b' => style.set_color(Rgba8::from_hex(b"#0000ff").into())?,
+                'g' => style.set_color(Rgba8::from_hex(b"#008000").into())?,
+                'r' => style.set_color(Rgba8::from_hex(b"#ff0000").into())?,
+                'c' => style.set_color(Rgba8::from_hex(b"#00bfbf").into())?,
+                'm' => style.set_color(Rgba8::from_hex(b"#bf00bf").into())?,
+                'y' => style.set_color(Rgba8::from_hex(b"#bfbf00").into())?,
+                'k' => style.set_color(Rgba8::from_hex(b"#000000").into())?,
+                'w' => style.set_color(Rgba8::from_hex(b"#ffffff").into())?,
                 'C' => {
                     let s: usize = mpl_style[i + 1..].parse().map_err(|_| {
                         MplStyleError(format!(

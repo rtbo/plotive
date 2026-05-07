@@ -10,15 +10,10 @@ pub trait ToIced {
     fn to_iced(&self) -> Self::IcedType;
 }
 
-impl ToIced for plotive::ColorU8 {
+impl ToIced for plotive::Rgba8 {
     type IcedType = iced::Color;
 
     fn to_iced(&self) -> Self::IcedType {
-        iced::Color::from_rgba8(
-            self.red(),
-            self.green(),
-            self.blue(),
-            self.alpha() as f32 / 255.0,
-        )
+        iced::Color::from_rgba8(self.r(), self.g(), self.b(), self.a() as f32 / 255.0)
     }
 }

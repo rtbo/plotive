@@ -1,11 +1,11 @@
-use plotive_base::{ColorU8, geom};
+use plotive_base::{Rgba8, geom};
 use ttf_parser as ttf;
 
 use super::RichText;
 use crate::{font, fontdb};
 
 #[derive(Debug)]
-pub enum RichPrimitive<'a, C = ColorU8>
+pub enum RichPrimitive<'a, C = Rgba8>
 where
     C: Clone,
 {
@@ -104,12 +104,12 @@ pub fn render_rich_text(
     let render_fn = |primitive: RichPrimitive| match primitive {
         RichPrimitive::Fill(path, color) => {
             let mut paint = tiny_skia::Paint::default();
-            paint.set_color_rgba8(color.red(), color.green(), color.blue(), color.alpha());
+            paint.set_color_rgba8(color.r(), color.g(), color.b(), color.a());
             pixmap.fill_path(path, &paint, tiny_skia::FillRule::Winding, transform, mask);
         }
         RichPrimitive::Stroke(path, color, width) => {
             let mut paint = tiny_skia::Paint::default();
-            paint.set_color_rgba8(color.red(), color.green(), color.blue(), color.alpha());
+            paint.set_color_rgba8(color.r(), color.g(), color.b(), color.a());
             let mut stroke = tiny_skia::Stroke::default();
             stroke.width = width;
             pixmap.stroke_path(path, &paint, &stroke, transform, mask);

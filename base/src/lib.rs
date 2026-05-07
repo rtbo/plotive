@@ -1,4 +1,4 @@
 pub mod color;
-pub use color::{Color, ColorU8, ResolveColor};
+pub use color::{Color, ResolveColor, Rgb8, Rgba8};
 
 pub mod geom;

@@ -4,11 +4,12 @@ use std::rc::Rc;
 
 use crate::des::{PlotIdx, annot};
 use crate::drawing::annot::Annot;
-use crate::drawing::axis::{Axis, AxisScale, Bounds, Side};
+use crate::drawing::axis::{AsBoundRef, Axis, AxisScale, Bounds, Side};
+use crate::drawing::colorbar::{ColorBar, ColorBarBuilder};
 use crate::drawing::legend::{Legend, LegendBuilder};
 use crate::drawing::scale::CoordMapXy;
 use crate::drawing::series::{self, Series, SeriesExt};
-use crate::drawing::{Ctx, Error};
+use crate::drawing::{ColumnExt, Ctx, Error, get_column};
 use crate::style::{defaults, theme};
 use crate::{Style, data, des, geom, missing_params, render};
 
@@ -59,6 +60,7 @@ pub(super) struct Plot {
     border: Option<des::plot::Border>,
     series: Vec<Series>,
     legend: Option<(geom::Point, Legend)>,
+    colorbars: Vec<ColorBar>,
     annots: Vec<Annot>,
 }
 
@@ -156,6 +158,7 @@ impl Axes {
 struct PlotData {
     series: Vec<Series>,
     legend: Option<Legend>,
+    colorbars: Vec<ColorBar>,
     insets: geom::Padding,
 }
 
@@ -370,7 +373,12 @@ where
                         subplot_rect_height,
                     );
 
-                    let PlotData { series, legend, .. } = data.unwrap();
+                    let PlotData {
+                        series,
+                        legend,
+                        colorbars,
+                        ..
+                    } = data.unwrap();
 
                     let legend = legend.map(|leg| {
                         let top_left = legend_top_left(
@@ -418,6 +426,7 @@ where
                         axes,
                         series,
                         legend,
+                        colorbars,
                         annots,
                     };
                     plots[plt_idx as usize] = Some(plot);
@@ -450,10 +459,12 @@ where
             let cols = des_plots.cols() as f32;
             let avail_width = (rect.width() - des_plots.space() * (cols - 1.0)) / cols;
             let legend = self.setup_plot_legend(des_plot, avail_width)?;
+            let colorbars = self.setup_plot_colorbars(des_plot)?;
             let insets = plot_insets(des_plot);
             plot_data[idx] = Some(PlotData {
                 series,
                 legend,
+                colorbars,
                 insets,
             });
         }
@@ -496,6 +507,52 @@ where
         Ok(builder.layout())
     }
 
+    fn setup_plot_colorbars(&self, des_plot: &des::Plot) -> Result<Vec<ColorBar>, Error> {
+        let Some(des_colorbar) = des_plot.colorbar() else {
+            return Ok(vec![]);
+        };
+        let mut builders: Vec<ColorBarBuilder> = Vec::new();
+
+        for_each_series(des_plot, |s| {
+            if let Some(entry) = s.colorbar_entry() {
+                let forced_bounds = entry.cmap.data_range();
+                let has_forced_bounds = forced_bounds.is_some();
+                let bounds = if let Some(range) = forced_bounds {
+                    range
+                } else {
+                    let col = get_column(entry.data_col, self.data_source())?;
+                    col.bounds()
+                        .expect("Should get bounds for colormap data column")
+                };
+
+                let hash = entry.cmap.hash();
+
+                if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
+                    if !has_forced_bounds {
+                        cbb.unite_bounds(bounds.as_bound_ref())?;
+                    } else {
+                        debug_assert!(
+                            cbb.data_bounds() == bounds.as_bound_ref(),
+                            "Two color bars with same color map but different forced data range, this should not happen since the color map should be different if the data range is different"
+                        );
+                    }
+                } else {
+                    builders.push(ColorBarBuilder::new(
+                        hash,
+                        entry.cmap.as_color_map(),
+                        bounds,
+                    ));
+                }
+            }
+            Ok(())
+        })?;
+
+        Ok(builders
+            .into_iter()
+            .map(|b| b.build(des_colorbar.clone(), self))
+            .collect::<Result<Vec<_>, _>>()?)
+    }
+
     fn calc_estimated_x_heights(
         &self,
         des_plots: &des::figure::Plots,
@@ -516,6 +573,13 @@ where
                             height += leg.size().height() + des_leg.margin();
                         }
                     }
+
+                    for cbar in &data.colorbars {
+                        if x_side_matches_colorbar_pos(side, cbar.pos()) {
+                            height += cbar.calc_size_across() + cbar.margin();
+                        }
+                    }
+
                     max_height = max_height.max(height);
                 }
             }
@@ -552,6 +616,12 @@ where
                     }
                 }
 
+                for cbar in &data.colorbars {
+                    if x_side_matches_colorbar_pos(side, cbar.pos()) {
+                        height += cbar.calc_size_across() + cbar.margin();
+                    }
+                }
+
                 max_height = max_height.max(height);
             }
             debug_assert!(max_height.is_finite());
@@ -582,6 +652,12 @@ where
                     if let (Some(des_leg), Some(leg)) = (des_plot.legend(), data.legend.as_ref()) {
                         if y_side_matches_out_legend_pos(side, des_leg.pos()) {
                             width += leg.size().width() + des_leg.margin();
+                        }
+                    }
+
+                    for cbar in &data.colorbars {
+                        if y_side_matches_colorbar_pos(side, cbar.pos()) {
+                            width += cbar.calc_size_across() + cbar.margin();
                         }
                     }
 
@@ -836,6 +912,22 @@ fn y_side_matches_out_legend_pos(side: des::axis::Side, legend_pos: des::plot::L
     }
 }
 
+fn x_side_matches_colorbar_pos(side: des::axis::Side, pos: des::ColorBarPos) -> bool {
+    match (side, pos) {
+        (des::axis::Side::Main, des::ColorBarPos::Bottom) => true,
+        (des::axis::Side::Opposite, des::ColorBarPos::Top) => true,
+        _ => false,
+    }
+}
+
+fn y_side_matches_colorbar_pos(side: des::axis::Side, pos: des::ColorBarPos) -> bool {
+    match (side, pos) {
+        (des::axis::Side::Main, des::ColorBarPos::Left) => true,
+        (des::axis::Side::Opposite, des::ColorBarPos::Right) => true,
+        _ => false,
+    }
+}
+
 impl Plots {
     pub fn update_series_data<D>(&mut self, data_source: &D) -> Result<(), Error>
     where
@@ -883,7 +975,7 @@ impl Plot {
                 y: &*y_cm,
             };
 
-            series.update_data(data_source, &self.rect, &cm)?;
+            series.update_data(data_source, &self.rect, &cm, &self.colorbars)?;
         }
         Ok(())
     }
@@ -904,8 +996,12 @@ impl Plot {
         self.draw_series(surface, style);
         self.draw_annotations(surface, style, axes, annot::ZPos::AboveSeries);
 
-        axes.draw(surface, style, &self.rect);
+        let plot_box = axes.draw(surface, style, &self.rect);
         self.draw_border_box(surface, style);
+
+        for cbar in &self.colorbars {
+            cbar.draw(surface, style, &self.rect, &plot_box);
+        }
 
         if let Some((top_left, leg)) = self.legend.as_ref() {
             leg.draw(surface, style, top_left);
@@ -996,14 +1092,20 @@ impl Axes {
         }
     }
 
-    fn draw<S>(&self, surface: &mut S, style: &Style, plot_rect: &geom::Rect)
+    fn draw<S>(&self, surface: &mut S, style: &Style, plot_rect: &geom::Rect) -> geom::Rect
     where
         S: render::Surface,
     {
-        self.draw_side(surface, style, &self.x, Side::Top, plot_rect);
-        self.draw_side(surface, style, &self.y, Side::Right, plot_rect);
-        self.draw_side(surface, style, &self.x, Side::Bottom, plot_rect);
-        self.draw_side(surface, style, &self.y, Side::Left, plot_rect);
+        let t = self.draw_side(surface, style, &self.x, Side::Top, plot_rect);
+        let r = self.draw_side(surface, style, &self.y, Side::Right, plot_rect);
+        let b = self.draw_side(surface, style, &self.x, Side::Bottom, plot_rect);
+        let l = self.draw_side(surface, style, &self.y, Side::Left, plot_rect);
+
+        plot_rect
+            .shifted_top_side(t)
+            .shifted_right_side(-r)
+            .shifted_bottom_side(-b)
+            .shifted_left_side(l)
     }
 
     fn draw_side<S>(
@@ -1013,23 +1115,28 @@ impl Axes {
         axes: &[Axis],
         side: Side,
         plot_rect: &geom::Rect,
-    ) where
+    ) -> f32
+    where
         S: render::Surface,
     {
+        let mut tot_shift = 0.0;
         let mut rect = *plot_rect;
         for axis in axes.iter() {
             if axis.side() == side {
-                let shift = axis.draw(surface, style, &rect)
-                    + missing_params::AXIS_MARGIN
-                    + missing_params::AXIS_SPINE_WIDTH;
-                rect = match side {
-                    Side::Top => rect.shifted_top_side(-shift),
-                    Side::Right => rect.shifted_right_side(shift),
-                    Side::Bottom => rect.shifted_bottom_side(shift),
-                    Side::Left => rect.shifted_left_side(-shift),
-                };
+                let mut shift = axis.draw(surface, style, &rect);
+                if shift > 0.0 {
+                    shift += missing_params::AXIS_MARGIN + missing_params::AXIS_SPINE_WIDTH;
+                    rect = match side {
+                        Side::Top => rect.shifted_top_side(-shift),
+                        Side::Right => rect.shifted_right_side(shift),
+                        Side::Bottom => rect.shifted_bottom_side(shift),
+                        Side::Left => rect.shifted_left_side(-shift),
+                    };
+                    tot_shift += shift;
+                }
             }
         }
+        tot_shift
     }
 }
 

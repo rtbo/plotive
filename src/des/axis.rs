@@ -639,7 +639,7 @@ pub mod ticks {
                 width: 1.0,
                 color: theme::Col::Grid.into(),
                 pattern: style::LinePattern::Solid,
-                opacity: None,
+                opacity: Some(0.6),
             })
         }
     }
@@ -736,7 +736,7 @@ pub mod ticks {
                 width: 0.5,
                 color: theme::Col::Grid.into(),
                 pattern: style::LinePattern::Dash(Dash::default()),
-                opacity: None,
+                opacity: Some(0.6),
             })
         }
     }

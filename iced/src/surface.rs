@@ -49,7 +49,7 @@ where
     fn fill(&mut self, fill: render::Paint) {
         let color = match fill {
             render::Paint::Solid(c) => {
-                iced::Color::from_rgba8(c.red(), c.green(), c.blue(), c.alpha() as f32 / 255.0)
+                iced::Color::from_rgba8(c.r(), c.g(), c.b(), c.a() as f32 / 255.0)
             }
         };
         let bounds = self.clip_bounds();
@@ -69,8 +69,9 @@ where
         }
 
         if let Some(stroke) = path.stroke.as_ref() {
+            let tr_scale = (transform.sx.abs() + transform.sy.abs()) / 2.0;
             let mut pattern = Vec::new();
-            let iced_stroke = to_iced_stroke(stroke, &mut pattern, self.scale);
+            let iced_stroke = to_iced_stroke(stroke, &mut pattern, self.scale * tr_scale);
             self.frames
                 .last_mut()
                 .unwrap()
@@ -100,9 +101,14 @@ where
 }
 
 #[inline]
-fn to_iced_color(color: plotive::ColorU8) -> iced::Color {
-    let [r, g, b, a] = color.rgba_f32();
-    iced::Color::from_rgba(r, g, b, a)
+fn to_iced_color(color: plotive::Rgba8) -> iced::Color {
+    let [r, g, b, a] = color.arr();
+    iced::Color::from_rgba(
+        r as f32 / 255.0,
+        g as f32 / 255.0,
+        b as f32 / 255.0,
+        a as f32 / 255.0,
+    )
 }
 
 #[inline]

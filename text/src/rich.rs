@@ -1,4 +1,4 @@
-use plotive_base::{Color, ColorU8, color, geom};
+use plotive_base::{Color, Rgba8, color, geom};
 use ttf_parser as ttf;
 
 use crate::{Error, font, fontdb, line};
@@ -199,7 +199,7 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct RichText<C = ColorU8>
+pub struct RichText<C = Rgba8>
 where
     C: Clone,
 {
@@ -386,7 +386,7 @@ pub trait Foreground {
     fn foreground() -> Self;
 }
 
-impl Foreground for ColorU8 {
+impl Foreground for Rgba8 {
     fn foreground() -> Self {
         color::BLACK
     }

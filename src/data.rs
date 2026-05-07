@@ -1363,6 +1363,12 @@ impl NamedOwnedColumns {
         self.names.push(name.to_string());
         self.columns.push(col);
     }
+
+    /// Add a column with the given name, returning self for chaining
+    pub fn with_column(mut self, name: &str, col: Box<dyn Column>) -> Self {
+        self.add_column(name, col);
+        self
+    }
 }
 
 impl Source for NamedOwnedColumns {
@@ -1411,6 +1417,12 @@ impl<'a> NamedColumns<'a> {
         }
         self.names.push(name.to_string());
         self.columns.push(col);
+    }
+
+    /// Add a column with the given name, returning self for chaining
+    pub fn with_column(mut self, name: &str, col: &'a dyn Column) -> Self {
+        self.add_column(name, col);
+        self
     }
 }
 

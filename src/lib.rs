@@ -164,11 +164,13 @@ pub mod time;
 pub use drawing::Prepare;
 pub use style::Style;
 
-/// Rexports of [`plotive_base::color`]` items
+/// Color types and utilities for the `plotive` crate.
 pub mod color {
+    /// Rexports of [`plotive_base::color`]` items
     pub use plotive_base::color::*;
 }
-pub use color::{Color, ColorU8, ResolveColor};
+
+pub use color::{Color, ResolveColor, Rgba8};
 
 /// Rexports of [`plotive_base::geom`]` items
 pub mod geom {

@@ -1,6 +1,6 @@
 //! Plot design structures
 
-use crate::des::{Annotation, Axis, Legend, PlotIdx, Series};
+use crate::des::{Annotation, Axis, ColorBar, Legend, PlotIdx, Series};
 use crate::style::{defaults, theme};
 
 /// Arrow border style for the plot area
@@ -154,6 +154,7 @@ pub struct Plot {
     border: Option<Border>,
     insets: Option<Insets>,
     legend: Option<PlotLegend>,
+    colorbar: Option<ColorBar>,
     annotations: Vec<Annotation>,
 }
 
@@ -171,6 +172,7 @@ impl Plot {
             border: Some(Border::default()),
             insets: Some(Insets::default()),
             legend: None,
+            colorbar: None,
             annotations: vec![],
         }
     }
@@ -233,6 +235,14 @@ impl Plot {
         }
     }
 
+    /// Set the color bar of the plot and return self for chaining
+    pub fn with_colorbar(self, colorbar: ColorBar) -> Self {
+        Self {
+            colorbar: Some(colorbar),
+            ..self
+        }
+    }
+
     /// Add an arbitrary [`Annotation`] to the plot and return self for chaining
     pub fn with_annotation(mut self, annotation: Annotation) -> Self {
         self.annotations.push(annotation);
@@ -277,6 +287,11 @@ impl Plot {
     /// Get the legend of the plot
     pub fn legend(&self) -> Option<&PlotLegend> {
         self.legend.as_ref()
+    }
+
+    /// Get the color bar of the plot
+    pub fn colorbar(&self) -> Option<&ColorBar> {
+        self.colorbar.as_ref()
     }
 
     /// Get the annotations of the plot
