@@ -1,4 +1,5 @@
 use plotive::{des, geom};
+use rand::SeedableRng;
 
 use crate::*;
 
@@ -42,7 +43,21 @@ fn line2(x: &[f64], y: &[f64]) -> des::series::Line {
     des::series::Line::new(x.into(), y.into())
 }
 
+/// Get a predictable random number generator
+fn rng(seed: Option<u64>) -> impl rand::Rng {
+    let seed = seed.unwrap_or(1234567890987654321);
+    rand_chacha::ChaCha8Rng::seed_from_u64(seed)
+}
+
+fn make_col<D>(n: usize, distr: D, rng: &mut impl rand::Rng) -> Vec<f64>
+where
+    D: rand_distr::Distribution<f64>,
+{
+    (0..n).map(|_| distr.sample(rng)).collect()
+}
+
 mod axes;
+mod colorbar;
 mod interp;
 mod legend;
 mod nulls;

@@ -3832,6 +3832,9 @@ dependencies = [
  "plotive",
  "plotive-pxl",
  "plotive-svg",
+ "rand",
+ "rand_chacha",
+ "rand_distr",
  "similar",
  "tiny-skia",
 ]

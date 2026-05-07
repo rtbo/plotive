@@ -90,7 +90,6 @@ impl ColorBarBuilder {
                             ctx.fontdb(),
                         )?;
                         let text = Text::from_line_text(&lt, ctx.fontdb(), font.color)?;
-
                         Ok((data::Sample::Num(t), text))
                     })
                     .collect::<Result<Vec<_>, _>>()?
@@ -184,7 +183,7 @@ impl ColorBar {
     }
 
     pub fn calc_size_across(&self) -> f32 {
-        let mut size = 0.0;
+        let mut size = self.width();
 
         if !self.ticks.is_empty() {
             size += self.ticks_mark.1 + missing_params::TICK_LABEL_MARGIN;
@@ -299,7 +298,7 @@ impl ColorBar {
 
             pb = path.clear();
             pos = pos2;
-            t += t_shift;
+            t = (t + t_shift).min(1.0);
         }
 
         if let Some(border) = self.border() {

@@ -131,6 +131,17 @@
         {
             "type": "lldb",
             "request": "launch",
+            "name": "stars example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "stars",
+                    "--features", "data-csv"
+                ]
+            },
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
             "name": "subplots example",
             "cargo": {
                 "args": [

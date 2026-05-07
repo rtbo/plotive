@@ -574,6 +574,12 @@ where
                         }
                     }
 
+                    for cbar in &data.colorbars {
+                        if x_side_matches_colorbar_pos(side, cbar.pos()) {
+                            height += cbar.calc_size_across() + cbar.margin();
+                        }
+                    }
+
                     max_height = max_height.max(height);
                 }
             }
@@ -607,6 +613,12 @@ where
                 if let (Some(des_leg), Some(leg)) = (des_plot.legend(), data.legend.as_ref()) {
                     if x_side_matches_out_legend_pos(side, des_leg.pos()) {
                         height += leg.size().height() + des_leg.margin();
+                    }
+                }
+
+                for cbar in &data.colorbars {
+                    if x_side_matches_colorbar_pos(side, cbar.pos()) {
+                        height += cbar.calc_size_across() + cbar.margin();
                     }
                 }
 
@@ -896,6 +908,14 @@ fn y_side_matches_out_legend_pos(side: des::axis::Side, legend_pos: des::plot::L
     match (side, legend_pos) {
         (des::axis::Side::Main, des::plot::LegendPos::OutLeft) => true,
         (des::axis::Side::Opposite, des::plot::LegendPos::OutRight) => true,
+        _ => false,
+    }
+}
+
+fn x_side_matches_colorbar_pos(side: des::axis::Side, pos: des::ColorBarPos) -> bool {
+    match (side, pos) {
+        (des::axis::Side::Main, des::ColorBarPos::Bottom) => true,
+        (des::axis::Side::Opposite, des::ColorBarPos::Top) => true,
         _ => false,
     }
 }
