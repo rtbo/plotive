@@ -517,6 +517,7 @@ pub fn num_label_formatter(
 
 fn auto_label_formatter(
     locator: &Locator,
+    #[allow(unused_variables)]
     formatter: Option<&Formatter>,
     ab: axis::NumBounds,
     scale: &Scale,
