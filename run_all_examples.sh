@@ -37,6 +37,7 @@ cargo run --example subplots --features utils -- ${POS_ARGS[@]}
 
 cargo run --example bitcoin --features data-csv,time -- ${POS_ARGS[@]}
 cargo run --example iris --features data-csv -- ${POS_ARGS[@]}
+cargo run --example stars --features data-csv -- ${POS_ARGS[@]}
 
 cargo run --example bode_rlc_dsl --features dsl,noto-serif-italic,utils -- ${POS_ARGS[@]}
 
