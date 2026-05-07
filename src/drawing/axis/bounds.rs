@@ -1,4 +1,5 @@
-use crate::{data, drawing::{Categories, Error}};
+use crate::data;
+use crate::drawing::{Categories, Error};
 #[cfg(feature = "time")]
 use crate::time::{DateTime, TimeDelta};
 

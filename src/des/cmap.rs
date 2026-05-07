@@ -126,7 +126,7 @@ pub fn stellar() -> LerpColorMap {
         } else if t <= 19.0 {
             0.0
         } else {
-             138.5177312231 * (t - 10.0).ln() - 305.0447927307
+            138.5177312231 * (t - 10.0).ln() - 305.0447927307
         };
 
         let stop_pos = ((temp - MIN_TEMP) / (MAX_TEMP - MIN_TEMP)) as f32;

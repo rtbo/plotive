@@ -2,7 +2,7 @@
  * This module deals with colors and style of data series.
  */
 use crate::style::{self, catppuccin, defaults};
-use crate::{Rgba8, ResolveColor};
+use crate::{ResolveColor, Rgba8};
 
 /// A palette for data series.
 /// It provides ordered colors for series in a figure.

@@ -44,7 +44,8 @@ impl AsColorMap for LerpColorMap {
     }
 
     fn data_range(&self) -> Option<axis::Bounds> {
-        self.data_range().map(|rng| axis::NumBounds::from(rng).into())
+        self.data_range()
+            .map(|rng| axis::NumBounds::from(rng).into())
     }
 
     fn as_color_map(&self) -> Arc<dyn ColorMap> {
@@ -52,15 +53,9 @@ impl AsColorMap for LerpColorMap {
         let end = self.end();
         let stops = self.stops().iter().copied();
         match self.method() {
-            LerpMethod::LinearRgb => {
-                Arc::new(LinearColorMap::new(start, end, stops))
-            }
-            LerpMethod::Perceptual => {
-                Arc::new(PerceptualColorMap::new(start, end, stops))
-            }
-            LerpMethod::Xyz => {
-                Arc::new(XyzColorMap::new(start, end, stops))
-            }
+            LerpMethod::LinearRgb => Arc::new(LinearColorMap::new(start, end, stops)),
+            LerpMethod::Perceptual => Arc::new(PerceptualColorMap::new(start, end, stops)),
+            LerpMethod::Xyz => Arc::new(XyzColorMap::new(start, end, stops)),
         }
     }
 }

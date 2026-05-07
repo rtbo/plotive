@@ -540,7 +540,11 @@ impl Eq for LinRgb {}
 
 impl Lerp for LinRgb {
     fn lerp(self, other: Self, t: f32) -> Self {
-        debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0] (got {})", t);
+        debug_assert!(
+            t >= 0.0 && t <= 1.0,
+            "t must be in the range [0.0, 1.0] (got {})",
+            t
+        );
         let r = self.0 * (1.0 - t) + other.0 * t;
         let g = self.1 * (1.0 - t) + other.1 * t;
         let b = self.2 * (1.0 - t) + other.2 * t;
@@ -586,7 +590,11 @@ impl Eq for OkLab {}
 
 impl Lerp for OkLab {
     fn lerp(self, other: Self, t: f32) -> Self {
-        debug_assert!(t >= 0.0 && t <= 1.0, "t must be in the range [0.0, 1.0], got {}", t);
+        debug_assert!(
+            t >= 0.0 && t <= 1.0,
+            "t must be in the range [0.0, 1.0], got {}",
+            t
+        );
         let r = self.0 * (1.0 - t) + other.0 * t;
         let g = self.1 * (1.0 - t) + other.1 * t;
         let b = self.2 * (1.0 - t) + other.2 * t;
@@ -618,7 +626,6 @@ impl Lerp for Xyz {
         Self(x, y, z)
     }
 }
-
 
 impl From<SRgb> for Rgb8 {
     fn from(srgb: SRgb) -> Self {
@@ -719,7 +726,6 @@ impl From<Xyz> for LinRgb {
         Self(r, g, b)
     }
 }
-
 
 impl From<Rgb8> for LinRgb {
     fn from(rgb: Rgb8) -> Self {

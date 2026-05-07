@@ -500,7 +500,9 @@ pub fn num_label_formatter(
     match formatter {
         None => Arc::new(NullFormat),
         Some(Formatter::Auto) if scale.is_shared() => Arc::new(NullFormat),
-        Some(Formatter::Auto | Formatter::SharedAuto) => auto_label_formatter(locator, formatter, ab, scale),
+        Some(Formatter::Auto | Formatter::SharedAuto) => {
+            auto_label_formatter(locator, formatter, ab, scale)
+        }
         Some(Formatter::Prec(prec)) => Arc::new(PrecLabelFormat(*prec)),
         Some(Formatter::Percent(fmt)) => {
             let prec = fmt
@@ -511,14 +513,15 @@ pub fn num_label_formatter(
         #[cfg(feature = "time")]
         Some(Formatter::TimeDelta(tdfmt)) => timedelta_label_formatter(ab, tdfmt),
         #[cfg(feature = "time")]
-        Some(Formatter::DateTime(_)) => datetime_label_formatter(formatter, ab.into(), scale).unwrap(),
+        Some(Formatter::DateTime(_)) => {
+            datetime_label_formatter(formatter, ab.into(), scale).unwrap()
+        }
     }
 }
 
 fn auto_label_formatter(
     locator: &Locator,
-    #[allow(unused_variables)]
-    formatter: Option<&Formatter>,
+    #[allow(unused_variables)] formatter: Option<&Formatter>,
     ab: axis::NumBounds,
     scale: &Scale,
 ) -> Arc<dyn LabelFormatter> {
