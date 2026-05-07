@@ -12,7 +12,7 @@ impl Default for TitleProps {
 
 /// Position of a color bar relatively to the plot
 #[derive(Debug, Default, Clone, Copy)]
-pub enum ColorBarPos {
+pub enum Pos {
     /// Position the color bar above the plot area
     Top,
     /// Position the color bar to the right of the plot area (default)
@@ -48,7 +48,7 @@ impl Default for TicksFont {
 /// ColorBar configuration for a plot
 #[derive(Debug, Clone)]
 pub struct ColorBar {
-    pos: ColorBarPos,
+    pos: Pos,
     width: f32,
     title: Option<Title>,
     ticks_font: TicksFont,
@@ -59,7 +59,7 @@ pub struct ColorBar {
 impl Default for ColorBar {
     fn default() -> Self {
         Self {
-            pos: ColorBarPos::default(),
+            pos: Pos::default(),
             width: defaults::COLORBAR_WIDTH,
             title: None,
             ticks_font: TicksFont::default(),
@@ -76,7 +76,7 @@ impl Default for ColorBar {
 
 impl ColorBar {
     /// Create a new color bar with the specified position
-    pub fn new(pos: ColorBarPos) -> Self {
+    pub fn new(pos: Pos) -> Self {
         Self {
             pos,
             ..Default::default()
@@ -114,7 +114,7 @@ impl ColorBar {
     }
 
     /// Get the position of the color bar
-    pub fn pos(&self) -> ColorBarPos {
+    pub fn pos(&self) -> Pos {
         self.pos
     }
 
@@ -144,8 +144,8 @@ impl ColorBar {
     }
 }
 
-impl From<ColorBarPos> for ColorBar {
-    fn from(pos: ColorBarPos) -> Self {
+impl From<Pos> for ColorBar {
+    fn from(pos: Pos) -> Self {
         Self::new(pos)
     }
 }

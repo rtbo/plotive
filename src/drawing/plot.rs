@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::f32;
 use std::rc::Rc;
 
-use crate::des::{PlotIdx, annot};
+use crate::des::{PlotIdx, annot, colorbar};
 use crate::drawing::annot::Annot;
 use crate::drawing::axis::{AsBoundRef, Axis, AxisScale, Bounds, Side};
 use crate::drawing::colorbar::{ColorBar, ColorBarBuilder};
@@ -912,18 +912,18 @@ fn y_side_matches_out_legend_pos(side: des::axis::Side, legend_pos: des::plot::L
     }
 }
 
-fn x_side_matches_colorbar_pos(side: des::axis::Side, pos: des::ColorBarPos) -> bool {
+fn x_side_matches_colorbar_pos(side: des::axis::Side, pos: colorbar::Pos) -> bool {
     match (side, pos) {
-        (des::axis::Side::Main, des::ColorBarPos::Bottom) => true,
-        (des::axis::Side::Opposite, des::ColorBarPos::Top) => true,
+        (des::axis::Side::Main, colorbar::Pos::Bottom) => true,
+        (des::axis::Side::Opposite, colorbar::Pos::Top) => true,
         _ => false,
     }
 }
 
-fn y_side_matches_colorbar_pos(side: des::axis::Side, pos: des::ColorBarPos) -> bool {
+fn y_side_matches_colorbar_pos(side: des::axis::Side, pos: colorbar::Pos) -> bool {
     match (side, pos) {
-        (des::axis::Side::Main, des::ColorBarPos::Left) => true,
-        (des::axis::Side::Opposite, des::ColorBarPos::Right) => true,
+        (des::axis::Side::Main, colorbar::Pos::Left) => true,
+        (des::axis::Side::Opposite, colorbar::Pos::Right) => true,
         _ => false,
     }
 }

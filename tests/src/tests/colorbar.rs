@@ -1,5 +1,5 @@
-use plotive::des::cmap;
-use plotive::{des, style};
+use plotive::des::{self, cmap, colorbar};
+use plotive::style;
 use rand_distr::Uniform;
 
 use crate::tests::fig_small;
@@ -103,7 +103,7 @@ fn colorbar_left() {
             )
             .into(),
     ])
-    .with_colorbar(des::ColorBarPos::Left.into());
+    .with_colorbar(colorbar::Pos::Left.into());
     let fig = fig_small(plot);
 
     assert_fig_eq_ref!(&fig, "colorbar/left");
@@ -123,7 +123,7 @@ fn colorbar_top() {
             )
             .into(),
     ])
-    .with_colorbar(des::ColorBarPos::Top.into());
+    .with_colorbar(colorbar::Pos::Top.into());
     let fig = fig_small(plot);
 
     assert_fig_eq_ref!(&fig, "colorbar/top");
@@ -143,7 +143,7 @@ fn colorbar_bottom() {
             )
             .into(),
     ])
-    .with_colorbar(des::ColorBarPos::Bottom.into());
+    .with_colorbar(colorbar::Pos::Bottom.into());
     let fig = fig_small(plot);
 
     assert_fig_eq_ref!(&fig, "colorbar/bottom");

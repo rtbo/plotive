@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::des::{self, ColorBarPos};
+use crate::des::{self, colorbar};
 use crate::drawing::axis::{self, AsBoundRef};
 use crate::drawing::cmap::{AsColorMap, ColorMap};
 use crate::drawing::{Ctx, Text, ticks};
@@ -55,10 +55,10 @@ impl ColorBarBuilder {
         D: data::Source + ?Sized,
     {
         let side = match des.pos() {
-            ColorBarPos::Right => axis::Side::Right,
-            ColorBarPos::Left => axis::Side::Left,
-            ColorBarPos::Top => axis::Side::Top,
-            ColorBarPos::Bottom => axis::Side::Bottom,
+            colorbar::Pos::Right => axis::Side::Right,
+            colorbar::Pos::Left => axis::Side::Left,
+            colorbar::Pos::Top => axis::Side::Top,
+            colorbar::Pos::Bottom => axis::Side::Bottom,
         };
 
         let title = des
@@ -166,7 +166,7 @@ impl ColorDataMap for ColorBar {
 }
 
 impl ColorBar {
-    pub fn pos(&self) -> ColorBarPos {
+    pub fn pos(&self) -> colorbar::Pos {
         self.des.pos()
     }
 
