@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::color::{Lerp, LinRgb, OkLab, Rgb8, Xyz};
+use crate::des;
 use crate::des::cmap::{LerpColorMap, LerpMethod};
 use crate::drawing::axis;
 
@@ -14,7 +15,8 @@ pub trait ColorMap {
 pub trait AsColorMap {
     fn hash(&self) -> u64;
 
-    fn data_range(&self) -> Option<axis::Bounds>;
+    fn forced_data_range(&self) -> Option<axis::Bounds>;
+    fn forced_ticks_locator(&self) -> Option<&des::axis::ticks::Locator>;
 
     /// Convert this type to a `ColorMap` implementation that can be used for color mapping.
     fn as_color_map(&self) -> Arc<dyn ColorMap>;
@@ -36,16 +38,21 @@ impl AsColorMap for LerpColorMap {
             pos_bits.hash(&mut hasher);
             stop.1.hash(&mut hasher);
         }
-        if let Some(range) = self.data_range() {
+        if let Some(range) = self.forced_data_range() {
             range.0.to_bits().hash(&mut hasher);
             range.1.to_bits().hash(&mut hasher);
         }
+        // TODO: hash the locator
         hasher.finish()
     }
 
-    fn data_range(&self) -> Option<axis::Bounds> {
-        self.data_range()
+    fn forced_data_range(&self) -> Option<axis::Bounds> {
+        self.forced_data_range()
             .map(|rng| axis::NumBounds::from(rng).into())
+    }
+
+    fn forced_ticks_locator(&self) -> Option<&des::axis::ticks::Locator> {
+        self.forced_ticks_locator()
     }
 
     fn as_color_map(&self) -> Arc<dyn ColorMap> {

@@ -1,7 +1,8 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::des::{self, ColorBarPos};
+use crate::des::axis::ticks::Locator;
+use crate::des::{self, colorbar};
 use crate::drawing::axis::{self, AsBoundRef};
 use crate::drawing::cmap::{AsColorMap, ColorMap};
 use crate::drawing::{Ctx, Text, ticks};
@@ -27,14 +28,21 @@ pub struct ColorBarBuilder {
     hash: u64,
     cmap: Arc<dyn ColorMap>,
     data_bounds: axis::Bounds,
+    locator: Locator,
 }
 
 impl ColorBarBuilder {
-    pub fn new(hash: u64, cmap: Arc<dyn ColorMap>, data_bounds: axis::Bounds) -> Self {
+    pub fn new(
+        hash: u64,
+        cmap: Arc<dyn ColorMap>,
+        data_bounds: axis::Bounds,
+        locator: Locator,
+    ) -> Self {
         Self {
             hash,
             cmap,
             data_bounds,
+            locator,
         }
     }
 
@@ -55,10 +63,10 @@ impl ColorBarBuilder {
         D: data::Source + ?Sized,
     {
         let side = match des.pos() {
-            ColorBarPos::Right => axis::Side::Right,
-            ColorBarPos::Left => axis::Side::Left,
-            ColorBarPos::Top => axis::Side::Top,
-            ColorBarPos::Bottom => axis::Side::Bottom,
+            colorbar::Pos::Right => axis::Side::Right,
+            colorbar::Pos::Left => axis::Side::Left,
+            colorbar::Pos::Top => axis::Side::Top,
+            colorbar::Pos::Bottom => axis::Side::Bottom,
         };
 
         let title = des
@@ -74,10 +82,10 @@ impl ColorBarBuilder {
                 let font = des.ticks_font().clone();
                 let scale: des::axis::Scale =
                     des::axis::Range::new(Some(nb.start()), Some(nb.end())).into();
-                let locator = des::axis::ticks::Locator::Auto;
                 let formatter = des::axis::ticks::Formatter::Auto;
-                let ticks = ticks::locate_num(&locator, *nb, &scale)?;
-                let formatter = ticks::num_label_formatter(&locator, Some(&formatter), *nb, &scale);
+                let ticks = ticks::locate_num(&self.locator, *nb, &scale)?;
+                let formatter =
+                    ticks::num_label_formatter(&self.locator, Some(&formatter), *nb, &scale);
                 ticks
                     .into_iter()
                     .map(|t| -> Result<_, super::Error> {
@@ -166,7 +174,7 @@ impl ColorDataMap for ColorBar {
 }
 
 impl ColorBar {
-    pub fn pos(&self) -> ColorBarPos {
+    pub fn pos(&self) -> colorbar::Pos {
         self.des.pos()
     }
 

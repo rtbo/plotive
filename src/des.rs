@@ -14,7 +14,7 @@ pub mod series;
 
 pub use annot::Annotation;
 pub use axis::Axis;
-pub use colorbar::{ColorBar, ColorBarPos};
+pub use colorbar::ColorBar;
 pub use figure::{FigLegend, Figure};
 pub use legend::Legend;
 pub use plot::{Plot, PlotLegend, Subplots};

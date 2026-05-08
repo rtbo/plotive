@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::f32;
 use std::rc::Rc;
 
-use crate::des::{PlotIdx, annot};
+use crate::des::{PlotIdx, annot, colorbar};
 use crate::drawing::annot::Annot;
 use crate::drawing::axis::{AsBoundRef, Axis, AxisScale, Bounds, Side};
 use crate::drawing::colorbar::{ColorBar, ColorBarBuilder};
@@ -515,7 +515,7 @@ where
 
         for_each_series(des_plot, |s| {
             if let Some(entry) = s.colorbar_entry() {
-                let forced_bounds = entry.cmap.data_range();
+                let forced_bounds = entry.cmap.forced_data_range();
                 let has_forced_bounds = forced_bounds.is_some();
                 let bounds = if let Some(range) = forced_bounds {
                     range
@@ -525,6 +525,10 @@ where
                         .expect("Should get bounds for colormap data column")
                 };
 
+                let locator = entry
+                    .cmap
+                    .forced_ticks_locator()
+                    .unwrap_or(des_colorbar.ticks_locator());
                 let hash = entry.cmap.hash();
 
                 if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
@@ -541,6 +545,7 @@ where
                         hash,
                         entry.cmap.as_color_map(),
                         bounds,
+                        locator.clone(),
                     ));
                 }
             }
@@ -912,18 +917,18 @@ fn y_side_matches_out_legend_pos(side: des::axis::Side, legend_pos: des::plot::L
     }
 }
 
-fn x_side_matches_colorbar_pos(side: des::axis::Side, pos: des::ColorBarPos) -> bool {
+fn x_side_matches_colorbar_pos(side: des::axis::Side, pos: colorbar::Pos) -> bool {
     match (side, pos) {
-        (des::axis::Side::Main, des::ColorBarPos::Bottom) => true,
-        (des::axis::Side::Opposite, des::ColorBarPos::Top) => true,
+        (des::axis::Side::Main, colorbar::Pos::Bottom) => true,
+        (des::axis::Side::Opposite, colorbar::Pos::Top) => true,
         _ => false,
     }
 }
 
-fn y_side_matches_colorbar_pos(side: des::axis::Side, pos: des::ColorBarPos) -> bool {
+fn y_side_matches_colorbar_pos(side: des::axis::Side, pos: colorbar::Pos) -> bool {
     match (side, pos) {
-        (des::axis::Side::Main, des::ColorBarPos::Left) => true,
-        (des::axis::Side::Opposite, des::ColorBarPos::Right) => true,
+        (des::axis::Side::Main, colorbar::Pos::Left) => true,
+        (des::axis::Side::Opposite, colorbar::Pos::Right) => true,
         _ => false,
     }
 }

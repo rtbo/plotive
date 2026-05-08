@@ -1,4 +1,5 @@
 //! Color bar configuration
+use crate::des::axis;
 use crate::style::{defaults, theme};
 use crate::text;
 
@@ -12,7 +13,7 @@ impl Default for TitleProps {
 
 /// Position of a color bar relatively to the plot
 #[derive(Debug, Default, Clone, Copy)]
-pub enum ColorBarPos {
+pub enum Pos {
     /// Position the color bar above the plot area
     Top,
     /// Position the color bar to the right of the plot area (default)
@@ -48,18 +49,19 @@ impl Default for TicksFont {
 /// ColorBar configuration for a plot
 #[derive(Debug, Clone)]
 pub struct ColorBar {
-    pos: ColorBarPos,
+    pos: Pos,
     width: f32,
     title: Option<Title>,
     ticks_font: TicksFont,
     border: Option<theme::Stroke>,
+    locator: axis::ticks::Locator,
     margin: f32,
 }
 
 impl Default for ColorBar {
     fn default() -> Self {
         Self {
-            pos: ColorBarPos::default(),
+            pos: Pos::default(),
             width: defaults::COLORBAR_WIDTH,
             title: None,
             ticks_font: TicksFont::default(),
@@ -69,6 +71,7 @@ impl Default for ColorBar {
                 pattern: Default::default(),
                 opacity: None,
             }),
+            locator: axis::ticks::Locator::Auto,
             margin: defaults::COLORBAR_MARGIN,
         }
     }
@@ -76,7 +79,7 @@ impl Default for ColorBar {
 
 impl ColorBar {
     /// Create a new color bar with the specified position
-    pub fn new(pos: ColorBarPos) -> Self {
+    pub fn new(pos: Pos) -> Self {
         Self {
             pos,
             ..Default::default()
@@ -107,6 +110,12 @@ impl ColorBar {
         self
     }
 
+    /// Set the ticks locator and return self for chaining
+    pub fn with_ticks_locator(mut self, locator: axis::ticks::Locator) -> Self {
+        self.locator = locator;
+        self
+    }
+
     /// Set the margin between the color bar and the plot area and return self for chaining
     pub fn with_margin(mut self, margin: f32) -> Self {
         self.margin = margin;
@@ -114,7 +123,7 @@ impl ColorBar {
     }
 
     /// Get the position of the color bar
-    pub fn pos(&self) -> ColorBarPos {
+    pub fn pos(&self) -> Pos {
         self.pos
     }
 
@@ -138,14 +147,19 @@ impl ColorBar {
         self.border.as_ref()
     }
 
+    /// Get the ticks locator
+    pub fn ticks_locator(&self) -> &axis::ticks::Locator {
+        &self.locator
+    }
+
     /// Get the margin between the color bar and the plot area
     pub fn margin(&self) -> f32 {
         self.margin
     }
 }
 
-impl From<ColorBarPos> for ColorBar {
-    fn from(pos: ColorBarPos) -> Self {
+impl From<Pos> for ColorBar {
+    fn from(pos: Pos) -> Self {
         Self::new(pos)
     }
 }
