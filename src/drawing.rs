@@ -58,11 +58,11 @@ impl From<text::Error> for Error {
     }
 }
 
-impl From<ttf_parser::FaceParsingError> for Error {
-    fn from(err: ttf_parser::FaceParsingError) -> Self {
-        Error::FontOrText(text::Error::FaceParsingError(err))
-    }
-}
+// impl From<ttf_parser::FaceParsingError> for Error {
+//     fn from(err: ttf_parser::FaceParsingError) -> Self {
+//         Error::FontOrText(text::Error::FaceParsingError(err))
+//     }
+// }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

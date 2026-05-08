@@ -17,7 +17,8 @@
 use std::fmt;
 
 use plotive_base::geom;
-use ttf_parser as ttf;
+/// Publicly re-export ttf-parser, so that users of this crate can use it for custom font loading and parsing.
+pub use ttf_parser as ttf;
 
 mod bidi;
 pub mod font;

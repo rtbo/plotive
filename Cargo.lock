@@ -3769,8 +3769,6 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rand_distr",
- "rustybuzz",
- "ttf-parser",
 ]
 
 [[package]]
