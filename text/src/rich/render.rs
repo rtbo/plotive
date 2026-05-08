@@ -17,7 +17,7 @@ pub fn render_rich_text_with<C, RenderFn>(
     text: &RichText<C>,
     fontdb: &fontdb::Database,
     mut render_fn: RenderFn,
-) -> Result<(), ttf::FaceParsingError>
+) -> Result<(), crate::Error>
 where
     C: Clone,
     RenderFn: FnMut(RichPrimitive<'_, C>),
@@ -100,7 +100,7 @@ pub fn render_rich_text(
     transform: geom::Transform,
     mask: Option<&tiny_skia::Mask>,
     pixmap: &mut tiny_skia::PixmapMut<'_>,
-) -> Result<(), ttf::FaceParsingError> {
+) -> Result<(), crate::Error> {
     let render_fn = |primitive: RichPrimitive| match primitive {
         RichPrimitive::Fill(path, color) => {
             let mut paint = tiny_skia::Paint::default();
