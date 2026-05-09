@@ -307,6 +307,8 @@ pub const YELLOWGREEN: Rgba8 = Rgba8::from_hex(b"#9acd32");
 /// Return Some(Rgba8) if the name is known
 pub(super) fn lookup_name(name: &str) -> Option<Rgba8> {
     match name.trim().to_ascii_lowercase().as_str() {
+        "transparent" => Some(TRANSPARENT),
+
         "black" => Some(BLACK),
         "silver" => Some(SILVER),
         "gray" | "grey" => Some(GRAY),
