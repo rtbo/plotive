@@ -3,12 +3,12 @@
 //! for use in time series plots.
 //!
 //! The [`DateTime`] type represents a date and time as a floating-point.
-//! The value is the number of seconds elapsed since Jan 1, 2030 (Plotive Epoch).
+//! The value is the number of seconds elapsed since Jan 1, 1970 (Unix Epoch).
 use core::{cmp, fmt, ops};
 use std::iter::Peekable;
 use std::str::{Chars, FromStr};
 
-const EPOCH_YEAR: i32 = 2030;
+const EPOCH_YEAR: i32 = 1970;
 
 /// An error indicating that a field has an invalid value
 #[derive(Debug, Copy, Clone)]
@@ -79,7 +79,7 @@ const fn days_in_year(year: i32) -> i32 {
 }
 
 /// A type representing a date and time.
-/// It is represented by a `f64`, that is the seconds elapsed since Jan. 1, 2030, which is Plotive Epoch.
+/// It is represented by a `f64`, that is the seconds elapsed since Jan. 1, 1970 (Unix Epoch).
 /// Timezone is not supported.
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct DateTime(f64);
@@ -91,19 +91,13 @@ impl DateTime {
         date.try_into()
     }
 
-    /// The date time of the Plotive Epoch, 2030-01-01 00:00:00.
+    /// The date time of the Unix Epoch, 1970-01-01 00:00:00.
     pub const fn epoch() -> Self {
         DateTime(0.0)
     }
 
-    /// The datetime of the Unix Epoch, 1970-01-01 00:00:00.
-    pub const fn unix_epoch() -> Self {
-        // seconds from Jan 1, 2030 to Jan 1, 1970
-        DateTime(-1893456000.0)
-    }
-
     /// Build a new datetime from a float timestamp.
-    /// The value is in seconds elapsed since Jan 1, 2030.
+    /// The value is in seconds elapsed since Jan 1, 1970 (Unix Epoch).
     /// Returns None if the value is not a valid timestamp.
     /// (invalid timestamps are eg. NaN or Infinity)
     pub const fn from_timestamp(timestamp: f64) -> Option<Self> {
@@ -115,8 +109,8 @@ impl DateTime {
     }
 
     /// Get the internal representation as a float timestamp
-    /// The value is in seconds elapsed since Jan 1, 2030 ([Self::epoch()]).
-    /// (values before [Self::epoch()] are negative).
+    /// The value is in seconds elapsed since Jan 1, 1970 ([Self::epoch()]).
+    /// (values before Jan 1, 1970 are negative).
     ///
     /// The value is guaranteed to be a valid timestamp
     pub const fn timestamp(&self) -> f64 {
@@ -303,23 +297,10 @@ pub struct DateTimeComps {
 }
 
 impl DateTimeComps {
-    /// The date time of the Plotive Epoch, 2030-01-01 00:00:00.
+    /// The date time of the Unix Epoch, 1970-01-01 00:00:00.
     pub const fn epoch() -> Self {
         DateTimeComps {
             year: EPOCH_YEAR,
-            month: 1,
-            day: 1,
-            hour: 0,
-            minute: 0,
-            second: 0,
-            micro: 0,
-        }
-    }
-
-    /// The datetime of the Unix Epoch, 1970-01-01 00:00:00.
-    pub const fn unix_epoch() -> Self {
-        DateTimeComps {
-            year: 1970,
             month: 1,
             day: 1,
             hour: 0,
