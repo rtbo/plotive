@@ -154,11 +154,11 @@ impl ToPixmap for drawing::PreparedFigure {
         D: plotive::data::Source + ?Sized,
     {
         let size = self.size();
-        let witdth = (size.width() * params.scale) as u32;
+        let width = (size.width() * params.scale) as u32;
         let height = (size.height() * params.scale) as u32;
 
         let mut surface =
-            PxlSurface::new(witdth, height).ok_or(Error::InvalidSurfaceSize(witdth, height))?;
+            PxlSurface::new(width, height).ok_or(Error::InvalidSurfaceSize(width, height))?;
 
         self.draw(&mut surface, &params.style);
 
