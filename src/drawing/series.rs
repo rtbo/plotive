@@ -1,14 +1,11 @@
-use std::fmt;
-use std::sync::Arc;
-
 use axis::AsBoundRef;
 use plotive_base::Rgb8;
 use plotive_base::geom::PathSegment;
 use scale::{CoordMap, CoordMapXy};
 
 use crate::drawing::axis::Bounds;
-use crate::drawing::cmap::{AsColorMap, ColorMap};
-use crate::drawing::colorbar::{ColorBar, ColorDataMap};
+use crate::drawing::cmap::AsColorMap;
+use crate::drawing::colorbar::ColorScale;
 use crate::drawing::plot::Orientation;
 use crate::drawing::{
     Categories, ColumnExt, Error, F64ColumnExt, axis, colorbar, get_column, legend, marker,
@@ -193,6 +190,15 @@ impl Series {
         (&self.x_axis, &self.y_axis)
     }
 
+    /// Hash of the colormap used by this series, if any.
+    /// Used to match with the right colorbar when multiple colorbars are present.
+    pub fn cmap_hash(&self) -> Option<u64> {
+        match &self.plot {
+            SeriesPlot::Scatter(scatter) => scatter.color_data.as_ref().map(|(_, hash)| *hash),
+            _ => None,
+        }
+    }
+
     /// Unites bounds for series whose axis matches with `matcher`
     pub fn unite_bounds<'a, S>(
         or: Orientation,
@@ -281,7 +287,7 @@ impl Series {
         data_source: &D,
         rect: &geom::Rect,
         cm: &CoordMapXy,
-        cbs: &[ColorBar],
+        cmap: Option<&ColorScale>,
     ) -> Result<(), Error>
     where
         D: data::Source + ?Sized,
@@ -290,7 +296,7 @@ impl Series {
             SeriesPlot::Line(xy) => {
                 xy.update_data(data_source, rect, cm);
             }
-            SeriesPlot::Scatter(sc) => sc.update_data(data_source, rect, cm, cbs),
+            SeriesPlot::Scatter(sc) => sc.update_data(data_source, rect, cm, cmap),
             SeriesPlot::Area(area) => area.update_data(data_source, rect, cm),
             SeriesPlot::Histogram(hist) => {
                 hist.update_data(data_source, rect, cm);
@@ -767,31 +773,15 @@ impl Line {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Scatter {
     index: usize,
     cols: (des::DataCol, des::DataCol),
     size_col: Option<des::DataCol>,
-    color_data: Option<(des::DataCol, u64, Arc<dyn ColorMap>)>,
+    color_data: Option<(des::DataCol, u64)>,
     ab: Option<(axis::Bounds, axis::Bounds)>,
     axes: (des::axis::Ref, des::axis::Ref),
     marker_data: MarkerData,
-}
-
-impl fmt::Debug for Scatter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Scatter")
-            .field("index", &self.index)
-            .field("cols", &self.cols)
-            .field("size_col", &self.size_col)
-            .field(
-                "color_data",
-                &(self.color_data.as_ref().map(|(col, hash, _)| (col, hash))),
-            )
-            .field("ab", &self.ab)
-            .field("axes", &self.axes)
-            .finish()
-    }
 }
 
 impl Scatter {
@@ -804,8 +794,7 @@ impl Scatter {
         let color_data = des.color_data().map(|(col, cmap)| {
             let col = col.clone();
             let hash = cmap.hash();
-            let cmap = cmap.as_color_map();
-            (col, hash, cmap)
+            (col, hash)
         });
         let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
         let marker_data = MarkerData::new(des.marker().clone());
@@ -825,7 +814,7 @@ impl Scatter {
         data_source: &D,
         rect: &geom::Rect,
         cm: &CoordMapXy,
-        cbs: &[ColorBar],
+        cmap: Option<&ColorScale>,
     ) where
         D: data::Source + ?Sized,
     {
@@ -857,13 +846,7 @@ impl Scatter {
         let mut color_iter = self
             .color_data
             .as_ref()
-            .map(|(col, _, _)| get_column(col, data_source).unwrap().sample_iter());
-        let cbar = self
-            .color_data
-            .as_ref()
-            .map(|(_, hash, _)| cbs.iter().find(|cb| cb.hash() == *hash))
-            .flatten();
-        let cmap = self.color_data.as_ref().map(|(_, _, cmap)| cmap.clone());
+            .map(|(col, _)| get_column(col, data_source).unwrap().sample_iter());
 
         for (x, y) in x_col.sample_iter().zip(y_col.sample_iter()) {
             if x.is_null() || y.is_null() {
@@ -883,14 +866,8 @@ impl Scatter {
             let color_sample = color_iter.as_mut().and_then(|iter| iter.next());
 
             let color = color_sample
-                .zip(cmap.as_ref())
-                .zip(cbar)
-                .map(|((v, cmap), cbar)| {
-                    let mapped_value = cbar
-                        .map_color_data(v)
-                        .expect("TODO: handle invalid color data");
-                    cmap.map_color(mapped_value)
-                });
+                .zip(cmap)
+                .and_then(|(v, cmap)| cmap.map_data_to_color(v));
 
             points.push(MarkerPoint {
                 pos: geom::Point { x, y },

@@ -1,3 +1,4 @@
+use plotive::des::cmap;
 use plotive::{data, des, style};
 
 use crate::tests::fig_small;
@@ -109,6 +110,27 @@ fn series_scatter_sizes() {
     let fig = fig_small(plot);
 
     assert_fig_eq_ref!(&fig, "series/scatter-sizes");
+}
+
+#[test]
+fn series_scatter_colors() {
+    let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let y = vec![1.0, 4.0, 9.0, 16.0, 25.0];
+    let colors = vec![0.0, 0.25, 0.5, 0.75, 1.0];
+
+    let plot = des::Plot::new(vec![
+        des::series::Scatter::new(des::data_inline(x), des::data_inline(y))
+            .with_color_data(des::data_inline(colors), cmap::viridis())
+            .with_marker(
+                style::series::Marker::default()
+                    .with_fill_opacity(0.6)
+                    .with_stroke_width(2.0),
+            )
+            .into(),
+    ]);
+    let fig = fig_small(plot);
+
+    assert_fig_eq_ref!(&fig, "series/scatter-colors");
 }
 
 #[test]

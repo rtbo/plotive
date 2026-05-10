@@ -6,6 +6,13 @@ use crate::des::axis;
 /// Describes how to interpolate between colors in a color map, either in linear RGB or perceptual color space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LerpMethod {
+    /// Do not interpolate colors, only pick the nearest one
+    Nearest,
+    /// Interpolate colors in the standard RGB color space, which is fast but not perceptually uniform.
+    /// It tends to produce darker gradients, especially when interpolating between bright colors,
+    /// and can result in less visually appealing color maps.
+    /// Use this if you have significant amount of stops in the colormap gradient or significant performance constraints.
+    SRgb,
     /// Interpolate colors in the linear RGB color space.
     LinearRgb,
     /// Interpolate colors in a perceptual color space (OkLab).
@@ -115,6 +122,16 @@ impl From<(LerpMethod, &[Rgb8])> for LerpColorMap {
             cmap = cmap.with_stop((position, *stop));
         }
         cmap
+    }
+}
+
+/// Build one of the builtin color maps from its name.
+/// Returns None if the name is not recognized.
+pub fn from_name(name: &str) -> Option<LerpColorMap> {
+    match name {
+        "stellar" => Some(stellar()),
+        "viridis" => Some(viridis()),
+        _ => None,
     }
 }
 

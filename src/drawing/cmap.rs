@@ -1,6 +1,8 @@
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
+use plotive_base::color::SRgb;
+
 use crate::color::{Lerp, LinRgb, OkLab, Rgb8, Xyz};
 use crate::des;
 use crate::des::cmap::{LerpColorMap, LerpMethod};
@@ -88,12 +90,59 @@ impl AsColorMap for LerpColorMap {
         let end = self.end();
         let stops = self.stops().iter().copied();
         match self.method() {
+            LerpMethod::Nearest => Arc::new(NearestColorMap::new(start, end, stops)),
+            LerpMethod::SRgb => Arc::new(SRgbColorMap::new(start, end, stops)),
             LerpMethod::LinearRgb => Arc::new(LinearColorMap::new(start, end, stops)),
             LerpMethod::Perceptual => Arc::new(PerceptualColorMap::new(start, end, stops)),
             LerpMethod::Xyz => Arc::new(XyzColorMap::new(start, end, stops)),
         }
     }
 }
+
+pub struct NearestColorMap {
+    start: Rgb8,
+    end: Rgb8,
+    stops: Vec<(f32, Rgb8)>,
+}
+
+impl NearestColorMap {
+    pub fn new<S>(start: Rgb8, end: Rgb8, stops: S) -> Self
+    where
+        S: IntoIterator<Item = (f32, Rgb8)>,
+    {
+        Self {
+            start,
+            end,
+            stops: stops.into_iter().collect(),
+        }
+    }
+}
+
+impl ColorMap for NearestColorMap {
+    fn map_color(&self, value: f32) -> Rgb8 {
+        if value <= 0.0 {
+            self.start
+        } else if value >= 1.0 {
+            self.end
+        } else {
+            let mut nearest = self.start;
+            let mut nearest_pos = 0.0;
+            for stop in &self.stops {
+                if (stop.0 - value).abs() < (nearest_pos - value).abs() {
+                    nearest = stop.1;
+                    nearest_pos = stop.0;
+                }
+                if stop.0 > value {
+                    break;
+                }
+            }
+            nearest
+        }
+    }
+}
+
+/// A color map that interpolates between two colors and optional stops in the linear RGB color space
+pub type SRgbColorMap = GenColorMap<SRgb>;
 
 /// A color map that interpolates between two colors and optional stops in the linear RGB color space
 pub type LinearColorMap = GenColorMap<LinRgb>;
