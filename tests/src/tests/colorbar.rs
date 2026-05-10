@@ -61,27 +61,6 @@ fn colorbar_locator() {
 }
 
 #[test]
-fn colorbar_cmap_locator() {
-    let (x, y, col) = columns();
-    let ticks = vec![0.0, 0.25, 0.5, 0.75, 1.0];
-
-    let plot = des::Plot::new(vec![
-        scatter(x, y)
-            .with_color_data(
-                des::data_inline(col),
-                cmap::viridis()
-                    .with_scale((0.0, 1.0).into())
-                    .force_ticks_locator(ticks.into()),
-            )
-            .into(),
-    ])
-    .with_colorbar(ColorBar::default());
-    let fig = fig_small(plot);
-
-    assert_fig_eq_ref!(&fig, "colorbar/locator");
-}
-
-#[test]
 fn colorbar_default_with_axes() {
     let (x, y, col) = columns();
 
@@ -125,7 +104,7 @@ fn colorbar_auto_range() {
 }
 
 #[test]
-fn colorbar_forced_range() {
+fn colorbar_cmap_scale() {
     let (x, y, col) = columns();
 
     let plot = des::Plot::new(vec![
@@ -139,7 +118,7 @@ fn colorbar_forced_range() {
     .with_colorbar(Default::default());
     let fig = fig_small(plot);
 
-    assert_fig_eq_ref!(&fig, "colorbar/forced-range");
+    assert_fig_eq_ref!(&fig, "colorbar/cmap-scale");
 }
 
 #[test]

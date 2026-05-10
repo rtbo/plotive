@@ -29,8 +29,6 @@ pub struct LerpColorMap {
     end: Rgb8,
     stops: Vec<(f32, Rgb8)>,
     scale: axis::Scale,
-    locator: Option<axis::ticks::Locator>,
-
 }
 
 impl LerpColorMap {
@@ -41,7 +39,6 @@ impl LerpColorMap {
             start,
             end,
             scale: Default::default(),
-            locator: None,
             stops: Vec::new(),
         }
     }
@@ -60,19 +57,8 @@ impl LerpColorMap {
     ///
     /// By default, the colormap will map linearly the full range of data values in the plot, but this can be overridden with this method.
     pub fn with_scale(mut self, scale: axis::Scale) -> Self {
-        assert!(
-            !scale.is_shared(),
-            "Color map scale cannot be shared"
-        );
+        assert!(!scale.is_shared(), "Color map scale cannot be shared");
         self.scale = scale;
-        self
-    }
-
-    /// Force the ticks of colorbar mapping this colormap to be located according to the given locator.
-    /// By default, the locator is automatic, but this can be overridden with this method.
-    /// Use this if you want to have specific control over the ticks of the colorbar, for example to place them at specific data values.
-    pub fn force_ticks_locator(mut self, locator: axis::ticks::Locator) -> Self {
-        self.locator = Some(locator);
         self
     }
 
@@ -102,11 +88,6 @@ impl LerpColorMap {
     /// If None, the color map is assumed to map the range of data values in the plot.
     pub fn scale(&self) -> &axis::Scale {
         &self.scale
-    }
-
-    /// Get the ticks locator that this colormap is forced to use for its colorbar, if it has one.
-    pub fn forced_ticks_locator(&self) -> Option<&axis::ticks::Locator> {
-        self.locator.as_ref()
     }
 }
 
@@ -138,6 +119,9 @@ pub fn from_name(name: &str) -> Option<LerpColorMap> {
 /// A colormap that maps kelvin temperatures to black body color, with a range from 1000K to 15000K.
 /// Based on the approximation from Tanner Helland:
 /// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
+///
+/// By default, this colormap is assigned a linear scale between 1000 and 15000 (so that to map directly to Kelvins).
+/// If a regular colormap behavior is needed, you can use `stellar().with_scale(axis::Scale::Auto)`
 pub fn stellar() -> LerpColorMap {
     const MIN_TEMP: f64 = 1000.0;
     const MAX_TEMP: f64 = 15000.0;
@@ -190,12 +174,6 @@ pub fn stellar() -> LerpColorMap {
     .with_stop(stop_for_temp(10000.0))
     .with_stop(stop_for_temp(12500.0))
     .with_scale((MIN_TEMP, MAX_TEMP).into())
-    .force_ticks_locator(axis::ticks::Locator::List(
-        vec![
-            1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6500.0, 8000.0, 10000.0, 12500.0, 15000.0,
-        ]
-        .into(),
-    ))
 }
 
 /// The famous "viridis" color map from matplotlib

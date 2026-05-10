@@ -65,11 +65,8 @@ impl ColorBarBuilder {
             _ => unimplemented!("time and categories colorbar"),
         };
 
-        println!("colorbar data bounds: {:?}", data_bounds);
-
         let cm = super::scale::map_scale_coord_num(&self.scale, 1.0, data_bounds, (0.0, 0.0));
         let view_bounds = cm.axis_bounds().as_num().unwrap();
-        println!("colorbar view bounds: {:?}", view_bounds);
 
         let scale = ColorScale {
             hash: self.hash,
@@ -115,6 +112,7 @@ impl ColorBarBuilder {
             ticks::num_label_formatter(&self.locator, Some(&formatter), view_bounds, &self.scale);
         let ticks = ticks
             .into_iter()
+            .filter(|t| view_bounds.contains(*t))
             .map(|t| -> Result<_, super::Error> {
                 let text = formatter.format_label(t.into());
                 let lt =
@@ -183,7 +181,8 @@ impl ColorScale {
     }
 
     pub fn map_data_to_color(&self, data: data::SampleRef<'_>) -> Option<Rgb8> {
-        self.map_data_to_coord(data).map(|t| self.map_coord_to_color(t))
+        self.map_data_to_coord(data)
+            .map(|t| self.map_coord_to_color(t))
     }
 }
 

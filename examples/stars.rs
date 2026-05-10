@@ -1,7 +1,7 @@
 use std::{fs, path};
 
 use plotive::data::Source;
-use plotive::des::cmap;
+use plotive::des::{cmap, colorbar};
 use plotive::{data, des, style};
 
 mod common;
@@ -83,7 +83,11 @@ fn main() {
                 .with_marker(style::series::Marker::default().with_fill_opacity(0.85))
                 .into(),
         ])
-        .with_colorbar(des::ColorBar::default().with_title("Surface Temperature [K]".into()))
+        .with_colorbar(
+            des::ColorBar::default()
+                .with_title("Surface Temperature [K]".into())
+                .with_ticks_locator(colorbar::stellar_ticks_locator()),
+        )
         .into(),
     )
     .with_title("45 bright stars".into());

@@ -523,10 +523,8 @@ where
                     .bounds()
                     .expect("Should get bounds for colormap data column");
 
-                let locator = entry
-                    .cmap
-                    .forced_ticks_locator()
-                    .or(des_colorbar.map(|cb| cb.ticks_locator()))
+                let locator = des_colorbar
+                    .map(|cb| cb.ticks_locator())
                     .cloned()
                     .unwrap_or_default();
                 let hash = entry.cmap.hash();
@@ -1110,10 +1108,10 @@ impl Axes {
         let l = self.draw_side(surface, style, &self.y, Side::Left, plot_rect);
 
         plot_rect
-            .shifted_top_side(t)
-            .shifted_right_side(-r)
-            .shifted_bottom_side(-b)
-            .shifted_left_side(l)
+            .shifted_top_side(-t)
+            .shifted_right_side(r)
+            .shifted_bottom_side(b)
+            .shifted_left_side(-l)
     }
 
     fn draw_side<S>(

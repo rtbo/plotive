@@ -18,7 +18,6 @@ pub trait AsColorMap {
     fn hash(&self) -> u64;
 
     fn scale(&self) -> &des::axis::Scale;
-    fn forced_ticks_locator(&self) -> Option<&des::axis::ticks::Locator>;
 
     /// Convert this type to a `ColorMap` implementation that can be used for color mapping.
     fn as_color_map(&self) -> Arc<dyn ColorMap>;
@@ -79,10 +78,6 @@ impl AsColorMap for LerpColorMap {
 
     fn scale(&self) -> &des::axis::Scale {
         self.scale()
-    }
-
-    fn forced_ticks_locator(&self) -> Option<&des::axis::ticks::Locator> {
-        self.forced_ticks_locator()
     }
 
     fn as_color_map(&self) -> Arc<dyn ColorMap> {
