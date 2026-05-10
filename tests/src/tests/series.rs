@@ -127,8 +127,8 @@ fn series_area_double() {
             des::data_inline(y2.clone()).into(),
         )
         .with_fill(Some(fill))
-        .with_stroke_y1(stroke.clone())
-        .with_stroke_y2(stroke.clone())
+        .with_y1_line(stroke.clone())
+        .with_y2_line(stroke.clone())
         .into(),
         des::series::Area::new(
             des::data_inline(x.clone()),
@@ -136,8 +136,8 @@ fn series_area_double() {
             Default::default(),
         )
         .with_fill(Some(fill))
-        .with_stroke_y1(stroke.clone())
-        .with_stroke_y2(stroke.clone())
+        .with_y1_line(stroke.clone())
+        .with_y2_line(stroke.clone())
         .into(),
     ]);
     let fig = fig_small(plot);
@@ -163,8 +163,8 @@ fn series_area_double_legend() {
         )
         .with_name("area1")
         .with_fill(Some(fill1))
-        .with_stroke_y1(stroke.clone())
-        .with_stroke_y2(stroke.clone())
+        .with_y1_line(stroke.clone())
+        .with_y2_line(stroke.clone())
         .into(),
         des::series::Area::new(
             des::data_inline(x.clone()),
@@ -173,8 +173,8 @@ fn series_area_double_legend() {
         )
         .with_name("area2")
         .with_fill(Some(fill2))
-        .with_stroke_y1(stroke.clone())
-        .with_stroke_y2(stroke.clone())
+        .with_y1_line(stroke.clone())
+        .with_y2_line(stroke.clone())
         .into(),
     ]);
     let fig = fig_small(plot).with_legend(Default::default());

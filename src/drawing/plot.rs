@@ -515,15 +515,11 @@ where
 
         for_each_series(des_plot, |s| {
             if let Some(entry) = s.colorbar_entry() {
-                let forced_bounds = entry.cmap.forced_data_range();
-                let has_forced_bounds = forced_bounds.is_some();
-                let bounds = if let Some(range) = forced_bounds {
-                    range
-                } else {
-                    let col = get_column(entry.data_col, self.data_source())?;
-                    col.bounds()
-                        .expect("Should get bounds for colormap data column")
-                };
+                let scale = entry.cmap.scale();
+                let col = get_column(entry.data_col, self.data_source())?;
+                let bounds = col
+                    .bounds()
+                    .expect("Should get bounds for colormap data column");
 
                 let locator = entry
                     .cmap
@@ -532,19 +528,13 @@ where
                 let hash = entry.cmap.hash();
 
                 if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
-                    if !has_forced_bounds {
-                        cbb.unite_bounds(bounds.as_bound_ref())?;
-                    } else {
-                        debug_assert!(
-                            cbb.data_bounds() == bounds.as_bound_ref(),
-                            "Two color bars with same color map but different forced data range, this should not happen since the color map should be different if the data range is different"
-                        );
-                    }
+                    cbb.unite_bounds(bounds.as_bound_ref())?;
                 } else {
                     builders.push(ColorBarBuilder::new(
                         hash,
                         entry.cmap.as_color_map(),
                         bounds,
+                        scale.clone(),
                         locator.clone(),
                     ));
                 }

@@ -1,9 +1,9 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
 use crate::color::{Lerp, LinRgb, OkLab, Rgb8, Xyz};
 use crate::des;
 use crate::des::cmap::{LerpColorMap, LerpMethod};
-use crate::drawing::axis;
 
 /// A trait for mapping scalar values to colors, used for color scales in heatmaps and similar plots.
 pub trait ColorMap {
@@ -15,18 +15,38 @@ pub trait ColorMap {
 pub trait AsColorMap {
     fn hash(&self) -> u64;
 
-    fn forced_data_range(&self) -> Option<axis::Bounds>;
+    fn scale(&self) -> &des::axis::Scale;
     fn forced_ticks_locator(&self) -> Option<&des::axis::ticks::Locator>;
 
     /// Convert this type to a `ColorMap` implementation that can be used for color mapping.
     fn as_color_map(&self) -> Arc<dyn ColorMap>;
 }
 
+fn hash_range(rng: &des::axis::Range, hasher: &mut DefaultHasher) {
+    match rng {
+        des::axis::Range(Some(val1), Some(val2)) => {
+            val1.to_bits().hash(hasher);
+            val2.to_bits().hash(hasher);
+        }
+        des::axis::Range(Some(val1), None) => {
+            val1.to_bits().hash(hasher);
+            "none".hash(hasher);
+        }
+        des::axis::Range(None, Some(val2)) => {
+            "none".hash(hasher);
+            val2.to_bits().hash(hasher);
+        }
+        des::axis::Range(None, None) => {
+            "none".hash(hasher);
+            "none".hash(hasher);
+        }
+    }
+}
+
 impl AsColorMap for LerpColorMap {
     /// Get a unique hash for this color map, used to avoid creating
     /// multiple color bars for the same color map configuration.
     fn hash(&self) -> u64 {
-        use std::hash::{DefaultHasher, Hash, Hasher};
         let mut hasher = DefaultHasher::new();
         self.method().hash(&mut hasher);
         self.start().hash(&mut hasher);
@@ -38,17 +58,25 @@ impl AsColorMap for LerpColorMap {
             pos_bits.hash(&mut hasher);
             stop.1.hash(&mut hasher);
         }
-        if let Some(range) = self.forced_data_range() {
-            range.0.to_bits().hash(&mut hasher);
-            range.1.to_bits().hash(&mut hasher);
+        match self.scale() {
+            des::axis::Scale::Auto => "auto".hash(&mut hasher),
+            des::axis::Scale::Linear(rng) => {
+                "lin".hash(&mut hasher);
+                hash_range(rng, &mut hasher);
+            }
+            des::axis::Scale::Log(log_scale) => {
+                "log".hash(&mut hasher);
+                log_scale.base.to_bits().hash(&mut hasher);
+                hash_range(&log_scale.range, &mut hasher);
+            }
+            _ => unreachable!(),
         }
         // TODO: hash the locator
         hasher.finish()
     }
 
-    fn forced_data_range(&self) -> Option<axis::Bounds> {
-        self.forced_data_range()
-            .map(|rng| axis::NumBounds::from(rng).into())
+    fn scale(&self) -> &des::axis::Scale {
+        self.scale()
     }
 
     fn forced_ticks_locator(&self) -> Option<&des::axis::ticks::Locator> {

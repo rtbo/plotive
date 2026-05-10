@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use crate::des::axis::ticks::Locator;
 use crate::des::{self, colorbar};
-use crate::drawing::axis::{self, AsBoundRef};
+use crate::drawing::axis;
 use crate::drawing::cmap::{AsColorMap, ColorMap};
+use crate::drawing::scale::CoordMap;
 use crate::drawing::{Ctx, Text, ticks};
 use crate::style::theme;
 use crate::{Style, data, geom, missing_params, render, text};
@@ -28,6 +29,7 @@ pub struct ColorBarBuilder {
     hash: u64,
     cmap: Arc<dyn ColorMap>,
     data_bounds: axis::Bounds,
+    scale: des::axis::Scale,
     locator: Locator,
 }
 
@@ -36,22 +38,20 @@ impl ColorBarBuilder {
         hash: u64,
         cmap: Arc<dyn ColorMap>,
         data_bounds: axis::Bounds,
+        scale: des::axis::Scale,
         locator: Locator,
     ) -> Self {
         Self {
             hash,
             cmap,
             data_bounds,
+            scale,
             locator,
         }
     }
 
     pub fn hash(&self) -> u64 {
         self.hash
-    }
-
-    pub fn data_bounds(&self) -> axis::BoundsRef<'_> {
-        self.data_bounds.as_bound_ref()
     }
 
     pub fn unite_bounds(&mut self, data_bounds: axis::BoundsRef<'_>) -> Result<(), super::Error> {
@@ -76,17 +76,17 @@ impl ColorBarBuilder {
             .map(|rt| Text::from_rich_text(&rt, ctx.fontdb()))
             .transpose()?;
 
-        let ticks = match &self.data_bounds {
+        let (scale, data_bounds, ticks) = match &self.data_bounds {
             axis::Bounds::Num(nb) => {
+                let cm = super::scale::map_scale_coord_num(&self.scale, 1.0, nb, (0.0, 0.0));
+                let nb = cm.axis_bounds().as_num().unwrap();
                 let align = side.ticks_labels_align();
                 let font = des.ticks_font().clone();
-                let scale: des::axis::Scale =
-                    des::axis::Range::new(Some(nb.start()), Some(nb.end())).into();
                 let formatter = des::axis::ticks::Formatter::Auto;
-                let ticks = ticks::locate_num(&self.locator, *nb, &scale)?;
+                let ticks = ticks::locate_num(&self.locator, nb, &self.scale)?;
                 let formatter =
-                    ticks::num_label_formatter(&self.locator, Some(&formatter), *nb, &scale);
-                ticks
+                    ticks::num_label_formatter(&self.locator, Some(&formatter), nb, &self.scale);
+                let ticks = ticks
                     .into_iter()
                     .map(|t| -> Result<_, super::Error> {
                         let text = formatter.format_label(t.into());
@@ -100,9 +100,10 @@ impl ColorBarBuilder {
                         let text = Text::from_line_text(&lt, ctx.fontdb(), font.color)?;
                         Ok((data::Sample::Num(t), text))
                     })
-                    .collect::<Result<Vec<_>, _>>()?
+                    .collect::<Result<Vec<_>, _>>()?;
+                (cm, nb.into(), ticks)
             }
-            _ => vec![],
+            _ => todo!("time and categories colorbar"),
         };
 
         let ticks_mark = (
@@ -119,7 +120,8 @@ impl ColorBarBuilder {
             hash: self.hash,
             side,
             des,
-            data_bounds: self.data_bounds,
+            scale,
+            data_bounds,
             cmap: self.cmap,
             title,
             ticks,
@@ -134,6 +136,7 @@ pub struct ColorBar {
     side: axis::Side,
     des: des::ColorBar,
     data_bounds: axis::Bounds,
+    scale: Arc<dyn CoordMap>,
     cmap: Arc<dyn ColorMap>,
     title: Option<Text>,
     ticks: Vec<(data::Sample, Text)>,
@@ -146,7 +149,6 @@ impl fmt::Debug for ColorBar {
             .field("hash", &self.hash)
             .field("side", &self.side)
             .field("des", &self.des)
-            .field("data_bounds", &self.data_bounds)
             .field("title", &self.title)
             .field("ticks", &self.ticks)
             .field("ticks_mark", &self.ticks_mark)
@@ -160,16 +162,7 @@ impl ColorDataMap for ColorBar {
     }
 
     fn map_color_data(&self, data: data::SampleRef<'_>) -> Option<f32> {
-        let bounds = self.data_bounds.as_bound_ref().as_num()?;
-        let val = data.as_num()?;
-        let min = bounds.start();
-        let max = bounds.end();
-
-        if val.is_finite() && min.is_finite() && max.is_finite() && max > min {
-            Some(((val - min) / (max - min)).clamp(0.0, 1.0) as f32)
-        } else {
-            None
-        }
+        self.scale.map_coord(data)
     }
 }
 

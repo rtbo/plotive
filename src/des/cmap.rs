@@ -21,8 +21,9 @@ pub struct LerpColorMap {
     start: Rgb8,
     end: Rgb8,
     stops: Vec<(f32, Rgb8)>,
-    data_range: Option<(f64, f64)>,
+    scale: axis::Scale,
     locator: Option<axis::ticks::Locator>,
+
 }
 
 impl LerpColorMap {
@@ -32,7 +33,7 @@ impl LerpColorMap {
             method,
             start,
             end,
-            data_range: None,
+            scale: Default::default(),
             locator: None,
             stops: Vec::new(),
         }
@@ -48,20 +49,15 @@ impl LerpColorMap {
         self
     }
 
-    /// Force the range of scalar data values that this color map maps to, as (min, max).
+    /// Assign a scale to this colormap.
     ///
-    /// By default, the colormap will map the range of data values in the plot, but this can be overridden with this method.
-    /// Use this if only a specific range of data are meaningful to map to colors.
-    pub fn force_data_range(mut self, range: (f64, f64)) -> Self {
+    /// By default, the colormap will map linearly the full range of data values in the plot, but this can be overridden with this method.
+    pub fn with_scale(mut self, scale: axis::Scale) -> Self {
         assert!(
-            range.0.is_finite() && range.1.is_finite(),
-            "Color map data range must be finite"
+            !scale.is_shared(),
+            "Color map scale cannot be shared"
         );
-        assert!(
-            range.0 < range.1,
-            "Color map data range must have min < max"
-        );
-        self.data_range = Some(range);
+        self.scale = scale;
         self
     }
 
@@ -93,10 +89,12 @@ impl LerpColorMap {
         &self.stops
     }
 
-    /// Get the range of scalar values that this colormap is forced to map to, if it has one.
+    /// Get the scale of this colormap.
+    /// The scale is used to map data values to a 0 to 1 range that correspond to the
+    /// full range of colors
     /// If None, the color map is assumed to map the range of data values in the plot.
-    pub fn forced_data_range(&self) -> Option<(f64, f64)> {
-        self.data_range
+    pub fn scale(&self) -> &axis::Scale {
+        &self.scale
     }
 
     /// Get the ticks locator that this colormap is forced to use for its colorbar, if it has one.
@@ -174,7 +172,7 @@ pub fn stellar() -> LerpColorMap {
     .with_stop(stop_for_temp(9000.0))
     .with_stop(stop_for_temp(10000.0))
     .with_stop(stop_for_temp(12500.0))
-    .force_data_range((MIN_TEMP, MAX_TEMP))
+    .with_scale((MIN_TEMP, MAX_TEMP).into())
     .force_ticks_locator(axis::ticks::Locator::List(
         vec![
             1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6500.0, 8000.0, 10000.0, 12500.0, 15000.0,

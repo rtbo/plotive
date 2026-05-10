@@ -50,7 +50,7 @@ fn colorbar_locator() {
         scatter(x, y)
             .with_color_data(
                 des::data_inline(col),
-                cmap::viridis().force_data_range((0.0, 1.0)),
+                cmap::viridis().with_scale((0.0, 1.0).into()),
             )
             .into(),
     ])
@@ -70,7 +70,7 @@ fn colorbar_cmap_locator() {
             .with_color_data(
                 des::data_inline(col),
                 cmap::viridis()
-                    .force_data_range((0.0, 1.0))
+                    .with_scale((0.0, 1.0).into())
                     .force_ticks_locator(ticks.into()),
             )
             .into(),
@@ -132,7 +132,7 @@ fn colorbar_forced_range() {
         scatter(x, y)
             .with_color_data(
                 des::data_inline(col),
-                cmap::viridis().force_data_range((0.0, 2.0)),
+                cmap::viridis().with_scale((0.0, 2.0).into()),
             )
             .into(),
     ])
