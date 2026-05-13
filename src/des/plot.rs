@@ -7,7 +7,7 @@ use crate::style::{defaults, theme};
 #[derive(Debug, Clone)]
 pub struct AxisArrow {
     /// Line style for the border and arrow
-    pub line: theme::Stroke,
+    pub stroke: theme::Stroke,
     /// Size of the arrow head
     pub size: f32,
     /// Extra length of the axis beyond the plot area
@@ -21,7 +21,7 @@ pub struct AxisArrow {
 impl Default for AxisArrow {
     fn default() -> Self {
         AxisArrow {
-            line: theme::Col::Foreground.into(),
+            stroke: theme::Col::Foreground.into(),
             size: defaults::PLOT_AXIS_ARROW_SIZE,
             overflow: defaults::PLOT_AXIS_ARROW_OVERFLOW,
         }
@@ -45,7 +45,7 @@ impl Border {
         match self {
             Border::Box(line) => line,
             Border::Axis(line) => line,
-            Border::AxisArrow(arrow) => &arrow.line,
+            Border::AxisArrow(arrow) => &arrow.stroke,
         }
     }
 }

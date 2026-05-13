@@ -53,9 +53,9 @@ impl SeriesExt for des::series::Area {
             label: n.as_ref(),
             font: None,
             shape: legend::ShapeRef::AreaRect {
-                fill: self.fill(),
-                stroke_y1: self.stroke_y1(),
-                stroke_y2: self.stroke_y2(),
+                fill: Some(self.fill()),
+                y1_stroke: self.y1_stroke(),
+                y2_stroke: self.y2_stroke(),
             },
         })
     }
@@ -66,7 +66,7 @@ impl SeriesExt for des::series::Histogram {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.stroke()),
         })
     }
 }
@@ -76,7 +76,7 @@ impl SeriesExt for des::series::Bars {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             font: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
+            shape: legend::ShapeRef::Rect(Some(self.fill()), self.stroke()),
         })
     }
 }
@@ -897,9 +897,9 @@ struct Area {
     path_y1: Option<geom::Path>,
     path_y2: Option<geom::Path>,
     path_fill: Option<geom::Path>,
-    fill: Option<style::series::Fill>,
-    stroke_y1: Option<style::series::Stroke>,
-    stroke_y2: Option<style::series::Stroke>,
+    fill: style::series::Fill,
+    y1_stroke: Option<style::series::Stroke>,
+    y2_stroke: Option<style::series::Stroke>,
     interpolation: des::series::Interpolation,
 }
 
@@ -948,9 +948,9 @@ impl Area {
             path_y1: None,
             path_y2: None,
             path_fill: None,
-            fill: des.fill().cloned(),
-            stroke_y1: des.stroke_y1().cloned(),
-            stroke_y2: des.stroke_y2().cloned(),
+            fill: des.fill().clone(),
+            y1_stroke: des.y1_stroke().cloned(),
+            y2_stroke: des.y2_stroke().cloned(),
             interpolation: des.interpolation(),
         })
     }
@@ -979,13 +979,11 @@ impl Area {
             self.ab = Some(xy_bounds);
         }
 
-        let path = calc_xy_line_path(x_col, y1_col, self.interpolation, rect, cm);
-        self.path_y1 = Some(path);
+        let path_y1 = calc_xy_line_path(x_col, y1_col, self.interpolation, rect, cm);
 
-        self.path_y2 = match &self.y2 {
+        let path_y2 = match &self.y2 {
             des::series::AreaY2::Baseline(value) => {
                 let mut pb = geom::PathBuilder::new();
-                let path_y1 = self.path_y1.as_ref().unwrap();
                 let x1 = path_y1.points().first().unwrap().x;
                 let x2 = path_y1.points().last().unwrap().x;
                 let y = cm.y.map_coord_num(*value);
@@ -993,75 +991,70 @@ impl Area {
                 let (_, y2) = plot_to_fig(rect, x2, y);
                 pb.move_to(x1, y1);
                 pb.line_to(x2, y2);
-                Some(pb.finish().expect("Should be a valid path"))
+                pb.finish().expect("Should be a valid path")
             }
             des::series::AreaY2::DataCol(y2_col, interpolation) => {
                 let y2_col = get_column(y2_col, data_source).unwrap();
-                let path = calc_xy_line_path(x_col, y2_col, *interpolation, rect, cm);
-                Some(path)
+                calc_xy_line_path(x_col, y2_col, *interpolation, rect, cm)
             }
         };
 
-        self.path_fill = self.fill.as_ref().map(|_| {
-            let path_y1 = self.path_y1.as_ref().unwrap();
-            let path_y2 = self.path_y2.as_ref().unwrap();
+        let mut pb = geom::PathBuilder::new();
+        // For some reason, pb.push_path doesn't work (it inserts a line back to the beginning)
+        for seg in path_y1.segments() {
+            match seg {
+                PathSegment::MoveTo(p) => {
+                    pb.move_to(p.x, p.y);
+                }
+                PathSegment::LineTo(p) => {
+                    pb.line_to(p.x, p.y);
+                }
+                PathSegment::QuadTo(p1, p) => {
+                    pb.quad_to(p1.x, p1.y, p.x, p.y);
+                }
+                PathSegment::CubicTo(p1, p2, p) => {
+                    pb.cubic_to(p1.x, p1.y, p2.x, p2.y, p.x, p.y);
+                }
+                PathSegment::Close => {
+                    pb.close();
+                }
+            }
+        }
 
-            let mut pb = geom::PathBuilder::new();
-            // For some reason, pb.push_path doesn't work (it inserts a line back to the beginning)
-            for seg in path_y1.segments() {
-                match seg {
-                    PathSegment::MoveTo(p) => {
+        let mut linked = false;
+        for seg in geom::path_segments_rev_iter(&path_y2) {
+            match seg {
+                PathSegment::MoveTo(p) => {
+                    debug_assert!(!linked);
+                    if !linked {
+                        pb.line_to(p.x, p.y);
+                        linked = true;
+                    } else {
                         pb.move_to(p.x, p.y);
                     }
-                    PathSegment::LineTo(p) => {
-                        pb.line_to(p.x, p.y);
-                    }
-                    PathSegment::QuadTo(p1, p) => {
-                        pb.quad_to(p1.x, p1.y, p.x, p.y);
-                    }
-                    PathSegment::CubicTo(p1, p2, p) => {
-                        pb.cubic_to(p1.x, p1.y, p2.x, p2.y, p.x, p.y);
-                    }
-                    PathSegment::Close => {
-                        pb.close();
-                    }
+                }
+                PathSegment::LineTo(p) => {
+                    debug_assert!(linked, "Should have made linked already");
+                    pb.line_to(p.x, p.y);
+                }
+                PathSegment::QuadTo(p1, p) => {
+                    debug_assert!(linked, "Should have made linked already");
+                    pb.quad_to(p1.x, p1.y, p.x, p.y);
+                }
+                PathSegment::CubicTo(p1, p2, p) => {
+                    debug_assert!(linked, "Should have made linked already");
+                    pb.cubic_to(p1.x, p1.y, p2.x, p2.y, p.x, p.y);
+                }
+                PathSegment::Close => {
+                    println!("Z");
+                    pb.close();
                 }
             }
-
-            let mut linked = false;
-            for seg in geom::path_segments_rev_iter(path_y2) {
-                match seg {
-                    PathSegment::MoveTo(p) => {
-                        debug_assert!(!linked);
-                        if !linked {
-                            pb.line_to(p.x, p.y);
-                            linked = true;
-                        } else {
-                            pb.move_to(p.x, p.y);
-                        }
-                    }
-                    PathSegment::LineTo(p) => {
-                        debug_assert!(linked, "Should have made linked already");
-                        pb.line_to(p.x, p.y);
-                    }
-                    PathSegment::QuadTo(p1, p) => {
-                        debug_assert!(linked, "Should have made linked already");
-                        pb.quad_to(p1.x, p1.y, p.x, p.y);
-                    }
-                    PathSegment::CubicTo(p1, p2, p) => {
-                        debug_assert!(linked, "Should have made linked already");
-                        pb.cubic_to(p1.x, p1.y, p2.x, p2.y, p.x, p.y);
-                    }
-                    PathSegment::Close => {
-                        println!("Z");
-                        pb.close();
-                    }
-                }
-            }
-            pb.close();
-            let p = pb.finish().expect("Should be a valid path");
-            p
-        });
+        }
+        pb.close();
+        self.path_fill = Some(pb.finish().expect("Should be a valid path"));
+        self.path_y1 = Some(path_y1);
+        self.path_y2 = Some(path_y2);
     }
 
     fn draw<S>(&self, surface: &mut S, style: &Style)
@@ -1070,16 +1063,15 @@ impl Area {
     {
         let rc = (style, self.index);
 
-        if let (Some(fp), Some(fill)) = (&self.path_fill, &self.fill) {
-            let path = render::Path {
-                path: fp,
-                fill: Some(fill.as_paint(&rc)),
-                stroke: None,
-                transform: None,
-            };
-            surface.draw_path(&path);
-        }
-        if let (Some(sp), Some(stroke)) = (&self.path_y1, &self.stroke_y1) {
+        let rpath = render::Path {
+            path: self.path_fill.as_ref().unwrap(),
+            fill: Some(self.fill.as_paint(&rc)),
+            stroke: None,
+            transform: None,
+        };
+        surface.draw_path(&rpath);
+
+        if let (Some(sp), Some(stroke)) = (&self.path_y1, &self.y1_stroke) {
             let path = render::Path {
                 path: sp,
                 fill: None,
@@ -1088,7 +1080,7 @@ impl Area {
             };
             surface.draw_path(&path);
         }
-        if let (Some(sp), Some(stroke)) = (&self.path_y2, &self.stroke_y2) {
+        if let (Some(sp), Some(stroke)) = (&self.path_y2, &self.y2_stroke) {
             let path = render::Path {
                 path: sp,
                 fill: None,
@@ -1111,7 +1103,7 @@ struct HistBin {
 #[derive(Debug, Clone)]
 struct Histogram {
     index: usize,
-    data_col: des::DataCol,
+    x_col: des::DataCol,
     bin_count: u32,
     density: bool,
     ab: (axis::NumBounds, axis::NumBounds),
@@ -1132,8 +1124,8 @@ impl Histogram {
     where
         D: data::Source + ?Sized,
     {
-        let data_col = hist.data().clone();
-        let col = get_column(&data_col, data_source)?;
+        let x_col = hist.x_data().clone();
+        let col = get_column(&x_col, data_source)?;
         let col = col.f64().ok_or(Error::InconsistentData(
             "Histogram data must be numeric".into(),
         ))?;
@@ -1148,7 +1140,7 @@ impl Histogram {
 
         Ok(Histogram {
             index,
-            data_col,
+            x_col,
             bin_count: hist.bins(),
             density: hist.density(),
             ab: (x_bounds, y_bounds),
@@ -1156,7 +1148,7 @@ impl Histogram {
             bins,
             path: None,
             fill: hist.fill().clone(),
-            line: hist.outline().cloned(),
+            line: hist.stroke().cloned(),
             updated_once: false,
         })
     }
@@ -1203,7 +1195,7 @@ impl Histogram {
             // no need to recalculate bins, as first call is made with the same data_source as prepare
         } else {
             let x_bounds = self.ab.0;
-            let col = get_column(&self.data_col, data_source).expect("TODO: error handling");
+            let col = get_column(&self.x_col, data_source).expect("TODO: error handling");
             let col = col.f64().expect("TODO: error handling");
             let bins = Self::calc_bins(col, x_bounds, self.bin_count, self.density)
                 .expect("TODO: error handling");
@@ -1306,7 +1298,7 @@ impl Bars {
             position: des.position().clone(),
             path: None,
             fill: des.fill().clone(),
-            line: des.outline().cloned(),
+            line: des.stroke().cloned(),
         })
     }
 

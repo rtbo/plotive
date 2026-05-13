@@ -146,7 +146,7 @@ impl ResolveColor<series::Color> for (&Style, usize) {
 }
 
 fn add_opacity(c: Rgba8, opacity: Option<f32>) -> Rgba8 {
-    debug_assert!(opacity.map_or(true, |t| t >= 0.0 && t <= 1.0));
+    debug_assert!(opacity.is_none_or(|t| (0.0..=1.0).contains(&t)));
 
     match opacity {
         Some(opacity) => Rgba8::new(c.r(), c.g(), c.b(), (c.a() as f32 * opacity).round() as u8),
@@ -170,23 +170,21 @@ impl Default for Dash {
 }
 
 /// Line pattern defines how the line is drawn
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum LinePattern {
     /// Solid line
+    #[default]
     Solid,
-    /// Dashed line. The pattern is relative to the line width.
-    Dash(Dash),
+    /// Dashed line. Equivalent to Dash(vec![5.0, 5.0])
+    Dashed,
     /// Dotted line. Equivalent to Dash(vec![1.0, 1.0])
     Dot,
     /// Dash-dot line. Equivalent to Dash(vec![5.0, 5.0, 1.0, 5.0])
     DashDot,
+    /// Dashed line. The pattern is relative to the line width.
+    Dash(Dash),
 }
 
-impl Default for LinePattern {
-    fn default() -> Self {
-        LinePattern::Solid
-    }
-}
 
 impl From<Dash> for LinePattern {
     fn from(dash: Dash) -> Self {
@@ -210,6 +208,7 @@ pub struct Stroke<C: Color> {
     pub opacity: Option<f32>,
 }
 
+const DASHED_DASH: &[f32] = &[5.0, 5.0];
 const DOT_DASH: &[f32] = &[1.0, 1.0];
 const DASH_DOT_DASH: &[f32] = &[5.0, 5.0, 1.0, 5.0];
 
@@ -241,9 +240,10 @@ impl<C: Color> Stroke<C> {
 
         let pattern = match &self.pattern {
             LinePattern::Solid => render::LinePattern::Solid,
-            LinePattern::Dash(Dash(a)) => render::LinePattern::Dash(a.as_slice()),
+            LinePattern::Dashed => render::LinePattern::Dash(DASHED_DASH),
             LinePattern::Dot => render::LinePattern::Dash(DOT_DASH),
             LinePattern::DashDot => render::LinePattern::Dash(DASH_DOT_DASH),
+            LinePattern::Dash(Dash(a)) => render::LinePattern::Dash(a.as_slice()),
         };
 
         render::Stroke {
