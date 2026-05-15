@@ -9,6 +9,7 @@ pub enum Error {
     Io(io::Error),
     Drawing(drawing::Error),
     InvalidSurfaceSize(u32, u32),
+    PngEncoding(png::EncodingError),
 }
 
 impl From<io::Error> for Error {
@@ -23,22 +24,34 @@ impl From<drawing::Error> for Error {
     }
 }
 
+impl From<png::EncodingError> for Error {
+    fn from(err: png::EncodingError) -> Self {
+        Error::PngEncoding(err)
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Io(err) => write!(f, "IO error: {}", err),
             Error::Drawing(err) => write!(f, "Drawing error: {}", err),
             Error::InvalidSurfaceSize(w, h) => write!(f, "Invalid surface size: {}x{}", w, h),
+            Error::PngEncoding(err) => write!(f, "PNG encoding error: {}", err),
         }
     }
 }
 
 impl std::error::Error for Error {}
 
-/// Parameters needed for saving a figure as PNG
+/// Parameters needed for rendering a figure on a pixel surface
 #[derive(Debug, Clone)]
 pub struct Params<'a> {
+    /// Styling palette
     pub style: Style,
+    /// Scale factor between figure point size and pixel surface dimensions
+    ///
+    /// e.g. a scale of 2.0 and figure size of 800x600 pts will result in an image of 1600x1200
+    /// pixels, thus doubling the resolution
     pub scale: f32,
     /// Optional font database to use for text rendering
     /// This parameter is ignored when saving a prepared figure,
@@ -57,20 +70,52 @@ impl Default for Params<'_> {
     }
 }
 
-/// Trait for saving a figure as PNG file
-pub trait SavePng {
-    /// Save the figure as a PNG file at the given path.
+pub trait PxlRender {
+    /// Rasterizes the figure on a `tiny_skia::Pixmap`
     ///
     /// The data source parameter is ignored when saving a prepared figure,
     /// as the data has already been resolved.
     /// Therefore, this parameter can be left to `&()` when saving a prepared figure.
+    fn to_pixmap<D>(&self, data_src: &D, params: Params) -> Result<tiny_skia::Pixmap, Error>
+    where
+        D: plotive::data::Source + ?Sized;
+
+    /// Render the figure and return PNG data.
     ///
     /// # Example
     ///
     /// ```rust
     /// use plotive::des;
     /// use plotive::Prepare;
-    /// use plotive_pxl::{SavePng, Params};
+    /// use plotive_pxl::{PxlRender, Params};
+    ///
+    /// // Create your figure design (this one has inline data for simplicity)
+    /// let fig = des::series::Line::new(
+    ///     des::data_inline(vec![0.0, 1.0, 2.0]),
+    ///     des::data_inline(vec![0.0, 1.0, 0.0]),
+    /// ).into_plot()
+    /// .into_figure();
+    ///
+    /// // data source is not needed for inline data
+    /// let data = fig.to_png_data(&(), Default::default()).unwrap();
+    /// ```
+    fn to_png_data<D>(&self, data_src: &D, params: Params) -> Result<Vec<u8>, Error>
+    where
+        D: plotive::data::Source + ?Sized,
+    {
+        let pixmap = self.to_pixmap(data_src, params)?;
+        let png_data = pixmap.encode_png()?;
+        Ok(png_data)
+    }
+
+    /// Save the figure as a PNG file at the given path.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use plotive::des;
+    /// use plotive::Prepare;
+    /// use plotive_pxl::{PxlRender, Params};
     ///
     /// // Create your figure design (this one has inline data for simplicity)
     /// let fig = des::series::Line::new(
@@ -86,56 +131,15 @@ pub trait SavePng {
     fn save_png<P, D>(&self, path: P, data_src: &D, params: Params) -> Result<(), Error>
     where
         P: AsRef<Path>,
-        D: plotive::data::Source + ?Sized;
-}
-
-impl SavePng for plotive::des::Figure {
-    fn save_png<P, D>(&self, path: P, data_src: &D, params: Params) -> Result<(), Error>
-    where
-        P: AsRef<Path>,
         D: plotive::data::Source + ?Sized,
     {
-        use plotive::Prepare;
-
-        let prepared = self.prepare(data_src, params.fontdb)?;
-
-        prepared.save_png(path, &(), params)
-    }
-}
-
-impl SavePng for drawing::PreparedFigure {
-    fn save_png<P, D>(&self, path: P, _data_src: &D, params: Params) -> Result<(), Error>
-    where
-        P: AsRef<Path>,
-        D: plotive::data::Source + ?Sized,
-    {
-        let size = self.size();
-        let witdth = (size.width() * params.scale) as u32;
-        let height = (size.height() * params.scale) as u32;
-
-        let mut surface =
-            PxlSurface::new(witdth, height).ok_or(Error::InvalidSurfaceSize(witdth, height))?;
-
-        self.draw(&mut surface, &params.style);
-
-        surface.save_png(path)?;
+        let pixmap = self.to_pixmap(data_src, params)?;
+        pixmap.save_png(path)?;
         Ok(())
     }
 }
 
-/// Trait for rasterizing a figure to a `tiny_skia::Pixmap`
-pub trait ToPixmap {
-    /// Rasterizes the figure on a `tiny_skia::Pixmap`
-    ///
-    /// The data source parameter is ignored when saving a prepared figure,
-    /// as the data has already been resolved.
-    /// Therefore, this parameter can be left to `&()` when saving a prepared figure.
-    fn to_pixmap<D>(&self, data_src: &D, params: Params) -> Result<tiny_skia::Pixmap, Error>
-    where
-        D: plotive::data::Source + ?Sized;
-}
-
-impl ToPixmap for plotive::des::Figure {
+impl PxlRender for plotive::des::Figure {
     fn to_pixmap<D>(&self, data_src: &D, params: Params) -> Result<tiny_skia::Pixmap, Error>
     where
         D: plotive::data::Source + ?Sized,
@@ -148,14 +152,14 @@ impl ToPixmap for plotive::des::Figure {
     }
 }
 
-impl ToPixmap for drawing::PreparedFigure {
+impl PxlRender for drawing::PreparedFigure {
     fn to_pixmap<D>(&self, _data_src: &D, params: Params) -> Result<tiny_skia::Pixmap, Error>
     where
         D: plotive::data::Source + ?Sized,
     {
         let size = self.size();
-        let width = (size.width() * params.scale) as u32;
-        let height = (size.height() * params.scale) as u32;
+        let width = (size.width() * params.scale).round() as u32;
+        let height = (size.height() * params.scale).round() as u32;
 
         let mut surface =
             PxlSurface::new(width, height).ok_or(Error::InvalidSurfaceSize(width, height))?;

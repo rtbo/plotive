@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use plotive::{Prepare, Style, data, des, fontdb};
 use plotive_iced::Show;
-use plotive_pxl::SavePng;
+use plotive_pxl::PxlRender;
 use plotive_svg::SaveSvg;
 use rand::SeedableRng;
 
