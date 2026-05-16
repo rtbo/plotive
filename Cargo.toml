@@ -23,7 +23,7 @@ polars = { workspace = true, optional = true }
 [dev-dependencies]
 plotive-iced = { path = "iced", features = ["clipboard"] }
 plotive-svg = { path = "svg" }
-plotive-pxl = { path = "pxl" }
+plotive-pxl = { path = "pxl", features = ["ssaa"] }
 rand.workspace = true
 rand_distr.workspace = true
 rand_chacha.workspace = true

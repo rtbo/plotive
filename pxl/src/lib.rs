@@ -2,7 +2,13 @@ use std::path::Path;
 use std::{fmt, io};
 
 use plotive::{Rgba8, Style, drawing, geom, render};
-use tiny_skia::{self, FillRule, Mask, Pixmap, PixmapMut};
+use tiny_skia::{self, FillRule, Mask};
+
+pub use tiny_skia::Pixmap;
+pub use tiny_skia::PixmapMut;
+
+#[cfg(feature = "ssaa")]
+pub use zenresize::Filter as SsaaFilter;
 
 #[derive(Debug)]
 pub enum Error {
@@ -43,6 +49,25 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+#[cfg(feature = "ssaa")]
+/// Supersampling anti-aliasing levels
+///
+/// Determines how much the figure is upscaled before downsampling to achieve smoother edges.
+#[derive(Debug, Clone, Copy)]
+pub enum SsaaLevel {
+    /// 2x supersampling (i.e. render at 4x the pixel count)
+    X2,
+    /// 4x supersampling (i.e. render at 16x the pixel count)
+    X4,
+}
+
+#[cfg(feature = "ssaa")]
+#[derive(Debug, Clone, Copy)]
+pub struct Ssaa {
+    pub level: SsaaLevel,
+    pub filter: SsaaFilter,
+}
+
 /// Parameters needed for rendering a figure on a pixel surface
 #[derive(Debug, Clone)]
 pub struct Params<'a> {
@@ -53,6 +78,14 @@ pub struct Params<'a> {
     /// e.g. a scale of 2.0 and figure size of 800x600 pts will result in an image of 1600x1200
     /// pixels, thus doubling the resolution
     pub scale: f32,
+
+    /// Supersampling configuration for anti-aliasing. If `None`, no supersampling is applied.
+    ///
+    /// When enabled, this will render the figure at a higher resolution and then downsample it to the target size.
+    /// E.g. for a figure of 800x600 pts, a scale of 2.0, and `SsaaLevel::X2`, the figure will be rendered at 3200x2400 and then downsampled to 1600x1200
+    #[cfg(feature = "ssaa")]
+    pub ssaa: Option<Ssaa>,
+
     /// Optional font database to use for text rendering
     /// This parameter is ignored when saving a prepared figure,
     /// as the fonts have already been resolved.
@@ -65,6 +98,8 @@ impl Default for Params<'_> {
         Self {
             style: Style::default(),
             scale: 1.0,
+            #[cfg(feature = "ssaa")]
+            ssaa: None,
             fontdb: None,
         }
     }
@@ -157,17 +192,88 @@ impl PxlRender for drawing::PreparedFigure {
     where
         D: plotive::data::Source + ?Sized,
     {
-        let size = self.size();
-        let width = (size.width() * params.scale).round() as u32;
-        let height = (size.height() * params.scale).round() as u32;
-
-        let mut surface =
-            PxlSurface::new(width, height).ok_or(Error::InvalidSurfaceSize(width, height))?;
-
-        self.draw(&mut surface, &params.style);
-
-        Ok(surface.into_pixmap())
+        #[cfg(feature = "ssaa")]
+        {
+            render_to_pixmap_with_ssaa(self, params)
+        }
+        #[cfg(not(feature = "ssaa"))]
+        {
+            render_to_pixmap(self, params)
+        }
     }
+}
+
+fn render_to_pixmap(
+    prepared: &drawing::PreparedFigure,
+    params: Params,
+) -> Result<tiny_skia::Pixmap, Error> {
+    let size = prepared.size();
+    let width = (size.width() * params.scale).round() as u32;
+    let height = (size.height() * params.scale).round() as u32;
+
+    let mut surface =
+        PxlSurface::new(width, height).ok_or(Error::InvalidSurfaceSize(width, height))?;
+
+    prepared.draw(&mut surface, &params.style);
+
+    Ok(surface.into_pixmap())
+}
+
+#[cfg(feature = "ssaa")]
+fn render_to_pixmap_with_ssaa(
+    prepared: &drawing::PreparedFigure,
+    params: Params,
+) -> Result<tiny_skia::Pixmap, Error> {
+    use tiny_skia::IntSize;
+    use zenresize::{
+        AlphaMode, ChannelLayout, ChannelType, PixelDescriptor, ResizeConfig, Resizer,
+        TransferFunction,
+    };
+
+    const PXL_DESC: PixelDescriptor = PixelDescriptor::new(
+        ChannelType::U8,
+        ChannelLayout::Rgba,
+        Some(AlphaMode::Premultiplied),
+        TransferFunction::Srgb,
+    );
+
+    let Some(ssaa) = params.ssaa else {
+        return render_to_pixmap(prepared, params);
+    };
+
+    let size = prepared.size();
+    let out_width = (size.width() * params.scale).round() as u32;
+    let out_height = (size.height() * params.scale).round() as u32;
+
+    let ssaa_factor = match ssaa.level {
+        SsaaLevel::X2 => 2,
+        SsaaLevel::X4 => 4,
+    };
+    let render_width = out_width * ssaa_factor;
+    let render_height = out_height * ssaa_factor;
+
+    let mut surface = PxlSurface::new(render_width, render_height)
+        .ok_or(Error::InvalidSurfaceSize(render_width, render_height))?;
+
+    prepared.draw(&mut surface, &params.style);
+
+    let pixmap = surface.into_pixmap();
+    let data = pixmap.data();
+
+    let config = ResizeConfig::builder(render_width, render_height, out_width, out_height)
+        .filter(params.ssaa.unwrap().filter)
+        .format(PXL_DESC)
+        .build();
+
+    let downsampled = Resizer::new(&config).resize(data);
+
+    let pixmap = Pixmap::from_vec(
+        downsampled,
+        IntSize::from_wh(out_width, out_height).unwrap(),
+    )
+    .ok_or_else(|| Error::InvalidSurfaceSize(out_width, out_height))?;
+
+    Ok(pixmap)
 }
 
 #[derive(Debug, Clone)]

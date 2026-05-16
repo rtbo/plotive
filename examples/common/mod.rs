@@ -123,13 +123,37 @@ fn save_fig<D>(
                 Some(path) => path.to_string_lossy().to_string(),
                 None => format!("{}.png", default_name),
             };
+            for filter in plotive_pxl::SsaaFilter::all() {
+                for level in [plotive_pxl::SsaaLevel::X2, plotive_pxl::SsaaLevel::X4] {
+                    let file_name = format!(
+                        "{}_ssaa-{:?}-{}.png",
+                        default_name,
+                        level,
+                        filter.name()
+                    );
+                    let params = plotive_pxl::Params {
+                        style: args.style.as_ref().cloned().unwrap_or_default(),
+                        scale: 1.0,
+                        fontdb: Some(fontdb),
+                        ssaa: Some(plotive_pxl::Ssaa { level, filter: *filter }),
+                    };
+                    println!("Saving with SSAA: level={:?}, filter={}", level, filter.name());
+                    fig.save_png(
+                        &file_name,
+                        data_source,
+                        params,
+                    )
+                    .unwrap();
+                }
+            }
             fig.save_png(
                 &file_name,
                 data_source,
                 plotive_pxl::Params {
                     style: args.style.as_ref().cloned().unwrap_or_default(),
-                    scale: 2.0,
+                    scale: 1.0,
                     fontdb: Some(fontdb),
+                    ..Default::default()
                 },
             )
             .unwrap();
