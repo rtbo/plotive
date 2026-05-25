@@ -230,7 +230,7 @@ impl Legend {
         if self.fill.is_some() || self.border.is_some() {
             surface.draw_rect(&render::Rect {
                 rect,
-                fill: self.fill.map(|f| f.as_paint(style)),
+                fill: self.fill.as_ref().map(|f| f.as_paint(style)),
                 stroke: self.border.as_ref().map(|l| l.as_stroke(style)),
                 transform: None,
             });

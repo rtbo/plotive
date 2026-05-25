@@ -301,51 +301,12 @@ impl ColorBar {
             axis::Side::Right | axis::Side::Left => bar_rect.height(),
             axis::Side::Top | axis::Side::Bottom => bar_rect.width(),
         };
-        let num_pts = bar_len.ceil() as usize;
         let (start, sign) = match self.side {
             axis::Side::Right | axis::Side::Left => (bar_rect.bottom(), -1.0),
             axis::Side::Top | axis::Side::Bottom => (bar_rect.left(), 1.0),
         };
-        let mut pos = start;
-        let pos_shift = sign * bar_len / num_pts as f32;
-        let mut t = 0.0;
-        let t_shift = 1.0 / num_pts as f32;
 
-        let mut pb = geom::PathBuilder::with_capacity(5, 4);
-        for i in 0..=num_pts {
-            let color = scale.coord_to_color.map_color(t);
-            let pi = start + i as f32 * pos_shift;
-            let pos2 = if i == num_pts {
-                pi
-            } else {
-                pi + pos_shift / 2.0
-            };
-            let (x1, y1, x2, y2) = match self.side {
-                axis::Side::Right | axis::Side::Left => {
-                    (bar_rect.left(), pos, bar_rect.right(), pos2)
-                }
-                axis::Side::Top | axis::Side::Bottom => {
-                    (pos, bar_rect.top(), pos2, bar_rect.bottom())
-                }
-            };
-            pb.move_to(x1, y1);
-            pb.line_to(x1, y2);
-            pb.line_to(x2, y2);
-            pb.line_to(x2, y1);
-
-            let path = pb.finish().expect("path should be valid");
-            let rpath = render::Path {
-                path: &path,
-                fill: Some(color.opaque().into()),
-                stroke: None,
-                transform: None,
-            };
-            surface.draw_path(&rpath);
-
-            pb = path.clear();
-            pos = pos2;
-            t = (t + t_shift).min(1.0);
-        }
+        self.draw_gradient(surface, &bar_rect, scale);
 
         if let Some(border) = self.border() {
             let path = bar_rect.to_path();
@@ -358,6 +319,7 @@ impl ColorBar {
             surface.draw_path(&rpath);
         }
 
+        let mut pb = geom::PathBuilder::with_capacity(2, 2);
         let mut title_shift: f32 = 0.0;
 
         let mark_len = self.ticks_mark.1;
@@ -395,6 +357,7 @@ impl ColorBar {
                     bar_rect.bottom() + mark_len,
                 ),
             };
+
             pb.move_to(tx1, ty1);
             pb.line_to(tx2, ty2);
             let path = pb.finish().expect("path should be valid");
@@ -461,5 +424,121 @@ impl ColorBar {
             let transform = geom::Transform::from_translate(tx, ty).pre_rotate(rot);
             title.draw(surface, style, Some(&transform));
         }
+    }
+
+    fn draw_gradient<S>(
+        &self,
+        surface: &mut S,
+        bar_rect: &geom::Rect,
+        scale: &ColorScale,
+    ) where
+        S: render::Surface,
+    {
+        // The fake method draws the gradient as a succession of filled rectangles,
+        // while the real method uses a gradient fill.
+        // SVG shows visual artifacts with the fake method, while ICED doesn't support more than 8 stops.
+        // Hence supporting those two methods.
+        let bar_len = match self.side {
+            axis::Side::Right | axis::Side::Left => bar_rect.height(),
+            axis::Side::Top | axis::Side::Bottom => bar_rect.width(),
+        };
+        let num_stops = bar_len.ceil() as usize;
+        if num_stops > surface.caps().max_gradient_stops {
+            self.draw_fake_gradient(surface, bar_len, num_stops, bar_rect, scale);
+        } else {
+            self.draw_real_gradient(surface, num_stops, bar_rect, scale);
+        }
+    }
+
+    fn draw_fake_gradient<S>(
+        &self,
+        surface: &mut S,
+        bar_len: f32,
+        num_stops: usize,
+        bar_rect: &geom::Rect,
+        scale: &ColorScale,
+    ) where
+        S: render::Surface,
+    {
+        let (start, sign) = match self.side {
+            axis::Side::Right | axis::Side::Left => (bar_rect.bottom(), -1.0),
+            axis::Side::Top | axis::Side::Bottom => (bar_rect.left(), 1.0),
+        };
+
+        let mut pos = start;
+        let pos_shift = sign * bar_len / num_stops as f32;
+        let mut t = 0.0;
+        let t_shift = 1.0 / num_stops as f32;
+
+        let mut pb = geom::PathBuilder::with_capacity(5, 4);
+        for i in 0..=num_stops {
+            let color = scale.coord_to_color.map_color(t);
+            let pi = start + i as f32 * pos_shift;
+            let pos2 = if i == num_stops {
+                pi
+            } else {
+                pi + pos_shift / 2.0
+            };
+            let (x1, y1, x2, y2) = match self.side {
+                axis::Side::Right | axis::Side::Left => {
+                    (bar_rect.left(), pos, bar_rect.right(), pos2)
+                }
+                axis::Side::Top | axis::Side::Bottom => {
+                    (pos, bar_rect.top(), pos2, bar_rect.bottom())
+                }
+            };
+            pb.move_to(x1, y1);
+            pb.line_to(x1, y2);
+            pb.line_to(x2, y2);
+            pb.line_to(x2, y1);
+
+            let path = pb.finish().expect("path should be valid");
+            let rpath = render::Path {
+                path: &path,
+                fill: Some(color.opaque().into()),
+                stroke: None,
+                transform: None,
+            };
+            surface.draw_path(&rpath);
+
+            pb = path.clear();
+            pos = pos2;
+            t = (t + t_shift).min(1.0);
+        }
+    }
+
+    fn draw_real_gradient<S>(
+        &self,
+        surface: &mut S,
+        num_stops: usize,
+        bar_rect: &geom::Rect,
+        scale: &ColorScale,
+    ) where
+        S: render::Surface,
+    {
+        let (start_pos, end_pos) = match self.side {
+            axis::Side::Right | axis::Side::Left => {
+                let x = bar_rect.left() + bar_rect.width() / 2.0;
+                (geom::Point{x, y: bar_rect.bottom()}, geom::Point{x, y: bar_rect.top()})
+            },
+            axis::Side::Top | axis::Side::Bottom => {
+                let y = bar_rect.top() + bar_rect.height() / 2.0;
+                (geom::Point{x: bar_rect.left(), y}, geom::Point{x: bar_rect.right(), y})
+            },
+        };
+        let mut stops = Vec::with_capacity(num_stops);
+        for i in 0..=num_stops {
+            let t = i as f32 / num_stops as f32;
+            let color = scale.coord_to_color.map_color(t);
+            stops.push((t, color.opaque()));
+        }
+        let gradient = render::Paint::LinearGradient { start_pos, end_pos, stops: &stops };
+        let rpath = render::Path {
+            path: &bar_rect.to_path(), // Replace with actual path
+            fill: Some(gradient),
+            stroke: None,
+            transform: None,
+        };
+        surface.draw_path(&rpath);
     }
 }
