@@ -204,5 +204,7 @@ impl PreparedFigure {
         }
 
         self.plots.draw(surface, style);
+
+        surface.finalize();
     }
 }

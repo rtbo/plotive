@@ -39,6 +39,10 @@ pub trait Surface {
 
     /// Pop a clipping rect that was pushed previously with [`push_clip`](Surface::push_clip)
     fn pop_clip(&mut self);
+
+    /// Finalize the surface
+    /// Allows a surface to perform a last mutable operation after drawing, such as flushing a cache.
+    fn finalize(&mut self) {}
 }
 
 /// Paint pattern, used for fill operations
