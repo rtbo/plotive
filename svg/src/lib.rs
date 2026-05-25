@@ -121,8 +121,10 @@ impl SaveSvg for drawing::PreparedFigure {
 
 pub struct SvgSurface {
     doc: svg::Document,
+    defs: Option<element::Definitions>,
+    doc_children: Vec<Box<dyn Node>>,
     clip_num: u32,
-    _node_num: u32,
+    id_prefix: Option<String>,
     group_stack: Vec<element::Group>,
 }
 
@@ -133,10 +135,19 @@ impl SvgSurface {
             .set("height", height);
         SvgSurface {
             doc,
+            defs: None,
+            doc_children: Vec::new(),
+            id_prefix: None,
             clip_num: 0,
-            _node_num: 0,
             group_stack: vec![],
         }
+    }
+
+    /// Set a prefix for generated IDs (e.g., for clip paths).
+    /// Use this when embedding multiple SVGs in the same document to avoid ID conflicts.
+    pub fn with_id_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
+        self.id_prefix = Some(prefix.into());
+        self
     }
 
     pub fn save_svg<P: AsRef<std::path::Path>>(&self, path: P) -> io::Result<()> {
@@ -201,7 +212,8 @@ impl Surface for SvgSurface {
         let node = element::ClipPath::new()
             .set("id", clip_id.clone())
             .add(rect_node);
-        self.append_node(node);
+        let defs = self.defs.get_or_insert_with(element::Definitions::new);
+        defs.append(node);
         self.group_stack
             .push(element::Group::new().set("clip-path", clip_id_url));
     }
@@ -213,6 +225,19 @@ impl Surface for SvgSurface {
         }
         self.append_node(g.unwrap());
     }
+
+    fn finalize(&mut self) {
+        if !self.group_stack.is_empty() {
+            panic!("Unbalanced clip stack");
+        }
+
+        if let Some(defs) = self.defs.take() {
+            self.doc.append(defs);
+        }
+        for child in self.doc_children.drain(..) {
+            self.doc.append(child);
+        }
+    }
 }
 
 impl SvgSurface {
@@ -221,7 +246,7 @@ impl SvgSurface {
         T: Node,
     {
         if self.group_stack.is_empty() {
-            self.doc.append(node);
+            self.doc_children.push(Box::new(node));
         } else {
             self.group_stack.last_mut().unwrap().append(node);
         }
@@ -229,12 +254,8 @@ impl SvgSurface {
 
     fn bump_clip_id(&mut self) -> String {
         self.clip_num += 1;
-        format!("plotive-clip{}", self.clip_num)
-    }
-
-    fn _bump_node_id(&mut self) -> String {
-        self._node_num += 1;
-        format!("plotive-node{}", self._node_num)
+        let prefix = self.id_prefix.as_deref().unwrap_or("plotive");
+        format!("{}-clip{}", prefix, self.clip_num)
     }
 
     // fn draw_rich_text_hor(
