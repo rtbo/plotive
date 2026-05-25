@@ -46,6 +46,9 @@ pub struct Params<'a> {
     /// as the fonts have already been resolved.
     /// In such case, this parameter can be left to `None` (which is the default).
     pub fontdb: Option<&'a plotive::fontdb::Database>,
+    /// Optional prefix for generated IDs (e.g., for clip paths, gradients).
+    /// Use this when embedding multiple SVGs in the same document to avoid ID conflicts.
+    pub id_prefix: Option<String>,
 }
 
 impl Default for Params<'_> {
@@ -54,6 +57,7 @@ impl Default for Params<'_> {
             style: Style::default(),
             scale: 1.0,
             fontdb: None,
+            id_prefix: None,
         }
     }
 }
@@ -112,6 +116,9 @@ impl SaveSvg for drawing::PreparedFigure {
         let height = (size.height() * params.scale) as u32;
 
         let mut surface = SvgSurface::new(witdth, height);
+        if let Some(id_prefix) = params.id_prefix.as_ref() {
+            surface = surface.with_id_prefix(id_prefix);
+        }
 
         self.draw(&mut surface, &params.style);
         surface.save_svg(path)?;
@@ -298,7 +305,7 @@ impl SvgSurface {
         id
     }
 
-    fn assign_transform<N>(&mut self, node: &mut N, transform: Option<&geom::Transform>)
+    fn assign_transform<N>(&self, node: &mut N, transform: Option<&geom::Transform>)
     where
         N: Node,
     {
@@ -343,7 +350,7 @@ impl SvgSurface {
             }
         }
     }
-    fn assign_stroke<N>(&mut self, node: &mut N, stroke: Option<&render::Stroke>)
+    fn assign_stroke<N>(&self, node: &mut N, stroke: Option<&render::Stroke>)
     where
         N: Node,
     {
