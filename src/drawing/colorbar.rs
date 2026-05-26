@@ -438,11 +438,12 @@ impl ColorBar {
             axis::Side::Right | axis::Side::Left => bar_rect.height(),
             axis::Side::Top | axis::Side::Bottom => bar_rect.width(),
         };
-        let num_stops = bar_len.ceil() as usize;
-        if num_stops > surface.caps().max_gradient_stops {
-            self.draw_fake_gradient(surface, bar_len, num_stops, bar_rect, scale);
+        let num_pts = bar_len.ceil() as usize;
+
+        if surface.caps().max_gradient_stops < 256 {
+            self.draw_fake_gradient(surface, bar_len, num_pts, bar_rect, scale);
         } else {
-            self.draw_real_gradient(surface, num_stops, bar_rect, scale);
+            self.draw_real_gradient(surface, num_pts.min(256), bar_rect, scale);
         }
     }
 
