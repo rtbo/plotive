@@ -1,9 +1,11 @@
 <svg height="300" viewBox="0 0 400 300" width="400" xmlns="http://www.w3.org/2000/svg">
-<rect fill="#ffffff" height="100%" width="100%"/>
-<clipPath id="plotive-clip1">
+<defs>
+<clipPath id="plotive1">
 <rect height="260" width="360" x="20" y="20"/>
 </clipPath>
-<g clip-path="url(#plotive-clip1)">
+</defs>
+<rect fill="#ffffff" height="100%" width="100%"/>
+<g clip-path="url(#plotive1)">
 <path d="M40,113.33333 L104,40 L168,142.66666 L232,172 L296,84 L360,113.33333 L360,201.33333 L296,172 L232,260 L168,230.66666 L104,128 L40,201.33333 z" fill="#888888" stroke="none"/>
 <path d="M40,113.33333 L104,40 L168,142.66666 L232,172 L296,84 L360,113.33333" fill="none" stroke="#000000" stroke-width="1.5"/>
 <path d="M40,201.33333 L104,128 L168,230.66666 L232,260 L296,172 L360,201.33333" fill="none" stroke="#000000" stroke-width="1.5"/>

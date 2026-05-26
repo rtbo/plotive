@@ -44,12 +44,21 @@ impl<Frame> plotive::render::Surface for IcedSurface<Frame>
 where
     Frame: frame::Backend,
 {
+    fn caps(&self) -> render::SurfaceCaps {
+        render::SurfaceCaps {
+            max_gradient_stops: 0,
+        }
+    }
+
     fn prepare(&mut self, _size: geom::Size) {}
 
     fn fill(&mut self, fill: render::Paint) {
         let color = match fill {
             render::Paint::Solid(c) => {
                 iced::Color::from_rgba8(c.r(), c.g(), c.b(), c.a() as f32 / 255.0)
+            }
+            render::Paint::LinearGradient { .. } => {
+                panic!("fill with LinearGradient paint is not implemented yet")
             }
         };
         let bounds = self.clip_bounds();
@@ -115,6 +124,9 @@ fn to_iced_color(color: plotive::Rgba8) -> iced::Color {
 fn to_iced_fill(paint: &render::Paint) -> geometry::Fill {
     match paint {
         render::Paint::Solid(color) => to_iced_color(*color).into(),
+        render::Paint::LinearGradient { .. } => {
+            todo!("LinearGradient paint is not implemented yet")
+        }
     }
 }
 

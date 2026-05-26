@@ -60,16 +60,17 @@ impl Rgba8 {
     }
 
     /// Get the HTML hex string representation of the color, e.g. `#ff0000` for red.
+    /// If the alpha channel is not 255, the form "rgba(r, g, b, a)" is used.
     pub fn html(&self) -> String {
         if self.a() == 255 {
             format!("#{:02x}{:02x}{:02x}", self.r(), self.g(), self.b())
         } else {
             format!(
-                "#{:02x}{:02x}{:02x}{:02x}",
+                "rgba({}, {}, {}, {})",
                 self.r(),
                 self.g(),
                 self.b(),
-                self.a()
+                self.a() as f32 / 255.0
             )
         }
     }

@@ -246,6 +246,9 @@ impl State {
                 let color = ts_color(color);
                 px.fill(color);
             }
+            render::Paint::LinearGradient { .. } => {
+                panic!("fill with LinearGradient paint is not implemented yet")
+            }
         }
     }
 
@@ -295,6 +298,12 @@ impl State {
 }
 
 impl render::Surface for PxlSurface {
+    fn caps(&self) -> render::SurfaceCaps {
+        render::SurfaceCaps {
+            max_gradient_stops: usize::MAX,
+        }
+    }
+
     fn prepare(&mut self, size: geom::Size) {
         self.state.prepare(size)
     }
@@ -319,6 +328,12 @@ impl render::Surface for PxlSurface {
 }
 
 impl render::Surface for PxlSurfaceRef<'_> {
+    fn caps(&self) -> render::SurfaceCaps {
+        render::SurfaceCaps {
+            max_gradient_stops: usize::MAX,
+        }
+    }
+
     fn prepare(&mut self, size: geom::Size) {
         self.state.prepare(size)
     }
@@ -349,6 +364,28 @@ fn ts_fill(fill: render::Paint, paint: &mut tiny_skia::Paint) {
         render::Paint::Solid(color) => {
             let color = ts_color(color);
             paint.set_color(color);
+        }
+        render::Paint::LinearGradient {
+            start_pos,
+            end_pos,
+            stops,
+        } => {
+            let stops = stops
+                .iter()
+                .map(|(offset, color)| {
+                    let color = ts_color(*color);
+                    tiny_skia::GradientStop::new(*offset, color)
+                })
+                .collect::<Vec<_>>();
+
+            paint.shader = tiny_skia::LinearGradient::new(
+                start_pos,
+                end_pos,
+                stops,
+                tiny_skia::SpreadMode::Pad,
+                tiny_skia::Transform::identity(),
+            )
+            .expect("Failed to create linear gradient");
         }
     }
     paint.force_hq_pipeline = true;

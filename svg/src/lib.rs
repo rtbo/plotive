@@ -3,7 +3,7 @@ use std::{fmt, io};
 
 use plotive::geom::{self, Transform};
 use plotive::render::{self, Surface};
-use plotive::{Prepare, Style, des, drawing};
+use plotive::{Prepare, Rgba8, Style, des, drawing};
 use svg::Node;
 use svg::node::element;
 
@@ -46,6 +46,9 @@ pub struct Params<'a> {
     /// as the fonts have already been resolved.
     /// In such case, this parameter can be left to `None` (which is the default).
     pub fontdb: Option<&'a plotive::fontdb::Database>,
+    /// Optional prefix for generated IDs (e.g., for clip paths, gradients).
+    /// Use this when embedding multiple SVGs in the same document to avoid ID conflicts.
+    pub id_prefix: Option<String>,
 }
 
 impl Default for Params<'_> {
@@ -54,6 +57,7 @@ impl Default for Params<'_> {
             style: Style::default(),
             scale: 1.0,
             fontdb: None,
+            id_prefix: None,
         }
     }
 }
@@ -112,6 +116,9 @@ impl SaveSvg for drawing::PreparedFigure {
         let height = (size.height() * params.scale) as u32;
 
         let mut surface = SvgSurface::new(witdth, height);
+        if let Some(id_prefix) = params.id_prefix.as_ref() {
+            surface = surface.with_id_prefix(id_prefix);
+        }
 
         self.draw(&mut surface, &params.style);
         surface.save_svg(path)?;
@@ -121,8 +128,10 @@ impl SaveSvg for drawing::PreparedFigure {
 
 pub struct SvgSurface {
     doc: svg::Document,
-    clip_num: u32,
-    _node_num: u32,
+    defs: Option<element::Definitions>,
+    doc_children: Vec<Box<dyn Node>>,
+    id_num: u32,
+    id_prefix: Option<String>,
     group_stack: Vec<element::Group>,
 }
 
@@ -133,10 +142,19 @@ impl SvgSurface {
             .set("height", height);
         SvgSurface {
             doc,
-            clip_num: 0,
-            _node_num: 0,
+            defs: None,
+            doc_children: Vec::new(),
+            id_prefix: None,
+            id_num: 0,
             group_stack: vec![],
         }
+    }
+
+    /// Set a prefix for generated IDs (e.g., for clip paths).
+    /// Use this when embedding multiple SVGs in the same document to avoid ID conflicts.
+    pub fn with_id_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
+        self.id_prefix = Some(prefix.into());
+        self
     }
 
     pub fn save_svg<P: AsRef<std::path::Path>>(&self, path: P) -> io::Result<()> {
@@ -158,6 +176,12 @@ impl SvgSurface {
 }
 
 impl Surface for SvgSurface {
+    fn caps(&self) -> render::SurfaceCaps {
+        render::SurfaceCaps {
+            max_gradient_stops: usize::MAX,
+        }
+    }
+
     /// Prepare the surface for drawing, with the given width and height in plot units
     fn prepare(&mut self, size: geom::Size) {
         self.doc
@@ -171,6 +195,14 @@ impl Surface for SvgSurface {
             .set("height", "100%");
         match fill {
             render::Paint::Solid(color) => node.assign("fill", color.html()),
+            render::Paint::LinearGradient {
+                start_pos,
+                end_pos,
+                stops,
+            } => {
+                let grad_id = self.add_linear_gradient(start_pos, end_pos, stops);
+                node.assign("fill", format!("url(#{})", grad_id));
+            }
         }
         self.append_node(node);
     }
@@ -178,30 +210,31 @@ impl Surface for SvgSurface {
     /// Draw a rectangle
     fn draw_rect(&mut self, rect: &render::Rect) {
         let mut node = rectangle_node(&rect.rect);
-        assign_fill(&mut node, rect.fill.as_ref());
-        assign_stroke(&mut node, rect.stroke.as_ref());
-        assign_transform(&mut node, rect.transform);
+        self.assign_fill(&mut node, rect.fill.as_ref());
+        self.assign_stroke(&mut node, rect.stroke.as_ref());
+        self.assign_transform(&mut node, rect.transform);
         self.append_node(node);
     }
 
     fn draw_path(&mut self, path: &render::Path) {
         let mut node = element::Path::new();
-        assign_fill(&mut node, path.fill.as_ref());
-        assign_stroke(&mut node, path.stroke.as_ref());
-        assign_transform(&mut node, path.transform);
+        self.assign_fill(&mut node, path.fill.as_ref());
+        self.assign_stroke(&mut node, path.stroke.as_ref());
+        self.assign_transform(&mut node, path.transform);
         node.assign("d", path_data(path.path));
         self.append_node(node);
     }
 
     fn push_clip(&mut self, clip: &render::Clip) {
-        let clip_id = self.bump_clip_id();
+        let clip_id = self.bump_id();
         let clip_id_url = format!("url(#{})", clip_id);
         let mut rect_node = rectangle_node(&clip.rect);
-        assign_transform(&mut rect_node, clip.transform);
+        self.assign_transform(&mut rect_node, clip.transform);
         let node = element::ClipPath::new()
             .set("id", clip_id.clone())
             .add(rect_node);
-        self.append_node(node);
+        let defs = self.defs.get_or_insert_with(element::Definitions::new);
+        defs.append(node);
         self.group_stack
             .push(element::Group::new().set("clip-path", clip_id_url));
     }
@@ -213,6 +246,19 @@ impl Surface for SvgSurface {
         }
         self.append_node(g.unwrap());
     }
+
+    fn finalize(&mut self) {
+        if !self.group_stack.is_empty() {
+            panic!("Unbalanced clip stack");
+        }
+
+        if let Some(defs) = self.defs.take() {
+            self.doc.append(defs);
+        }
+        for child in self.doc_children.drain(..) {
+            self.doc.append(child);
+        }
+    }
 }
 
 impl SvgSurface {
@@ -221,22 +267,112 @@ impl SvgSurface {
         T: Node,
     {
         if self.group_stack.is_empty() {
-            self.doc.append(node);
+            self.doc_children.push(Box::new(node));
         } else {
             self.group_stack.last_mut().unwrap().append(node);
         }
     }
 
-    fn bump_clip_id(&mut self) -> String {
-        self.clip_num += 1;
-        format!("plotive-clip{}", self.clip_num)
+    fn bump_id(&mut self) -> String {
+        self.id_num += 1;
+        let prefix = self.id_prefix.as_deref().unwrap_or("plotive");
+        format!("{}{}", prefix, self.id_num)
     }
 
-    fn _bump_node_id(&mut self) -> String {
-        self._node_num += 1;
-        format!("plotive-node{}", self._node_num)
+    fn add_linear_gradient(
+        &mut self,
+        start_pos: geom::Point,
+        end_pos: geom::Point,
+        stops: &[(f32, Rgba8)],
+    ) -> String {
+        let id = self.bump_id();
+        let mut grad = element::LinearGradient::new()
+            .set("id", id.clone())
+            .set("gradientUnits", "userSpaceOnUse")
+            .set("x1", start_pos.x)
+            .set("y1", start_pos.y)
+            .set("x2", end_pos.x)
+            .set("y2", end_pos.y);
+        for (offset, color) in stops {
+            grad.append(
+                element::Stop::new()
+                    .set("offset", format!("{}%", offset * 100.0))
+                    .set("stop-color", color.html()),
+            );
+        }
+        let defs = self.defs.get_or_insert_with(element::Definitions::new);
+        defs.append(grad);
+        id
     }
 
+    fn assign_transform<N>(&self, node: &mut N, transform: Option<&geom::Transform>)
+    where
+        N: Node,
+    {
+        if let Some(Transform {
+            sx,
+            kx,
+            ky,
+            sy,
+            tx,
+            ty,
+        }) = transform
+        {
+            node.assign(
+                "transform",
+                format!("matrix({sx} {ky} {kx} {sy} {tx} {ty})"),
+            );
+        }
+    }
+
+    fn assign_fill<N>(&mut self, node: &mut N, fill: Option<&render::Paint>)
+    where
+        N: Node,
+    {
+        match fill {
+            Some(render::Paint::Solid(color)) => {
+                let (rgb, opacity) = color.split_rgb_opacity();
+                node.assign("fill", rgb.html());
+                if let Some(opacity) = opacity {
+                    node.assign("fill-opacity", opacity);
+                }
+            }
+            Some(render::Paint::LinearGradient {
+                start_pos,
+                end_pos,
+                stops,
+            }) => {
+                let grad_id = self.add_linear_gradient(*start_pos, *end_pos, stops);
+                node.assign("fill", format!("url(#{})", grad_id));
+            }
+            None => {
+                node.assign("fill", "none");
+            }
+        }
+    }
+    fn assign_stroke<N>(&self, node: &mut N, stroke: Option<&render::Stroke>)
+    where
+        N: Node,
+    {
+        if let Some(stroke) = stroke {
+            let (rgb, opacity) = stroke.color.split_rgb_opacity();
+            node.assign("stroke", rgb.html());
+            if let Some(opacity) = opacity {
+                node.assign("stroke-opacity", opacity);
+            }
+            let w = stroke.width;
+            node.assign("stroke-width", w);
+            match stroke.pattern {
+                render::LinePattern::Solid => (),
+                render::LinePattern::Dash(dash) => {
+                    let array: Vec<f32> = dash.iter().map(|d| d * w).collect();
+                    node.assign("stroke-dasharray", array)
+                }
+            }
+        } else {
+            node.assign("stroke", "none");
+        }
+    }
     // fn draw_rich_text_hor(
     //     &mut self,
     //     text: &render::RichText,
@@ -322,65 +458,6 @@ impl SvgSurface {
     //     );
     //     todo!()
     // }
-}
-
-fn assign_transform<N>(node: &mut N, transform: Option<&geom::Transform>)
-where
-    N: Node,
-{
-    if let Some(Transform {
-        sx,
-        kx,
-        ky,
-        sy,
-        tx,
-        ty,
-    }) = transform
-    {
-        node.assign(
-            "transform",
-            format!("matrix({sx} {ky} {kx} {sy} {tx} {ty})"),
-        );
-    }
-}
-
-fn assign_fill<N>(node: &mut N, fill: Option<&render::Paint>)
-where
-    N: Node,
-{
-    if let Some(render::Paint::Solid(color)) = fill {
-        let (rgb, opacity) = color.split_rgb_opacity();
-        node.assign("fill", rgb.html());
-        if let Some(opacity) = opacity {
-            node.assign("fill-opacity", opacity);
-        }
-    } else {
-        node.assign("fill", "none");
-    }
-}
-
-fn assign_stroke<N>(node: &mut N, stroke: Option<&render::Stroke>)
-where
-    N: Node,
-{
-    if let Some(stroke) = stroke {
-        let (rgb, opacity) = stroke.color.split_rgb_opacity();
-        node.assign("stroke", rgb.html());
-        if let Some(opacity) = opacity {
-            node.assign("stroke-opacity", opacity);
-        }
-        let w = stroke.width;
-        node.assign("stroke-width", w);
-        match stroke.pattern {
-            render::LinePattern::Solid => (),
-            render::LinePattern::Dash(dash) => {
-                let array: Vec<f32> = dash.iter().map(|d| d * w).collect();
-                node.assign("stroke-dasharray", array)
-            }
-        }
-    } else {
-        node.assign("stroke", "none");
-    }
 }
 
 fn path_data(path: &geom::Path) -> element::path::Data {

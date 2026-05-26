@@ -150,6 +150,7 @@ fn save_fig<D>(
                     style: args.style.as_ref().cloned().unwrap_or_default(),
                     scale: 1.0,
                     fontdb: Some(fontdb),
+                    id_prefix: Some(format!("{}", default_name)),
                 },
             )
             .unwrap();

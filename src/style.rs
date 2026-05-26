@@ -185,7 +185,6 @@ pub enum LinePattern {
     Dash(Dash),
 }
 
-
 impl From<Dash> for LinePattern {
     fn from(dash: Dash) -> Self {
         LinePattern::Dash(dash)
@@ -336,7 +335,7 @@ impl<C: Color> Fill<C> {
     }
 
     /// Convert to a renderable paint, resolving colors using the provided resolver
-    pub fn as_paint<R>(&self, rc: &R) -> render::Paint
+    pub fn as_paint<R>(&self, rc: &R) -> render::Paint<'_>
     where
         R: ResolveColor<C>,
     {

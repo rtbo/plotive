@@ -7,8 +7,19 @@ use plotive_base::Rgb8;
 
 use crate::{Rgba8, geom};
 
+/// Surface capabilities, used to query the surface for supported features and optimizations.
+#[derive(Debug, Clone, Copy)]
+pub struct SurfaceCaps {
+    /// Maximum number of gradient stops supported by the surface.
+    /// If the surface does not support gradients, this will be 0.
+    pub max_gradient_stops: usize,
+}
+
 /// Surface trait: defines the rendering surface API
 pub trait Surface {
+    /// Get the capabilities of the surface
+    fn caps(&self) -> SurfaceCaps;
+
     /// Prepare the surface for drawing, with the given size in plot units
     fn prepare(&mut self, size: geom::Size);
 
@@ -39,25 +50,41 @@ pub trait Surface {
 
     /// Pop a clipping rect that was pushed previously with [`push_clip`](Surface::push_clip)
     fn pop_clip(&mut self);
+
+    /// Finalize the surface
+    /// Allows a surface to perform a last mutable operation after drawing, such as flushing a cache.
+    fn finalize(&mut self) {}
 }
 
 /// Paint pattern, used for fill operations
 #[derive(Debug, Clone, Copy)]
-pub enum Paint {
+pub enum Paint<'a> {
     /// Solid color fill
     Solid(Rgba8),
+    /// Linear gradient fill
+    LinearGradient {
+        /// Gradient start position
+        start_pos: geom::Point,
+        /// Gradient end position
+        end_pos: geom::Point,
+        /// Gradient stops
+        stops: &'a [(f32, Rgba8)],
+    },
 }
 
-impl Paint {
+impl<'a> Paint<'a> {
     /// Return a new `Paint` with the same alpha as the original, but with the RGB values replaced by the given color.
     pub fn with_rgb(self, rgb: Rgb8) -> Self {
         match self {
             Paint::Solid(rgba) => Paint::Solid(rgb.with_a(rgba.a())),
+            Paint::LinearGradient { .. } => {
+                panic!("with_rgb is not implemented for LinearGradient paint")
+            }
         }
     }
 }
 
-impl From<Rgba8> for Paint {
+impl From<Rgba8> for Paint<'_> {
     fn from(value: Rgba8) -> Self {
         Paint::Solid(value)
     }
@@ -106,7 +133,7 @@ pub struct Rect<'a> {
     /// Rectangle geometry
     pub rect: geom::Rect,
     /// Fill style
-    pub fill: Option<Paint>,
+    pub fill: Option<Paint<'a>>,
     /// Stroke style
     pub stroke: Option<Stroke<'a>>,
     /// Optional transform to apply to the rectangle
@@ -119,7 +146,7 @@ pub struct Path<'a> {
     /// Path geometry
     pub path: &'a geom::Path,
     /// Fill style
-    pub fill: Option<Paint>,
+    pub fill: Option<Paint<'a>>,
     /// Stroke style
     pub stroke: Option<Stroke<'a>>,
     /// Optional transform to apply to the path
