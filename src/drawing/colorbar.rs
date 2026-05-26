@@ -426,12 +426,8 @@ impl ColorBar {
         }
     }
 
-    fn draw_gradient<S>(
-        &self,
-        surface: &mut S,
-        bar_rect: &geom::Rect,
-        scale: &ColorScale,
-    ) where
+    fn draw_gradient<S>(&self, surface: &mut S, bar_rect: &geom::Rect, scale: &ColorScale)
+    where
         S: render::Surface,
     {
         // The fake method draws the gradient as a succession of filled rectangles,
@@ -519,12 +515,30 @@ impl ColorBar {
         let (start_pos, end_pos) = match self.side {
             axis::Side::Right | axis::Side::Left => {
                 let x = bar_rect.left() + bar_rect.width() / 2.0;
-                (geom::Point{x, y: bar_rect.bottom()}, geom::Point{x, y: bar_rect.top()})
-            },
+                (
+                    geom::Point {
+                        x,
+                        y: bar_rect.bottom(),
+                    },
+                    geom::Point {
+                        x,
+                        y: bar_rect.top(),
+                    },
+                )
+            }
             axis::Side::Top | axis::Side::Bottom => {
                 let y = bar_rect.top() + bar_rect.height() / 2.0;
-                (geom::Point{x: bar_rect.left(), y}, geom::Point{x: bar_rect.right(), y})
-            },
+                (
+                    geom::Point {
+                        x: bar_rect.left(),
+                        y,
+                    },
+                    geom::Point {
+                        x: bar_rect.right(),
+                        y,
+                    },
+                )
+            }
         };
         let mut stops = Vec::with_capacity(num_stops);
         for i in 0..=num_stops {
@@ -532,7 +546,11 @@ impl ColorBar {
             let color = scale.coord_to_color.map_color(t);
             stops.push((t, color.opaque()));
         }
-        let gradient = render::Paint::LinearGradient { start_pos, end_pos, stops: &stops };
+        let gradient = render::Paint::LinearGradient {
+            start_pos,
+            end_pos,
+            stops: &stops,
+        };
         let rpath = render::Path {
             path: &bar_rect.to_path(), // Replace with actual path
             fill: Some(gradient),

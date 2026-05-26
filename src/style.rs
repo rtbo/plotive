@@ -185,7 +185,6 @@ pub enum LinePattern {
     Dash(Dash),
 }
 
-
 impl From<Dash> for LinePattern {
     fn from(dash: Dash) -> Self {
         LinePattern::Dash(dash)

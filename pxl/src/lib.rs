@@ -365,15 +365,27 @@ fn ts_fill(fill: render::Paint, paint: &mut tiny_skia::Paint) {
             let color = ts_color(color);
             paint.set_color(color);
         }
-        render::Paint::LinearGradient { start_pos, end_pos, stops } => {
-            let stops = stops.iter().map(|(offset, color)| {
-                let color = ts_color(*color);
-                tiny_skia::GradientStop::new(*offset, color)
-            }).collect::<Vec<_>>();
+        render::Paint::LinearGradient {
+            start_pos,
+            end_pos,
+            stops,
+        } => {
+            let stops = stops
+                .iter()
+                .map(|(offset, color)| {
+                    let color = ts_color(*color);
+                    tiny_skia::GradientStop::new(*offset, color)
+                })
+                .collect::<Vec<_>>();
 
             paint.shader = tiny_skia::LinearGradient::new(
-                start_pos, end_pos, stops, tiny_skia::SpreadMode::Pad, tiny_skia::Transform::identity()
-            ).expect("Failed to create linear gradient");
+                start_pos,
+                end_pos,
+                stops,
+                tiny_skia::SpreadMode::Pad,
+                tiny_skia::Transform::identity(),
+            )
+            .expect("Failed to create linear gradient");
         }
     }
     paint.force_hq_pipeline = true;
