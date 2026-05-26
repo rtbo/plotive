@@ -170,7 +170,7 @@ pub mod color {
     pub use plotive_base::color::*;
 }
 
-pub use color::{Color, ResolveColor, Rgba8};
+pub use color::{Color, ResolveColor, Rgb8, Rgba8};
 
 /// Rexports of [`plotive_base::geom`]` items
 pub mod geom {

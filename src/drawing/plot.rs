@@ -5,7 +5,7 @@ use std::rc::Rc;
 use crate::des::{PlotIdx, annot, colorbar};
 use crate::drawing::annot::Annot;
 use crate::drawing::axis::{AsBoundRef, Axis, AxisScale, Bounds, Side};
-use crate::drawing::colorbar::{ColorBar, ColorBarBuilder};
+use crate::drawing::colorbar::{ColorBar, ColorBarBuilder, ColorScale};
 use crate::drawing::legend::{Legend, LegendBuilder};
 use crate::drawing::scale::CoordMapXy;
 use crate::drawing::series::{self, Series, SeriesExt};
@@ -60,7 +60,7 @@ pub(super) struct Plot {
     border: Option<des::plot::Border>,
     series: Vec<Series>,
     legend: Option<(geom::Point, Legend)>,
-    colorbars: Vec<ColorBar>,
+    colorbars: Vec<(ColorScale, Option<ColorBar>)>,
     annots: Vec<Annot>,
 }
 
@@ -158,7 +158,7 @@ impl Axes {
 struct PlotData {
     series: Vec<Series>,
     legend: Option<Legend>,
-    colorbars: Vec<ColorBar>,
+    colorbars: Vec<(ColorScale, Option<ColorBar>)>,
     insets: geom::Padding,
 }
 
@@ -507,45 +507,37 @@ where
         Ok(builder.layout())
     }
 
-    fn setup_plot_colorbars(&self, des_plot: &des::Plot) -> Result<Vec<ColorBar>, Error> {
-        let Some(des_colorbar) = des_plot.colorbar() else {
-            return Ok(vec![]);
-        };
+    fn setup_plot_colorbars(
+        &self,
+        des_plot: &des::Plot,
+    ) -> Result<Vec<(ColorScale, Option<ColorBar>)>, Error> {
+        let des_colorbar = des_plot.colorbar();
+
         let mut builders: Vec<ColorBarBuilder> = Vec::new();
 
         for_each_series(des_plot, |s| {
             if let Some(entry) = s.colorbar_entry() {
-                let forced_bounds = entry.cmap.forced_data_range();
-                let has_forced_bounds = forced_bounds.is_some();
-                let bounds = if let Some(range) = forced_bounds {
-                    range
-                } else {
-                    let col = get_column(entry.data_col, self.data_source())?;
-                    col.bounds()
-                        .expect("Should get bounds for colormap data column")
-                };
+                let scale = entry.cmap.scale();
+                let col = get_column(entry.data_col, self.data_source())?;
+                let bounds = col
+                    .bounds()
+                    .expect("Should get bounds for colormap data column");
 
-                let locator = entry
-                    .cmap
-                    .forced_ticks_locator()
-                    .unwrap_or(des_colorbar.ticks_locator());
+                let locator = des_colorbar
+                    .map(|cb| cb.ticks_locator())
+                    .cloned()
+                    .unwrap_or_default();
                 let hash = entry.cmap.hash();
 
                 if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
-                    if !has_forced_bounds {
-                        cbb.unite_bounds(bounds.as_bound_ref())?;
-                    } else {
-                        debug_assert!(
-                            cbb.data_bounds() == bounds.as_bound_ref(),
-                            "Two color bars with same color map but different forced data range, this should not happen since the color map should be different if the data range is different"
-                        );
-                    }
+                    cbb.unite_bounds(bounds.as_bound_ref())?;
                 } else {
                     builders.push(ColorBarBuilder::new(
                         hash,
                         entry.cmap.as_color_map(),
                         bounds,
-                        locator.clone(),
+                        scale.clone(),
+                        locator,
                     ));
                 }
             }
@@ -554,7 +546,7 @@ where
 
         Ok(builders
             .into_iter()
-            .map(|b| b.build(des_colorbar.clone(), self))
+            .map(|b| b.build(des_colorbar.cloned(), self))
             .collect::<Result<Vec<_>, _>>()?)
     }
 
@@ -579,7 +571,7 @@ where
                         }
                     }
 
-                    for cbar in &data.colorbars {
+                    for cbar in data.colorbars.iter().filter_map(|(_, cbar)| cbar.as_ref()) {
                         if x_side_matches_colorbar_pos(side, cbar.pos()) {
                             height += cbar.calc_size_across() + cbar.margin();
                         }
@@ -621,7 +613,7 @@ where
                     }
                 }
 
-                for cbar in &data.colorbars {
+                for cbar in data.colorbars.iter().filter_map(|(_, cbar)| cbar.as_ref()) {
                     if x_side_matches_colorbar_pos(side, cbar.pos()) {
                         height += cbar.calc_size_across() + cbar.margin();
                     }
@@ -660,7 +652,7 @@ where
                         }
                     }
 
-                    for cbar in &data.colorbars {
+                    for cbar in data.colorbars.iter().filter_map(|(_, cbar)| cbar.as_ref()) {
                         if y_side_matches_colorbar_pos(side, cbar.pos()) {
                             width += cbar.calc_size_across() + cbar.margin();
                         }
@@ -979,8 +971,15 @@ impl Plot {
                 x: &*x_cm,
                 y: &*y_cm,
             };
+            let cmap_hash = series.cmap_hash();
+            let cmap = self.colorbars.iter().find_map(|(s, _)| {
+                if Some(s.hash()) == cmap_hash {
+                    return Some(s);
+                }
+                None
+            });
 
-            series.update_data(data_source, &self.rect, &cm, &self.colorbars)?;
+            series.update_data(data_source, &self.rect, &cm, cmap)?;
         }
         Ok(())
     }
@@ -1004,8 +1003,10 @@ impl Plot {
         let plot_box = axes.draw(surface, style, &self.rect);
         self.draw_border_box(surface, style);
 
-        for cbar in &self.colorbars {
-            cbar.draw(surface, style, &self.rect, &plot_box);
+        for (cs, cbar) in &self.colorbars {
+            if let Some(cbar) = cbar {
+                cbar.draw(surface, style, &self.rect, &plot_box, cs);
+            }
         }
 
         if let Some((top_left, leg)) = self.legend.as_ref() {
@@ -1107,10 +1108,10 @@ impl Axes {
         let l = self.draw_side(surface, style, &self.y, Side::Left, plot_rect);
 
         plot_rect
-            .shifted_top_side(t)
-            .shifted_right_side(-r)
-            .shifted_bottom_side(-b)
-            .shifted_left_side(l)
+            .shifted_top_side(-t)
+            .shifted_right_side(r)
+            .shifted_bottom_side(b)
+            .shifted_left_side(-l)
     }
 
     fn draw_side<S>(

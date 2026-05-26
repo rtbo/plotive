@@ -519,7 +519,7 @@ where
                 self.fig_scale = scale;
             }
             Message::ExportPng => {
-                use plotive_pxl::SavePng;
+                use plotive_pxl::PxlRender;
                 let filename = rfd::FileDialog::new()
                     .set_title("Save figure as PNG")
                     .add_filter("PNG Image", &["png"])
@@ -576,7 +576,7 @@ where
             Message::ExportClipboard => {
                 use std::borrow::Cow;
 
-                use plotive_pxl::ToPixmap;
+                use plotive_pxl::PxlRender;
 
                 let style = if let Some(style) = &self.style {
                     style.clone()

@@ -74,7 +74,6 @@ impl NotRandom {
 
 mod axes;
 mod colorbar;
-mod interp;
 mod legend;
 mod nulls;
 mod series;

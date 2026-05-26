@@ -72,6 +72,13 @@ impl Bounds {
             _ => false,
         }
     }
+
+    pub(crate) fn _as_num(&self) -> Option<NumBounds> {
+        match self {
+            Bounds::Num(nb) => Some(*nb),
+            _ => None,
+        }
+    }
 }
 
 /// Bounds of an axis, borrowing internal its data

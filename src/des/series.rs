@@ -486,9 +486,9 @@ pub struct Area {
     name: Option<String>,
     x_axis: axis::Ref,
     y_axis: axis::Ref,
-    fill: Option<style::series::Fill>,
-    stroke_y1: Option<style::series::Stroke>,
-    stroke_y2: Option<style::series::Stroke>,
+    fill: style::series::Fill,
+    y1_stroke: Option<style::series::Stroke>,
+    y2_stroke: Option<style::series::Stroke>,
     interpolation: Interpolation,
 }
 
@@ -503,9 +503,9 @@ impl Area {
             name: None,
             x_axis: Default::default(),
             y_axis: Default::default(),
-            fill: Some(style::series::Fill::default()),
-            stroke_y1: None,
-            stroke_y2: None,
+            fill: style::series::Fill::default(),
+            y1_stroke: None,
+            y2_stroke: None,
             interpolation: Interpolation::default(),
         }
     }
@@ -533,20 +533,20 @@ impl Area {
     }
 
     /// Set the fill style and return self for chaining
-    pub fn with_fill(mut self, fill: Option<style::series::Fill>) -> Self {
+    pub fn with_fill(mut self, fill: style::series::Fill) -> Self {
         self.fill = fill;
         self
     }
 
     /// Set the stroke style of the Y1 line and return self for chaining
-    pub fn with_stroke_y1(mut self, stroke: style::series::Stroke) -> Self {
-        self.stroke_y1 = Some(stroke);
+    pub fn with_y1_stroke(mut self, stroke: style::series::Stroke) -> Self {
+        self.y1_stroke = Some(stroke);
         self
     }
 
     /// Set the stroke style of the Y2 line and return self for chaining
-    pub fn with_stroke_y2(mut self, stroke: style::series::Stroke) -> Self {
-        self.stroke_y2 = Some(stroke);
+    pub fn with_y2_stroke(mut self, stroke: style::series::Stroke) -> Self {
+        self.y2_stroke = Some(stroke);
         self
     }
 
@@ -587,18 +587,18 @@ impl Area {
     }
 
     /// Get the fill style
-    pub fn fill(&self) -> Option<&style::series::Fill> {
-        self.fill.as_ref()
+    pub fn fill(&self) -> &style::series::Fill {
+        &self.fill
     }
 
     /// Get the stroke style of Y1 line
-    pub fn stroke_y1(&self) -> Option<&style::series::Stroke> {
-        self.stroke_y1.as_ref()
+    pub fn y1_stroke(&self) -> Option<&style::series::Stroke> {
+        self.y1_stroke.as_ref()
     }
 
     /// Get the stroke style of Y2 line
-    pub fn stroke_y2(&self) -> Option<&style::series::Stroke> {
-        self.stroke_y2.as_ref()
+    pub fn y2_stroke(&self) -> Option<&style::series::Stroke> {
+        self.y2_stroke.as_ref()
     }
 
     /// Chaining helper to build a plot from this series
@@ -636,7 +636,7 @@ impl Area {
 /// of values in each bin. Useful for visualizing distributions of continuous data.
 #[derive(Debug, Clone)]
 pub struct Histogram {
-    data: DataCol,
+    x_data: DataCol,
 
     name: Option<String>,
     x_axis: axis::Ref,
@@ -649,9 +649,9 @@ pub struct Histogram {
 
 impl Histogram {
     /// Create a new histogram series with the given data column
-    pub fn new(data: DataCol) -> Self {
+    pub fn new(x_data: DataCol) -> Self {
         Histogram {
-            data,
+            x_data,
 
             name: None,
             x_axis: Default::default(),
@@ -689,7 +689,7 @@ impl Histogram {
     }
 
     /// Set the stroke style for the histogram outline and return self for chaining
-    pub fn with_outline(mut self, stroke: style::series::Stroke) -> Self {
+    pub fn with_stroke(mut self, stroke: style::series::Stroke) -> Self {
         self.stroke = Some(stroke);
         self
     }
@@ -706,9 +706,9 @@ impl Histogram {
         self
     }
 
-    /// Get the data column
-    pub fn data(&self) -> &DataCol {
-        &self.data
+    /// Get the x data column
+    pub fn x_data(&self) -> &DataCol {
+        &self.x_data
     }
 
     /// Get the name
@@ -731,8 +731,8 @@ impl Histogram {
         &self.fill
     }
 
-    /// Get the outline style, if any
-    pub fn outline(&self) -> Option<&style::series::Stroke> {
+    /// Get the stroke style for the histogram outline, if any
+    pub fn stroke(&self) -> Option<&style::series::Stroke> {
         self.stroke.as_ref()
     }
 
@@ -811,13 +811,25 @@ impl Bars {
         }
     }
 
+    /// Set a reference to the x axis and return self for chaining
+    pub fn with_x_axis(mut self, axis: axis::Ref) -> Self {
+        self.x_axis = axis;
+        self
+    }
+
+    /// Set a reference to the y axis and return self for chaining
+    pub fn with_y_axis(mut self, axis: axis::Ref) -> Self {
+        self.y_axis = axis;
+        self
+    }
+
     /// Set the fill style and return self for chaining
     pub fn with_fill(self, fill: style::series::Fill) -> Self {
         Self { fill, ..self }
     }
 
     /// Set the stroke style for the bar outline and return self for chaining
-    pub fn with_outline(self, stroke: style::series::Stroke) -> Self {
+    pub fn with_stroke(self, stroke: style::series::Stroke) -> Self {
         Self {
             stroke: Some(stroke),
             ..self
@@ -859,8 +871,8 @@ impl Bars {
         &self.fill
     }
 
-    /// Get the outline style, if any
-    pub fn outline(&self) -> Option<&style::series::Stroke> {
+    /// Get the stroke style for the bar outline, if any
+    pub fn stroke(&self) -> Option<&style::series::Stroke> {
         self.stroke.as_ref()
     }
 

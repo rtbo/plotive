@@ -6,6 +6,13 @@ use crate::des::axis;
 /// Describes how to interpolate between colors in a color map, either in linear RGB or perceptual color space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LerpMethod {
+    /// Do not interpolate colors, only pick the nearest one
+    Nearest,
+    /// Interpolate colors in the standard RGB color space, which is fast but not perceptually uniform.
+    /// It tends to produce darker gradients, especially when interpolating between bright colors,
+    /// and can result in less visually appealing color maps.
+    /// Use this if you have significant amount of stops in the colormap gradient or significant performance constraints.
+    SRgb,
     /// Interpolate colors in the linear RGB color space.
     LinearRgb,
     /// Interpolate colors in a perceptual color space (OkLab).
@@ -21,8 +28,7 @@ pub struct LerpColorMap {
     start: Rgb8,
     end: Rgb8,
     stops: Vec<(f32, Rgb8)>,
-    data_range: Option<(f64, f64)>,
-    locator: Option<axis::ticks::Locator>,
+    scale: axis::Scale,
 }
 
 impl LerpColorMap {
@@ -32,8 +38,7 @@ impl LerpColorMap {
             method,
             start,
             end,
-            data_range: None,
-            locator: None,
+            scale: Default::default(),
             stops: Vec::new(),
         }
     }
@@ -48,28 +53,12 @@ impl LerpColorMap {
         self
     }
 
-    /// Force the range of scalar data values that this color map maps to, as (min, max).
+    /// Assign a scale to this colormap.
     ///
-    /// By default, the colormap will map the range of data values in the plot, but this can be overridden with this method.
-    /// Use this if only a specific range of data are meaningful to map to colors.
-    pub fn force_data_range(mut self, range: (f64, f64)) -> Self {
-        assert!(
-            range.0.is_finite() && range.1.is_finite(),
-            "Color map data range must be finite"
-        );
-        assert!(
-            range.0 < range.1,
-            "Color map data range must have min < max"
-        );
-        self.data_range = Some(range);
-        self
-    }
-
-    /// Force the ticks of colorbar mapping this colormap to be located according to the given locator.
-    /// By default, the locator is automatic, but this can be overridden with this method.
-    /// Use this if you want to have specific control over the ticks of the colorbar, for example to place them at specific data values.
-    pub fn force_ticks_locator(mut self, locator: axis::ticks::Locator) -> Self {
-        self.locator = Some(locator);
+    /// By default, the colormap will map linearly the full range of data values in the plot, but this can be overridden with this method.
+    pub fn with_scale(mut self, scale: axis::Scale) -> Self {
+        assert!(!scale.is_shared(), "Color map scale cannot be shared");
+        self.scale = scale;
         self
     }
 
@@ -93,15 +82,12 @@ impl LerpColorMap {
         &self.stops
     }
 
-    /// Get the range of scalar values that this colormap is forced to map to, if it has one.
+    /// Get the scale of this colormap.
+    /// The scale is used to map data values to a 0 to 1 range that correspond to the
+    /// full range of colors
     /// If None, the color map is assumed to map the range of data values in the plot.
-    pub fn forced_data_range(&self) -> Option<(f64, f64)> {
-        self.data_range
-    }
-
-    /// Get the ticks locator that this colormap is forced to use for its colorbar, if it has one.
-    pub fn forced_ticks_locator(&self) -> Option<&axis::ticks::Locator> {
-        self.locator.as_ref()
+    pub fn scale(&self) -> &axis::Scale {
+        &self.scale
     }
 }
 
@@ -120,9 +106,22 @@ impl From<(LerpMethod, &[Rgb8])> for LerpColorMap {
     }
 }
 
+/// Build one of the builtin color maps from its name.
+/// Returns None if the name is not recognized.
+pub fn from_name(name: &str) -> Option<LerpColorMap> {
+    match name {
+        "stellar" => Some(stellar()),
+        "viridis" => Some(viridis()),
+        _ => None,
+    }
+}
+
 /// A colormap that maps kelvin temperatures to black body color, with a range from 1000K to 15000K.
 /// Based on the approximation from Tanner Helland:
 /// https://tannerhelland.com/2012/09/18/convert-temperature-rgb-algorithm-code.html
+///
+/// By default, this colormap is assigned a linear scale between 1000 and 15000 (so that to map directly to Kelvins).
+/// If a regular colormap behavior is needed, you can use `stellar().with_scale(axis::Scale::Auto)`
 pub fn stellar() -> LerpColorMap {
     const MIN_TEMP: f64 = 1000.0;
     const MAX_TEMP: f64 = 15000.0;
@@ -174,13 +173,7 @@ pub fn stellar() -> LerpColorMap {
     .with_stop(stop_for_temp(9000.0))
     .with_stop(stop_for_temp(10000.0))
     .with_stop(stop_for_temp(12500.0))
-    .force_data_range((MIN_TEMP, MAX_TEMP))
-    .force_ticks_locator(axis::ticks::Locator::List(
-        vec![
-            1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6500.0, 8000.0, 10000.0, 12500.0, 15000.0,
-        ]
-        .into(),
-    ))
+    .with_scale((MIN_TEMP, MAX_TEMP).into())
 }
 
 /// The famous "viridis" color map from matplotlib

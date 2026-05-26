@@ -1,11 +1,13 @@
 use std::fmt;
 use std::sync::Arc;
 
+use plotive_base::Rgb8;
+
 use crate::des::axis::ticks::Locator;
 use crate::des::{self, colorbar};
-use crate::drawing::axis::{self, AsBoundRef};
 use crate::drawing::cmap::{AsColorMap, ColorMap};
-use crate::drawing::{Ctx, Text, ticks};
+use crate::drawing::scale::CoordMap;
+use crate::drawing::{Ctx, Text, axis, ticks};
 use crate::style::theme;
 use crate::{Style, data, geom, missing_params, render, text};
 
@@ -16,18 +18,12 @@ pub struct Entry<'a> {
     pub cmap: &'a dyn AsColorMap,
 }
 
-/// A trait that maps data to a 0..1 range, used for color bars and similar features.
-pub trait ColorDataMap {
-    // identifies the right colorbar when multiple color bars are present
-    fn hash(&self) -> u64;
-    fn map_color_data(&self, data: data::SampleRef<'_>) -> Option<f32>;
-}
-
 #[derive(Clone)]
 pub struct ColorBarBuilder {
     hash: u64,
     cmap: Arc<dyn ColorMap>,
     data_bounds: axis::Bounds,
+    scale: des::axis::Scale,
     locator: Locator,
 }
 
@@ -36,12 +32,14 @@ impl ColorBarBuilder {
         hash: u64,
         cmap: Arc<dyn ColorMap>,
         data_bounds: axis::Bounds,
+        scale: des::axis::Scale,
         locator: Locator,
     ) -> Self {
         Self {
             hash,
             cmap,
             data_bounds,
+            scale,
             locator,
         }
     }
@@ -50,15 +48,45 @@ impl ColorBarBuilder {
         self.hash
     }
 
-    pub fn data_bounds(&self) -> axis::BoundsRef<'_> {
-        self.data_bounds.as_bound_ref()
-    }
-
     pub fn unite_bounds(&mut self, data_bounds: axis::BoundsRef<'_>) -> Result<(), super::Error> {
         self.data_bounds.unite_with(&data_bounds)
     }
 
-    pub fn build<D>(self, des: des::ColorBar, ctx: &Ctx<'_, D>) -> Result<ColorBar, super::Error>
+    pub fn build<D>(
+        self,
+        des: Option<des::ColorBar>,
+        ctx: &Ctx<'_, D>,
+    ) -> Result<(ColorScale, Option<ColorBar>), super::Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        let data_bounds = match &self.data_bounds {
+            axis::Bounds::Num(nb) => nb,
+            _ => unimplemented!("time and categories colorbar"),
+        };
+
+        let cm = super::scale::map_scale_coord_num(&self.scale, 1.0, data_bounds, (0.0, 0.0));
+        let view_bounds = cm.axis_bounds().as_num().unwrap();
+
+        let scale = ColorScale {
+            hash: self.hash,
+            view_bounds: view_bounds.into(),
+            data_to_coord: cm,
+            coord_to_color: self.cmap.clone(),
+        };
+
+        let cbar = des
+            .map(|des| self.build_colorbar(des, view_bounds, ctx))
+            .transpose()?;
+        Ok((scale, cbar))
+    }
+
+    fn build_colorbar<D>(
+        self,
+        des: des::ColorBar,
+        view_bounds: axis::NumBounds,
+        ctx: &Ctx<'_, D>,
+    ) -> Result<ColorBar, super::Error>
     where
         D: data::Source + ?Sized,
     {
@@ -76,34 +104,23 @@ impl ColorBarBuilder {
             .map(|rt| Text::from_rich_text(&rt, ctx.fontdb()))
             .transpose()?;
 
-        let ticks = match &self.data_bounds {
-            axis::Bounds::Num(nb) => {
-                let align = side.ticks_labels_align();
-                let font = des.ticks_font().clone();
-                let scale: des::axis::Scale =
-                    des::axis::Range::new(Some(nb.start()), Some(nb.end())).into();
-                let formatter = des::axis::ticks::Formatter::Auto;
-                let ticks = ticks::locate_num(&self.locator, *nb, &scale)?;
-                let formatter =
-                    ticks::num_label_formatter(&self.locator, Some(&formatter), *nb, &scale);
-                ticks
-                    .into_iter()
-                    .map(|t| -> Result<_, super::Error> {
-                        let text = formatter.format_label(t.into());
-                        let lt = text::LineText::new(
-                            text,
-                            align,
-                            font.size,
-                            font.font.clone(),
-                            ctx.fontdb(),
-                        )?;
-                        let text = Text::from_line_text(&lt, ctx.fontdb(), font.color)?;
-                        Ok((data::Sample::Num(t), text))
-                    })
-                    .collect::<Result<Vec<_>, _>>()?
-            }
-            _ => vec![],
-        };
+        let align = side.ticks_labels_align();
+        let font = des.ticks_font().clone();
+        let formatter = des::axis::ticks::Formatter::Auto;
+        let ticks = ticks::locate_num(&self.locator, view_bounds, &self.scale)?;
+        let formatter =
+            ticks::num_label_formatter(&self.locator, Some(&formatter), view_bounds, &self.scale);
+        let ticks = ticks
+            .into_iter()
+            .filter(|t| view_bounds.contains(*t))
+            .map(|t| -> Result<_, super::Error> {
+                let text = formatter.format_label(t.into());
+                let lt =
+                    text::LineText::new(text, align, font.size, font.font.clone(), ctx.fontdb())?;
+                let text = Text::from_line_text(&lt, ctx.fontdb(), font.color)?;
+                Ok((data::Sample::Num(t), text))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         let ticks_mark = (
             theme::Stroke {
@@ -119,8 +136,7 @@ impl ColorBarBuilder {
             hash: self.hash,
             side,
             des,
-            data_bounds: self.data_bounds,
-            cmap: self.cmap,
+            view_bounds: view_bounds.into(),
             title,
             ticks,
             ticks_mark,
@@ -129,12 +145,53 @@ impl ColorBarBuilder {
 }
 
 #[derive(Clone)]
+pub struct ColorScale {
+    hash: u64,
+    view_bounds: axis::Bounds,
+    data_to_coord: Arc<dyn CoordMap>,
+    coord_to_color: Arc<dyn ColorMap>,
+}
+
+impl fmt::Debug for ColorScale {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ColorScale")
+            .field("hash", &self.hash)
+            .field("view_bounds", &self.view_bounds)
+            .finish()
+    }
+}
+
+impl ColorScale {
+    pub fn hash(&self) -> u64 {
+        self.hash
+    }
+
+    /// Map data to a 0..1 range, according to the scale and bounds of this color scale.
+    /// Return None if the data is out of bounds.
+    pub fn map_data_to_coord(&self, data: data::SampleRef<'_>) -> Option<f32> {
+        if self.view_bounds.contains(data) {
+            Some(self.data_to_coord.map_coord(data).unwrap().clamp(0.0, 1.0))
+        } else {
+            None
+        }
+    }
+
+    pub fn map_coord_to_color(&self, t: f32) -> Rgb8 {
+        self.coord_to_color.map_color(t)
+    }
+
+    pub fn map_data_to_color(&self, data: data::SampleRef<'_>) -> Option<Rgb8> {
+        self.map_data_to_coord(data)
+            .map(|t| self.map_coord_to_color(t))
+    }
+}
+
+#[derive(Clone)]
 pub struct ColorBar {
     hash: u64,
     side: axis::Side,
     des: des::ColorBar,
-    data_bounds: axis::Bounds,
-    cmap: Arc<dyn ColorMap>,
+    view_bounds: axis::Bounds,
     title: Option<Text>,
     ticks: Vec<(data::Sample, Text)>,
     ticks_mark: (theme::Stroke, f32),
@@ -146,30 +203,10 @@ impl fmt::Debug for ColorBar {
             .field("hash", &self.hash)
             .field("side", &self.side)
             .field("des", &self.des)
-            .field("data_bounds", &self.data_bounds)
             .field("title", &self.title)
             .field("ticks", &self.ticks)
             .field("ticks_mark", &self.ticks_mark)
             .finish()
-    }
-}
-
-impl ColorDataMap for ColorBar {
-    fn hash(&self) -> u64 {
-        self.hash
-    }
-
-    fn map_color_data(&self, data: data::SampleRef<'_>) -> Option<f32> {
-        let bounds = self.data_bounds.as_bound_ref().as_num()?;
-        let val = data.as_num()?;
-        let min = bounds.start();
-        let max = bounds.end();
-
-        if val.is_finite() && min.is_finite() && max.is_finite() && max > min {
-            Some(((val - min) / (max - min)).clamp(0.0, 1.0) as f32)
-        } else {
-            None
-        }
     }
 }
 
@@ -230,6 +267,7 @@ impl ColorBar {
         style: &Style,
         plot_rect: &geom::Rect,
         plot_box: &geom::Rect,
+        scale: &ColorScale,
     ) where
         S: render::Surface,
     {
@@ -275,7 +313,7 @@ impl ColorBar {
 
         let mut pb = geom::PathBuilder::with_capacity(5, 4);
         for i in 0..=num_pts {
-            let color = self.cmap.map_color(t);
+            let color = scale.coord_to_color.map_color(t);
             let pi = start + i as f32 * pos_shift;
             let pos2 = if i == num_pts {
                 pi
@@ -324,10 +362,10 @@ impl ColorBar {
 
         let mark_len = self.ticks_mark.1;
         for (tick_val, tick_text) in &self.ticks {
-            if !self.data_bounds.contains(tick_val.as_ref()) {
+            if !self.view_bounds.contains(tick_val.as_ref()) {
                 continue;
             }
-            let Some(t) = self.map_color_data(tick_val.as_ref()) else {
+            let Some(t) = scale.map_data_to_coord(tick_val.as_ref()) else {
                 continue;
             };
             let tick_pos = start + sign * t * bar_len;

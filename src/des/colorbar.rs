@@ -163,3 +163,13 @@ impl From<Pos> for ColorBar {
         Self::new(pos)
     }
 }
+
+/// A tick locator that fits well with the stellar colormap with data in K
+pub fn stellar_ticks_locator() -> axis::ticks::Locator {
+    axis::ticks::Locator::List(
+        vec![
+            1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6500.0, 8000.0, 10000.0, 12500.0, 15000.0,
+        ]
+        .into(),
+    )
+}

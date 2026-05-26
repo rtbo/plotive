@@ -15,3 +15,4 @@ rustybuzz.workspace = true
 tiny-skia.workspace = true
 tiny-skia-path.workspace = true
 ttf-parser.workspace = true
+png = "0.17.16"

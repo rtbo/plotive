@@ -498,6 +498,20 @@ impl SRgb {
 // It is checked that the components of the color are valid, so we can safely implement Eq.
 impl Eq for SRgb {}
 
+impl Lerp for SRgb {
+    fn lerp(self, other: Self, t: f32) -> Self {
+        debug_assert!(
+            t >= 0.0 && t <= 1.0,
+            "t must be in the range [0.0, 1.0] (got {})",
+            t
+        );
+        let r = self.0 * (1.0 - t) + other.0 * t;
+        let g = self.1 * (1.0 - t) + other.1 * t;
+        let b = self.2 * (1.0 - t) + other.2 * t;
+        Self(r, g, b)
+    }
+}
+
 /// A linear RGB color with f32 components in the range [0.0, 1.0].
 /// This is a linear colorspace where the components are proportional to the actual light intensity.
 #[derive(Debug, Clone, Copy, PartialEq)]

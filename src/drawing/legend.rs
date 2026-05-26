@@ -11,8 +11,8 @@ pub enum Shape {
     Rect(Option<style::series::Fill>, Option<style::series::Stroke>),
     AreaRect {
         fill: Option<style::series::Fill>,
-        stroke_y1: Option<style::series::Stroke>,
-        stroke_y2: Option<style::series::Stroke>,
+        y1_stroke: Option<style::series::Stroke>,
+        y2_stroke: Option<style::series::Stroke>,
     },
 }
 
@@ -26,8 +26,8 @@ pub enum ShapeRef<'a> {
     ),
     AreaRect {
         fill: Option<&'a style::series::Fill>,
-        stroke_y1: Option<&'a style::series::Stroke>,
-        stroke_y2: Option<&'a style::series::Stroke>,
+        y1_stroke: Option<&'a style::series::Stroke>,
+        y2_stroke: Option<&'a style::series::Stroke>,
     },
 }
 
@@ -39,12 +39,12 @@ impl ShapeRef<'_> {
             &ShapeRef::Rect(fill, line) => Shape::Rect(fill.cloned(), line.cloned()),
             &ShapeRef::AreaRect {
                 fill,
-                stroke_y1,
-                stroke_y2,
+                y1_stroke,
+                y2_stroke,
             } => Shape::AreaRect {
                 fill: fill.cloned(),
-                stroke_y1: stroke_y1.cloned(),
-                stroke_y2: stroke_y2.cloned(),
+                y1_stroke: y1_stroke.cloned(),
+                y2_stroke: y2_stroke.cloned(),
             },
         }
     }
@@ -316,8 +316,8 @@ impl LegendEntry {
             }
             Shape::AreaRect {
                 fill,
-                stroke_y1,
-                stroke_y2,
+                y1_stroke,
+                y2_stroke,
             } => {
                 let r = geom::Rect::from_ps(
                     geom::Point {
@@ -335,7 +335,7 @@ impl LegendEntry {
                     };
                     surface.draw_rect(&rr);
                 }
-                if let Some(stroke) = stroke_y1 {
+                if let Some(stroke) = y1_stroke {
                     let mut pb = geom::PathBuilder::new();
                     pb.move_to(r.left(), r.top());
                     pb.line_to(r.right(), r.top());
@@ -348,7 +348,7 @@ impl LegendEntry {
                     };
                     surface.draw_path(&rp);
                 }
-                if let Some(stroke) = stroke_y2 {
+                if let Some(stroke) = y2_stroke {
                     let mut pb = geom::PathBuilder::new();
                     pb.move_to(r.left(), r.bottom());
                     pb.line_to(r.right(), r.bottom());

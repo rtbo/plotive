@@ -340,6 +340,30 @@ pub enum Scale {
     Shared(Ref),
 }
 
+impl From<(Option<f64>, Option<f64>)> for Scale {
+    fn from(bounds: (Option<f64>, Option<f64>)) -> Self {
+        Range(bounds.0, bounds.1).into()
+    }
+}
+
+impl From<(f64, f64)> for Scale {
+    fn from(bounds: (f64, f64)) -> Self {
+        Range(Some(bounds.0), Some(bounds.1)).into()
+    }
+}
+
+impl From<((), f64)> for Scale {
+    fn from(bounds: ((), f64)) -> Self {
+        Range(None, Some(bounds.1)).into()
+    }
+}
+
+impl From<(f64, ())> for Scale {
+    fn from(bounds: (f64, ())) -> Self {
+        Range(Some(bounds.0), None).into()
+    }
+}
+
 impl From<Range> for Scale {
     fn from(range: Range) -> Self {
         Scale::Linear(range)
