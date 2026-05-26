@@ -189,11 +189,7 @@ impl PreparedFigure {
     where
         S: render::Surface,
     {
-        surface.prepare(self.size);
-
-        if let Some(fill) = &self.fill {
-            surface.fill(fill.as_paint(style));
-        }
+        surface.prepare(self.size, self.fill.as_ref().map(|f| f.as_paint(style)));
 
         if let Some((transform, title)) = &self.title {
             title.draw(surface, style, Some(transform));

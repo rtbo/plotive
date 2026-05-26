@@ -20,11 +20,9 @@ pub trait Surface {
     /// Get the capabilities of the surface
     fn caps(&self) -> SurfaceCaps;
 
-    /// Prepare the surface for drawing, with the given size in plot units
-    fn prepare(&mut self, size: geom::Size);
-
-    /// Fill the entire surface with the given fill pattern
-    fn fill(&mut self, fill: Paint);
+    /// Prepare the surface for drawing, with the given size in plot units,
+    /// and an optional initial fill pattern to fill the entire surface with.
+    fn prepare(&mut self, size: geom::Size, fill: Option<Paint>);
 
     /// Draw a rectangle
     ///

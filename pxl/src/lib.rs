@@ -234,20 +234,29 @@ impl State {
         }
     }
 
-    fn prepare(&mut self, size: geom::Size) {
+    fn prepare(&mut self, px: &mut PixmapMut<'_>, size: geom::Size, fill: Option<render::Paint>) {
         let sx = self.width as f32 / size.width();
         let sy = self.height as f32 / size.height();
         self.transform = geom::Transform::from_scale(sx, sy);
-    }
-
-    fn fill(&mut self, px: &mut PixmapMut<'_>, fill: render::Paint) {
-        match fill {
-            render::Paint::Solid(color) => {
-                let color = ts_color(color);
-                px.fill(color);
-            }
-            render::Paint::LinearGradient { .. } => {
-                panic!("fill with LinearGradient paint is not implemented yet")
+        if let Some(fill) = fill {
+            match fill {
+                render::Paint::Solid(color) => {
+                    let color = ts_color(color);
+                    px.fill(color);
+                }
+                render::Paint::LinearGradient { .. } => {
+                    let rect = geom::Rect::from_ps(geom::Point { x: 0.0, y: 0.0 }, size);
+                    let path = rect.to_path();
+                    let mut paint = tiny_skia::Paint::default();
+                    ts_fill(fill, &mut paint);
+                    px.fill_path(
+                        &path,
+                        &paint,
+                        tiny_skia::FillRule::Winding,
+                        tiny_skia::Transform::identity(),
+                        None,
+                    );
+                }
             }
         }
     }
@@ -304,13 +313,9 @@ impl render::Surface for PxlSurface {
         }
     }
 
-    fn prepare(&mut self, size: geom::Size) {
-        self.state.prepare(size)
-    }
-
-    fn fill(&mut self, fill: render::Paint) {
+    fn prepare(&mut self, size: geom::Size, fill: Option<render::Paint>) {
         let mut px = self.pixmap.as_mut();
-        self.state.fill(&mut px, fill)
+        self.state.prepare(&mut px, size, fill);
     }
 
     fn draw_path(&mut self, path: &render::Path) {
@@ -334,12 +339,8 @@ impl render::Surface for PxlSurfaceRef<'_> {
         }
     }
 
-    fn prepare(&mut self, size: geom::Size) {
-        self.state.prepare(size)
-    }
-
-    fn fill(&mut self, fill: render::Paint) {
-        self.state.fill(&mut self.pixmap, fill)
+    fn prepare(&mut self, size: geom::Size, fill: Option<render::Paint>) {
+        self.state.prepare(&mut self.pixmap, size, fill);
     }
 
     fn draw_path(&mut self, path: &render::Path) {

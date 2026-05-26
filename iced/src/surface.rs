@@ -50,22 +50,22 @@ where
         }
     }
 
-    fn prepare(&mut self, _size: geom::Size) {}
-
-    fn fill(&mut self, fill: render::Paint) {
-        let color = match fill {
-            render::Paint::Solid(c) => {
-                iced::Color::from_rgba8(c.r(), c.g(), c.b(), c.a() as f32 / 255.0)
+    fn prepare(&mut self, _size: geom::Size, fill: Option<render::Paint>) {
+        match fill {
+            Some(render::Paint::Solid(color)) => {
+                let color = to_iced_color(color);
+                let bounds = self.clip_bounds();
+                self.frames.last_mut().unwrap().fill_rectangle(
+                    bounds.position(),
+                    bounds.size(),
+                    color,
+                );
             }
-            render::Paint::LinearGradient { .. } => {
-                panic!("fill with LinearGradient paint is not implemented yet")
+            Some(render::Paint::LinearGradient { .. }) => {
+                panic!("LinearGradient paint is not supported on iced surface")
             }
-        };
-        let bounds = self.clip_bounds();
-        self.frames
-            .last_mut()
-            .unwrap()
-            .fill_rectangle(bounds.position(), bounds.size(), color);
+            None => {}
+        }
     }
 
     fn draw_path(&mut self, path: &render::Path) {
@@ -125,7 +125,7 @@ fn to_iced_fill(paint: &render::Paint) -> geometry::Fill {
     match paint {
         render::Paint::Solid(color) => to_iced_color(*color).into(),
         render::Paint::LinearGradient { .. } => {
-            todo!("LinearGradient paint is not implemented yet")
+            panic!("LinearGradient paint is not supported on iced surface")
         }
     }
 }
