@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# Unpublished
+
+### Changed
+
+### Fixed
+
+# [0.5.0] - 2026-05-26
+
+### Added
+
+ - Color gradient in rendering surface
+ - Id prefix and `<defs>` for SVG
+ - new color types and colorspaces (Rgba8, Rgb8, etc.)
+ - colormaps and colorbar, scatters with colors
+ - scatter with sizes
+ - xkcd colors
+ - Area series
+ - MPL style shorthands
+
+### Fixed
+
 ## [0.4.0] - 2026-03-26
 
 ### Changed
