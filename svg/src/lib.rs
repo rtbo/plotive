@@ -183,28 +183,26 @@ impl Surface for SvgSurface {
     }
 
     /// Prepare the surface for drawing, with the given width and height in plot units
-    fn prepare(&mut self, size: geom::Size) {
+    fn prepare(&mut self, size: geom::Size, fill: Option<render::Paint>) {
         self.doc
             .assign("viewBox", (0, 0, size.width(), size.height()));
-    }
-
-    /// Fill the entire surface with the given color
-    fn fill(&mut self, fill: render::Paint) {
-        let mut node = element::Rectangle::new()
-            .set("width", "100%")
-            .set("height", "100%");
-        match fill {
-            render::Paint::Solid(color) => node.assign("fill", color.html()),
-            render::Paint::LinearGradient {
-                start_pos,
-                end_pos,
-                stops,
-            } => {
-                let grad_id = self.add_linear_gradient(start_pos, end_pos, stops);
-                node.assign("fill", format!("url(#{})", grad_id));
+        if let Some(fill) = fill {
+            let mut node = element::Rectangle::new()
+                .set("width", "100%")
+                .set("height", "100%");
+            match fill {
+                render::Paint::Solid(color) => node.assign("fill", color.html()),
+                render::Paint::LinearGradient {
+                    start_pos,
+                    end_pos,
+                    stops,
+                } => {
+                    let grad_id = self.add_linear_gradient(start_pos, end_pos, stops);
+                    node.assign("fill", format!("url(#{})", grad_id));
+                }
             }
+            self.append_node(node);
         }
-        self.append_node(node);
     }
 
     /// Draw a rectangle
