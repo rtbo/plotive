@@ -29,7 +29,7 @@ This DSL is still fairly incomplete, but all examples in the repo are working.
 
  - **Data sources** (`plotive::data`)
    - Flexible, column-friendly data source system
-   - Support for CSV and [polars](https://pola.rs) is included
+   - Support for CSV is included
 
  - **Rendering surfaces** (`plotive::render` and separate crates)
    - `plotive-pxl`: Rasterized rendering (PNG, or pixels array)
@@ -142,8 +142,6 @@ During execution, the following window shows:
 ## Crate features
 
  - `data-csv`: enables CSV data source support ([`plotive::data::csv`](https://docs.rs/plotive/latest/plotive/data/csv/index.html))
- - `data-polars`: enables [Polars](https://pola.rs) data source support ([`plotive::data::polars`](https://docs.rs/plotive/latest/plotive/data/polars/index.html)).<br />
-   Pulls in the `polars` dependency, which is quite a beast to compile.
  - `dsl`: enables the support for `.plotive` DSL.
  - `noto-mono`, `noto-sans`, `noto-sans-italic`, `noto-serif`, `noto-serif-italic`: bundles the corresponding fonts from Google in the final executable, and enables `plotive::bundled_font_db()`.<br />
   `noto-sans` is enabled by default

@@ -12,9 +12,6 @@ use std::sync::Arc;
 #[cfg(feature = "data-csv")]
 pub mod csv;
 
-#[cfg(feature = "data-polars")]
-pub mod polars;
-
 #[cfg(feature = "time")]
 use crate::time::{DateTime, TimeDelta};
 

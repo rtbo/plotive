@@ -17,8 +17,6 @@ plotive-base.workspace = true
 plotive-text.workspace = true
 # feature dsl
 plotive-dsl = { workspace = true, optional = true }
-# feature data-polars
-polars = { workspace = true, optional = true }
 
 [dev-dependencies]
 plotive-iced = { path = "iced", features = ["clipboard"] }
@@ -33,7 +31,6 @@ ode_solvers = "0.6.1"
 default = ["noto-sans"]
 
 data-csv = []
-data-polars = ["dep:polars"]
 dsl = ["plotive-dsl/diag"]
 noto-mono = ["plotive-text/noto-mono"]
 noto-sans = ["plotive-text/noto-sans"]
@@ -83,14 +80,6 @@ required-features = ["utils"]
 [[example]]
 name = "multiple_axes_dsl"
 required-features = ["dsl", "utils"]
-
-[[example]]
-name = "polars_iris"
-required-features = ["data-polars"]
-
-[[example]]
-name = "polars_sine"
-required-features = ["data-polars"]
 
 [[example]]
 name = "readme"
@@ -143,7 +132,6 @@ iced = { version = "0.14.0", features = [
 iced_font_awesome = "0.4.0"
 log = "0.4"
 miette = { version = "7.6.0", features = ["fancy"] }
-polars = { version = "0.50.0", features = ["lazy"] }
 rand = "0.9.2"
 rand_distr = "0.5.1"
 rand_chacha = "0.9.0"

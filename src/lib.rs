@@ -114,8 +114,6 @@
  * ## Crate features
  *
  *  - `data-csv`: enables CSV data source support (See [`data::csv`])
- *  - `data-polars`: enables [Polars](https://pola.rs) data source support (See [`data::polars`])
- *    pulls in the `polars` dependency, which is quite a beast to compile.
  *  - `dsl`: enables the support for `.plotive` DSL. (See [`dsl`] and [`plotive-dsl` crate](https://crates.io/crates/plotive-dsl))
  *  - `noto-mono`, `noto-sans`, `noto-sans-italic`, `noto-serif`, `noto-serif-italic`: bundles the corresponding fonts from Google in the final executable, and enables `plotive::bundled_font_db()`.<br />
  *   `noto-sans` is enabled by default
