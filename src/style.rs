@@ -1,6 +1,7 @@
 //! Style definitions for lines, fills, markers, and themes.
 mod catppuccin;
 pub(crate) mod defaults;
+mod dracula;
 pub mod series;
 pub mod theme;
 
@@ -71,6 +72,22 @@ impl Style {
         Style {
             theme: Theme::Light,
             palette: Palette::TolBright,
+        }
+    }
+
+    /// Create a Dracula theme and palette
+    pub const fn dracula() -> Self {
+        Style {
+            theme: Theme::Dracula,
+            palette: Palette::Dracula,
+        }
+    }
+
+    /// Create an Alucard theme and palette
+    pub const fn alucard() -> Self {
+        Style {
+            theme: Theme::Alucard,
+            palette: Palette::Alucard,
         }
     }
 

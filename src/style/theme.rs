@@ -1,7 +1,7 @@
 //! Theme definitions and implementations
 
 use crate::color::{self, Rgb8, Rgba8};
-use crate::style::catppuccin;
+use crate::style::{catppuccin, dracula};
 use crate::{style, text};
 
 /// A theme, for styling figures
@@ -12,6 +12,10 @@ pub enum Theme {
     Light,
     /// Dark theme
     Dark,
+    /// Dracula theme
+    Dracula,
+    /// Alucard theme (Dracula light)
+    Alucard,
     /// Catppuccin Mocha theme
     CatppuccinMocha,
     /// Catppuccin Macchiato theme
@@ -55,6 +59,8 @@ impl Theme {
         match self {
             Theme::Light => &ThemePalette::LIGHT,
             Theme::Dark => &ThemePalette::DARK,
+            Theme::Dracula => &ThemePalette::DRACULA,
+            Theme::Alucard => &ThemePalette::ALUCARD,
             Theme::CatppuccinLatte => &ThemePalette::CATPPUCCIN_LATTE,
             Theme::CatppuccinFrappe => &ThemePalette::CATPPUCCIN_FRAPPE,
             Theme::CatppuccinMacchiato => &ThemePalette::CATPPUCCIN_MACCHIATO,
@@ -103,6 +109,12 @@ impl ThemePalette {
         legend_fill: Rgba8::from_hex(b"#1e1e2e"),
         legend_border: color::WHITE,
     };
+
+    /// The Dracula built-in theme palette
+    pub const DRACULA: Self = dracula::theme_palette::<dracula::Dracula>();
+
+    /// The Alucard built-in theme palette
+    pub const ALUCARD: Self = dracula::theme_palette::<dracula::Alucard>();
 
     /// The catppuccin mocha built-in theme palette
     pub const CATPPUCCIN_MOCHA: Self = catppuccin::theme_palette::<catppuccin::Mocha>();

@@ -1,7 +1,7 @@
 /*!
  * This module deals with colors and style of data series.
  */
-use crate::style::{self, catppuccin, defaults};
+use crate::style::{self, catppuccin, defaults, dracula};
 use crate::{ResolveColor, Rgba8};
 
 /// A palette for data series.
@@ -21,6 +21,10 @@ pub enum Palette {
     TolBright,
     /// Okabe & Ito colorblind-safe palette
     OkabeIto,
+    /// Dracula palette
+    Dracula,
+    /// Alucard palette
+    Alucard,
     /// Catppuccin Mocha palette
     CatppuccinMocha,
     /// Catppuccin Macchiato palette
@@ -42,6 +46,8 @@ impl Palette {
             Palette::Pastel => palettes::PASTEL,
             Palette::TolBright => palettes::TOL_BRIGHT,
             Palette::OkabeIto => palettes::OKABE_ITO,
+            Palette::Dracula => dracula::series_colors::<dracula::Dracula>(),
+            Palette::Alucard => dracula::series_colors::<dracula::Alucard>(),
             Palette::CatppuccinMocha => catppuccin::series_colors::<catppuccin::Mocha>(),
             Palette::CatppuccinMacchiato => catppuccin::series_colors::<catppuccin::Macchiato>(),
             Palette::CatppuccinFrappe => catppuccin::series_colors::<catppuccin::Frappe>(),

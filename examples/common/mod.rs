@@ -60,6 +60,8 @@ fn parse_args() -> Args {
             "frappe" => args.style = Some(Style::catppuccin_frappe()),
             "macchiato" => args.style = Some(Style::catppuccin_macchiato()),
             "mocha" => args.style = Some(Style::catppuccin_mocha()),
+            "dracula" => args.style = Some(Style::dracula()),
+            "alucard" => args.style = Some(Style::alucard()),
             "catppuccin-latte" => args.style = Some(Style::catppuccin_latte()),
             "catppuccin-frappe" => args.style = Some(Style::catppuccin_frappe()),
             "catppuccin-macchiato" => args.style = Some(Style::catppuccin_macchiato()),
