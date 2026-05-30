@@ -35,7 +35,7 @@ pub enum Side {
 /// Axes references can be used in two contexts:
 ///     - sharing axes across different subplots of a figure
 ///     - attach series to a specific axis in the case of multiple X or Y axes
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ref {
     /// Reference by index in the order declared in the plot,
     /// for the given orientation (X or Y), and starting at 0.

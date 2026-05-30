@@ -12,6 +12,9 @@ pub mod legend;
 pub mod plot;
 pub mod series;
 
+#[cfg(feature = "serde")]
+mod sd;
+
 pub use annot::Annotation;
 pub use axis::Axis;
 pub use colorbar::ColorBar;

@@ -396,7 +396,7 @@ impl<C: Color> From<C> for Fill<C> {
 }
 
 /// Shape of a marker, used in scatter plots
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum MarkerShape {
     /// Circle marker (the default)
     #[default]
@@ -421,7 +421,7 @@ pub enum MarkerShape {
 
 /// Size of a marker, used in scatter plots
 /// The size is interpreted as an area, so it scales quadratically with the visual size of the marker.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MarkerSize(pub f32);
 
 impl MarkerSize {
@@ -461,7 +461,10 @@ pub struct Marker<C: Color> {
     pub stroke: Option<Stroke<C>>,
 }
 
-impl<C: Color> Marker<C> {
+impl<C> Marker<C>
+where
+    C: Color + DefaultStrokeWidth,
+{
     /// Create a new marker with both fill and stroke set to the same color
     pub fn new_with_color(color: C) -> Self {
         Marker {
@@ -473,7 +476,7 @@ impl<C: Color> Marker<C> {
             }),
             stroke: Some(Stroke {
                 color,
-                width: defaults::SERIES_STROKE_WIDTH,
+                width: C::default_stroke_width(),
                 pattern: LinePattern::default(),
                 opacity: None,
             }),
@@ -521,7 +524,7 @@ impl<C: Color> Marker<C> {
 
         let mut stroke = self.stroke.unwrap_or_else(|| Stroke {
             color,
-            width: defaults::SERIES_STROKE_WIDTH,
+            width: C::default_stroke_width(),
             opacity: None,
             pattern: LinePattern::default(),
         });
@@ -567,7 +570,7 @@ impl<C: Color> Marker<C> {
 
 impl<C> Default for Marker<C>
 where
-    C: Color + Default,
+    C: Color + Default + DefaultStrokeWidth,
 {
     fn default() -> Self {
         Marker::new_with_color(C::default())

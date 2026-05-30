@@ -36,10 +36,30 @@ enum Svg {
     Yes(Option<PathBuf>),
 }
 
+#[cfg(feature = "serde")]
+#[derive(Debug, Clone, Default)]
+enum Json {
+    #[default]
+    No,
+    Yes(Option<PathBuf>),
+}
+
+#[cfg(feature = "serde")]
+#[derive(Debug, Clone, Default)]
+enum Yml {
+    #[default]
+    No,
+    Yes(Option<PathBuf>),
+}
+
 #[derive(Debug, Clone, Default)]
 struct Args {
     png: Png,
     svg: Svg,
+    #[cfg(feature = "serde")]
+    json: Json,
+    #[cfg(feature = "serde")]
+    yml: Yml,
     show: bool,
     style: Option<Style>,
 }
@@ -51,6 +71,10 @@ fn parse_args() -> Args {
         match arg.as_str() {
             "png" => args.png = Png::Yes(None),
             "svg" => args.svg = Svg::Yes(None),
+            #[cfg(feature = "serde")]
+            "json" => args.json = Json::Yes(None),
+            #[cfg(feature = "serde")]
+            "yml" => args.yml = Yml::Yes(None),
             "show" => args.show = true,
             "light" => args.style = Some(Style::light()),
             "tol-bright" => args.style = Some(Style::tol_bright()),
@@ -80,9 +104,17 @@ fn parse_args() -> Args {
         }
     }
 
+    #[cfg(not(feature = "serde"))]
     if matches!(
         (&args.png, &args.svg, &args.show),
         (Png::No, Svg::No, false)
+    ) {
+        args.show = true;
+    }
+    #[cfg(feature = "serde")]
+    if matches!(
+        (&args.png, &args.svg, &args.show, &args.json, &args.yml),
+        (Png::No, Svg::No, false, Json::No, Yml::No)
     ) {
         args.show = true;
     }
@@ -116,7 +148,7 @@ fn save_fig<D>(
 ) where
     D: data::Source + ?Sized,
 {
-    let fig = fig.prepare(data_source, Some(fontdb)).unwrap();
+    let prepared_fig = fig.prepare(data_source, Some(fontdb)).unwrap();
 
     match &args.png {
         Png::No => (),
@@ -125,7 +157,7 @@ fn save_fig<D>(
                 Some(path) => path.to_string_lossy().to_string(),
                 None => format!("{}.png", default_name),
             };
-            fig.save_png(
+            prepared_fig.save_png(
                 &file_name,
                 data_source,
                 plotive_pxl::Params {
@@ -145,7 +177,7 @@ fn save_fig<D>(
                 Some(path) => path.to_string_lossy().to_string(),
                 None => format!("{}.svg", default_name),
             };
-            fig.save_svg(
+            prepared_fig.save_svg(
                 &file_name,
                 data_source,
                 plotive_svg::Params {
@@ -159,11 +191,45 @@ fn save_fig<D>(
         }
     }
 
+    #[cfg(feature = "serde")]
+    match &args.json {
+        Json::No => (),
+        Json::Yes(filename) => {
+            let file_name = match filename {
+                Some(path) => path.to_string_lossy().to_string(),
+                None => format!("{}.json", default_name),
+            };
+
+            serde_json::to_writer_pretty(
+                std::fs::File::create(&file_name).unwrap(),
+                &fig,
+            )
+            .unwrap();
+        }
+    }
+
+    #[cfg(feature = "serde")]
+    match &args.yml {
+        Yml::No => (),
+        Yml::Yes(filename) => {
+            let file_name = match filename {
+                Some(path) => path.to_string_lossy().to_string(),
+                None => format!("{}.yml", default_name),
+            };
+
+            noyalib::to_writer(
+                std::fs::File::create(&file_name).unwrap(),
+                &fig,
+            )
+            .unwrap();
+        }
+    }
+
     if args.show {
         let data_source = data_source.copy();
         let fontdb = Arc::new(fontdb.clone());
 
-        fig.show(
+        prepared_fig.show(
             data_source,
             plotive_iced::show::Params {
                 style: args.style.clone(),
