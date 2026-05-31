@@ -26,7 +26,7 @@ fn main() {
                 .with_minor_ticks(Default::default())
                 .with_minor_grid(Default::default()),
         )
-        .with_border(des::plot::AxisArrow::default().into())
+        .with_border(des::plot::AxisArrowBorder::default().into())
         .with_legend(des::plot::LegendPos::InTopRight.into())
         .into_figure()
         .with_title("Sine wave".into());

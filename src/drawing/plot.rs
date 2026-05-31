@@ -1036,11 +1036,11 @@ impl Plot {
         // otherwise, axes draw the border as spines
         let rect = self.rect;
         match self.border.as_ref() {
-            Some(des::plot::Border::Box(stroke)) => {
+            Some(des::plot::Border::Box(border)) => {
                 surface.draw_rect(&render::Rect {
                     rect,
                     fill: None,
-                    stroke: Some(stroke.as_stroke(style)),
+                    stroke: Some(border.0.as_stroke(style)),
                     transform: None,
                 });
             }

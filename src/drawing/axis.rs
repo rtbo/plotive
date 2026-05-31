@@ -907,7 +907,7 @@ impl Axis {
     ) where
         S: render::Surface,
     {
-        let stroke = spine.line().as_stroke(style);
+        let stroke = spine.stroke().as_stroke(style);
         let path = self.side.spine_path(plot_rect, spine);
         let rpath = render::Path {
             path: &path,

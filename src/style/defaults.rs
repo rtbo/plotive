@@ -1,4 +1,4 @@
-use crate::geom;
+use crate::{geom, style};
 
 pub const FONT_FAMILY: &str = "sans-serif";
 
@@ -19,6 +19,12 @@ pub const LEGEND_PADDING: f32 = 8.0;
 pub const LEGEND_H_SPACING: f32 = 16.0;
 pub const LEGEND_V_SPACING: f32 = 10.0;
 pub const LEGEND_MARGIN: f32 = 12.0;
+pub const fn legend_fill() -> Option<style::theme::Fill> {
+    Some(style::theme::Fill::Solid {
+        color: style::theme::Color::Theme(style::theme::Col::LegendFill),
+        opacity: Some(0.5),
+    })
+}
 
 pub const COLORBAR_WIDTH: f32 = 20.0;
 pub const COLORBAR_TITLE_FONT_SIZE: f32 = 16.0;

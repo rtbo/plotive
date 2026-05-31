@@ -3,9 +3,29 @@
 use crate::des::{Annotation, Axis, ColorBar, Legend, PlotIdx, Series};
 use crate::style::{defaults, theme};
 
+/// Border style for the plot area that draws a box all around the plot area
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoxBorder(pub theme::Stroke);
+
+impl Default for BoxBorder {
+    fn default() -> Self {
+        BoxBorder(theme::Col::Foreground.into())
+    }
+}
+
+/// Border style for the plot area that draws lines where there are axes
+#[derive(Debug, Clone, PartialEq)]
+pub struct AxisBorder(pub theme::Stroke);
+
+impl Default for AxisBorder {
+    fn default() -> Self {
+        AxisBorder(theme::Col::Foreground.into())
+    }
+}
+
 /// Arrow border style for the plot area
-#[derive(Debug, Clone)]
-pub struct AxisArrow {
+#[derive(Debug, Clone, PartialEq)]
+pub struct AxisArrowBorder {
     /// Line style for the border and arrow
     pub stroke: theme::Stroke,
     /// Size of the arrow head
@@ -18,9 +38,9 @@ pub struct AxisArrow {
     pub overflow: f32,
 }
 
-impl Default for AxisArrow {
+impl Default for AxisArrowBorder {
     fn default() -> Self {
-        AxisArrow {
+        AxisArrowBorder {
             stroke: theme::Col::Foreground.into(),
             size: defaults::PLOT_AXIS_ARROW_SIZE,
             overflow: defaults::PLOT_AXIS_ARROW_OVERFLOW,
@@ -29,58 +49,82 @@ impl Default for AxisArrow {
 }
 
 /// Border style for the plot area
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Border {
     /// A box border around the plot area
-    Box(theme::Stroke),
+    Box(BoxBorder),
     /// Border only on the axes sides
-    Axis(theme::Stroke),
+    Axis(AxisBorder),
     /// Arrow border on the axes sides
-    AxisArrow(AxisArrow),
+    AxisArrow(AxisArrowBorder),
 }
 
 impl Border {
     /// Get the line style for the border if applicable
-    pub fn line(&self) -> &theme::Stroke {
+    pub fn stroke(&self) -> &theme::Stroke {
         match self {
-            Border::Box(line) => line,
-            Border::Axis(line) => line,
-            Border::AxisArrow(arrow) => &arrow.stroke,
+            Border::Box(border) => &border.0,
+            Border::Axis(border) => &border.0,
+            Border::AxisArrow(border) => &border.stroke,
         }
     }
 }
 
 impl Default for Border {
     fn default() -> Self {
-        Border::Box(theme::Col::Foreground.into())
+        Border::Box(BoxBorder::default())
     }
 }
 
-impl From<AxisArrow> for Border {
-    fn from(aa: AxisArrow) -> Self {
+impl From<BoxBorder> for Border {
+    fn from(bb: BoxBorder) -> Self {
+        Border::Box(bb)
+    }
+}
+
+impl From<BoxBorder> for Option<Border> {
+    fn from(bb: BoxBorder) -> Self {
+        Some(Border::Box(bb))
+    }
+}
+
+impl From<AxisBorder> for Border {
+    fn from(ab: AxisBorder) -> Self {
+        Border::Axis(ab)
+    }
+}
+
+impl From<AxisBorder> for Option<Border> {
+    fn from(ab: AxisBorder) -> Self {
+        Some(Border::Axis(ab))
+    }
+}
+
+impl From<AxisArrowBorder> for Border {
+    fn from(aa: AxisArrowBorder) -> Self {
         Border::AxisArrow(aa)
     }
 }
 
-impl From<AxisArrow> for Option<Border> {
-    fn from(aa: AxisArrow) -> Self {
+impl From<AxisArrowBorder> for Option<Border> {
+    fn from(aa: AxisArrowBorder) -> Self {
         Some(Border::AxisArrow(aa))
     }
 }
 
-/// Insets inside the plot area
-/// around the data.
-#[derive(Debug, Default, Clone, Copy)]
+/// Insets inside the plot area, leaving blank space
+/// between the data series and the plot border
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum Insets {
     /// The insets depends on the style of series
-    #[default]
+#[default]
     Auto,
     /// Fixed insets in figure units
     Fixed(f32, f32),
 }
 
 /// Position of the legend relatively to the plot
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum LegendPos {
     /// Position the legend outside the plot area at the top
     OutTop,
