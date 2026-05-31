@@ -8,7 +8,7 @@ use crate::style::{defaults, theme};
 use crate::text;
 
 /// The font configuration for legend entries
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EntryFont {
     /// The font size in figure units
     pub size: f32,

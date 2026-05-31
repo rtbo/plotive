@@ -346,7 +346,7 @@ impl<C> TextOptProps<C> {
 }
 
 /// A set of resolved properties for a text span
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TextProps<C>
 where
     C: Clone,

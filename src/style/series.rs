@@ -68,19 +68,19 @@ impl Palette {
 }
 
 /// A series color identified by its index in a palette
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IndexColor(pub usize);
 
 impl style::Color for IndexColor {}
 
 /// A series color that is automatically chosen from a palette based on the series index
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AutoColor;
 
 impl style::Color for AutoColor {}
 
 /// A flexible color for data series
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Color {
     /// Automatic color from the palette
     #[default]

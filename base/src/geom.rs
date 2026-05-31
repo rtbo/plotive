@@ -410,7 +410,7 @@ impl Rect {
 }
 
 /// Padding within a graphical element
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Padding {
     /// Uniform padding in all directions
     Even(f32),

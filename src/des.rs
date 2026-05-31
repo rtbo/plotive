@@ -112,7 +112,7 @@ macro_rules! define_rich_text_structs {
         pub type $opt_props_struct = $crate::text::rich::TextOptProps<$crate::style::theme::Color>;
 
         /// Rich text base properties with plotive theme colors
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         pub struct $props_struct($crate::text::rich::TextProps<$crate::style::theme::Color>);
 
         impl $props_struct {
