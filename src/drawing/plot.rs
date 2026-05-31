@@ -102,7 +102,7 @@ impl Axes {
         &mut self.y
     }
 
-    pub(super) fn or_find_idx(
+    pub(super) fn orientation_find_idx(
         &self,
         or: Orientation,
         ax_ref: &des::axis::Ref,
@@ -124,13 +124,12 @@ impl Axes {
                         return Ok(Some(ax_idx));
                     }
                 }
-                ax_ref => return Err(Error::IllegalAxisRef(ax_ref.clone())),
             }
         }
         Ok(None)
     }
 
-    pub(super) fn or_find(
+    pub(super) fn orientation_find(
         &self,
         or: Orientation,
         ax_ref: &des::axis::Ref,
@@ -140,7 +139,7 @@ impl Axes {
             Orientation::Y => &self.y,
         };
 
-        let ax = self.or_find_idx(or, ax_ref)?.map(|idx| &axes[idx]);
+        let ax = self.orientation_find_idx(or, ax_ref)?.map(|idx| &axes[idx]);
         Ok(ax)
     }
 
@@ -165,7 +164,7 @@ struct PlotData {
 trait IrPlotExt {
     fn x_axes(&self) -> &[des::Axis];
     fn y_axes(&self) -> &[des::Axis];
-    fn or_axes(&self, or: Orientation) -> &[des::Axis] {
+    fn orientation_axes(&self, or: Orientation) -> &[des::Axis] {
         match or {
             Orientation::X => self.x_axes(),
             Orientation::Y => self.y_axes(),
@@ -193,14 +192,14 @@ trait IrPlotsExt {
         self.plot(idx).map(|p| (idx.index(self.cols()) as usize, p))
     }
 
-    fn or_axes_len(&self, or: Orientation) -> usize {
+    fn orientation_axes_len(&self, or: Orientation) -> usize {
         self.plots()
             .filter_map(|p| p)
-            .map(|p| p.or_axes(or).len())
+            .map(|p| p.orientation_axes(or).len())
             .sum()
     }
 
-    fn or_find_axis(
+    fn orientation_find_axis(
         &self,
         or: Orientation,
         ax_ref: &des::axis::Ref,
@@ -210,15 +209,10 @@ trait IrPlotsExt {
         for (pi, plot) in self.plots().enumerate() {
             let Some(plot) = plot else { continue };
 
-            for (ai, axis) in plot.or_axes(or).iter().enumerate() {
+            for (ai, axis) in plot.orientation_axes(or).iter().enumerate() {
                 match ax_ref {
                     des::axis::Ref::Idx(idx) => {
                         if *idx == ai && plt_idx == pi {
-                            return Some((fig_ax_idx, axis));
-                        }
-                    }
-                    des::axis::Ref::FigIdx(idx) => {
-                        if *idx == fig_ax_idx {
                             return Some((fig_ax_idx, axis));
                         }
                     }
@@ -680,7 +674,7 @@ where
 
         // ax_infos is Some only for the axis owning their scale
         let mut ax_infos: Vec<Option<(Bounds, Rc<RefCell<AxisScale>>)>> =
-            vec![None; des_plots.or_axes_len(or)];
+            vec![None; des_plots.orientation_axes_len(or)];
 
         // index of the first axis of a plot, at figure level
         let mut fig_ax_idx0 = 0;
@@ -688,7 +682,7 @@ where
         for (plt_idx, des_plot) in des_plots.iter().enumerate() {
             let Some(des_plot) = des_plot else { continue };
 
-            let des_axes = des_plot.or_axes(or);
+            let des_axes = des_plot.orientation_axes(or);
             let mut axes = vec![None; des_axes.len()];
 
             // track whether the main and opposite axes are directly attached to the plot area
@@ -722,7 +716,7 @@ where
                     let series = &data.series;
                     bounds = Series::unite_bounds(or, series, bounds, &matcher, plt_idx2)?;
 
-                    for (ax_idx2, des_ax2) in des_plot2.or_axes(or).iter().enumerate() {
+                    for (ax_idx2, des_ax2) in des_plot2.orientation_axes(or).iter().enumerate() {
                         if let des::axis::Scale::Shared(ax_ref2) = des_ax2.scale() {
                             if matcher.matches_ref(ax_ref2, plt_idx2)? {
                                 let matcher = series::AxisMatcher {
@@ -781,7 +775,7 @@ where
                 continue;
             };
 
-            let des_axes = des_plot.or_axes(or);
+            let des_axes = des_plot.orientation_axes(or);
             let axes = plot_axes[plt_idx].as_mut().unwrap();
 
             // track whether the main and opposite axes are directly attached to the plot area
@@ -793,7 +787,7 @@ where
                     continue;
                 };
                 let (fig_ax_idx, _) = des_plots
-                    .or_find_axis(or, ax_ref, plt_idx)
+                    .orientation_find_axis(or, ax_ref, plt_idx)
                     .ok_or_else(|| Error::UnknownAxisRef(ax_ref.clone()))?;
 
                 let info = ax_infos[fig_ax_idx]
@@ -960,8 +954,8 @@ impl Plot {
 
         for series in self.series.iter_mut() {
             let (x_ax_ref, y_ax_ref) = series.axes();
-            let x = axes.or_find(Orientation::X, x_ax_ref)?;
-            let y = axes.or_find(Orientation::Y, y_ax_ref)?;
+            let x = axes.orientation_find(Orientation::X, x_ax_ref)?;
+            let y = axes.orientation_find(Orientation::Y, y_ax_ref)?;
             let (Some(x), Some(y)) = (x, y) else {
                 unreachable!("Series without axis");
             };

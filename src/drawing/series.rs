@@ -135,7 +135,6 @@ impl<'a> AxisMatcher<'a> {
         match ax_ref {
             des::axis::Ref::Idx(ax_idx) => Ok(self.ax_idx == *ax_idx && self.plt_idx == plt_idx),
             des::axis::Ref::Id(id) => Ok(self.id == Some(id) || self.title == Some(id)),
-            ax_ref => Err(Error::IllegalAxisRef(ax_ref.clone())),
         }
     }
 }
