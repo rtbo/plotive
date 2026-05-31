@@ -1,9 +1,8 @@
 //! Data series definitions for plots.
-use crate::data;
 use crate::des::{axis, cmap};
-use crate::style::{self, defaults};
 #[cfg(feature = "time")]
 use crate::time;
+use crate::{data, style};
 
 /// A data column, either inline or a reference to a data source.
 ///
@@ -210,7 +209,7 @@ impl Line {
             name: None,
             x_axis: Default::default(),
             y_axis: Default::default(),
-            stroke: style::series::Stroke::default().with_width(defaults::SERIES_LINE_WIDTH),
+            stroke: style::series::Stroke::default(),
             marker: None,
             interpolation: Interpolation::default(),
         }

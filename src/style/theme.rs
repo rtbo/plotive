@@ -1,7 +1,7 @@
 //! Theme definitions and implementations
 
 use crate::color::{self, Rgb8, Rgba8};
-use crate::style::{catppuccin, dracula};
+use crate::style::{DefaultStrokeWidth, catppuccin, dracula};
 use crate::{style, text};
 
 /// A theme, for styling figures
@@ -246,6 +246,12 @@ impl color::ResolveColor<Color> for Theme {
     }
 }
 
+impl super::DefaultStrokeWidth for Color {
+    fn default_stroke_width() -> f32 {
+        1.0
+    }
+}
+
 /// Stroke style for theme elements
 pub type Stroke = style::Stroke<Color>;
 
@@ -255,7 +261,7 @@ impl From<Col> for Stroke {
     fn from(col: Col) -> Self {
         Stroke {
             color: col.into(),
-            width: 1.0,
+            width: Color::default_stroke_width(),
             pattern: style::LinePattern::default(),
             opacity: None,
         }

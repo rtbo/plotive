@@ -117,7 +117,7 @@ impl From<AxisArrowBorder> for Option<Border> {
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum Insets {
     /// The insets depends on the style of series
-#[default]
+    #[default]
     Auto,
     /// Fixed insets in figure units
     Fixed(f32, f32),

@@ -9,7 +9,7 @@ pub const TITLE_FONT_SIZE: f32 = 20.0;
 pub const AXIS_LABEL_FONT_SIZE: f32 = 16.0;
 pub const TICKS_LABEL_FONT_SIZE: f32 = 12.0;
 
-pub const SERIES_LINE_WIDTH: f32 = 1.5;
+pub const SERIES_STROKE_WIDTH: f32 = 1.5;
 pub const MARKER_SIZE: f32 = 8.5 * 8.5;
 
 pub const LEGEND_LABEL_FONT_SIZE: f32 = 13.0;

@@ -228,6 +228,14 @@ const DASHED_DASH: &[f32] = &[5.0, 5.0];
 const DOT_DASH: &[f32] = &[1.0, 1.0];
 const DASH_DOT_DASH: &[f32] = &[5.0, 5.0, 1.0, 5.0];
 
+/// Trait for types that have a default stroke width for serialization purposes
+/// The trait is implemented for color types, so that the default stroke width
+/// can be associated with the color type used in the stroke.
+pub trait DefaultStrokeWidth {
+    /// Return the default stroke width for this color type.
+    fn default_stroke_width() -> f32;
+}
+
 impl<C: Color> Stroke<C> {
     /// Set the line width in figure units, returning self for chaining
     pub fn with_width(self, width: f32) -> Self {
@@ -266,6 +274,20 @@ impl<C: Color> Stroke<C> {
             color,
             width: self.width,
             pattern,
+        }
+    }
+}
+
+impl<C> Default for Stroke<C>
+where
+    C: Color + Default + DefaultStrokeWidth,
+{
+    fn default() -> Self {
+        Stroke {
+            color: C::default(),
+            width: C::default_stroke_width(),
+            pattern: LinePattern::default(),
+            opacity: None,
         }
     }
 }
@@ -342,7 +364,7 @@ where
 
 impl<C: Color> Fill<C> {
     /// Set the fill opacity (0.0 to 1.0), returning self for chaining
-    pub fn with_opacity(self, opacity: f32) -> Self {
+    pub const fn with_opacity(self, opacity: f32) -> Self {
         match self {
             Fill::Solid { color, .. } => Fill::Solid {
                 color,
@@ -451,7 +473,7 @@ impl<C: Color> Marker<C> {
             }),
             stroke: Some(Stroke {
                 color,
-                width: defaults::SERIES_LINE_WIDTH,
+                width: defaults::SERIES_STROKE_WIDTH,
                 pattern: LinePattern::default(),
                 opacity: None,
             }),
@@ -499,7 +521,7 @@ impl<C: Color> Marker<C> {
 
         let mut stroke = self.stroke.unwrap_or_else(|| Stroke {
             color,
-            width: defaults::SERIES_LINE_WIDTH,
+            width: defaults::SERIES_STROKE_WIDTH,
             opacity: None,
             pattern: LinePattern::default(),
         });

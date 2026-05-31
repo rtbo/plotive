@@ -133,25 +133,21 @@ impl ResolveColor<Color> for (&Palette, usize) {
     }
 }
 
+impl super::DefaultStrokeWidth for Color {
+    fn default_stroke_width() -> f32 {
+        defaults::SERIES_STROKE_WIDTH
+    }
+}
 /// Stroke style for theme elements
 pub type Stroke = style::Stroke<Color>;
 
-impl Default for Stroke {
-    fn default() -> Self {
-        Stroke {
-            color: Color::default(),
-            width: defaults::SERIES_LINE_WIDTH,
-            pattern: style::LinePattern::default(),
-            opacity: None,
-        }
-    }
-}
-
 impl From<Rgba8> for Stroke {
     fn from(color: Rgba8) -> Self {
+        use super::DefaultStrokeWidth;
+
         Stroke {
             color: color.into(),
-            width: defaults::SERIES_LINE_WIDTH,
+            width: Color::default_stroke_width(),
             pattern: style::LinePattern::default(),
             opacity: None,
         }
