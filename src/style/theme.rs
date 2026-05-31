@@ -183,6 +183,19 @@ impl std::str::FromStr for Col {
     }
 }
 
+impl std::fmt::Display for Col {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Col::Background => "background",
+            Col::Foreground => "foreground",
+            Col::Grid => "grid",
+            Col::LegendFill => "legend_fill",
+            Col::LegendBorder => "legend_border",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 impl color::ResolveColor<Col> for Theme {
     fn resolve_color(&self, col: &Col) -> Rgba8 {
         match col {
@@ -227,6 +240,15 @@ impl std::str::FromStr for Color {
         } else {
             let c = s.parse::<Rgba8>()?;
             Ok(Color::Fixed(c))
+        }
+    }
+}
+
+impl std::fmt::Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Color::Theme(col) => write!(f, "{}", col),
+            Color::Fixed(c) => write!(f, "{}", c.html()),
         }
     }
 }

@@ -1,8 +1,8 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
-use serde::Serialize;
-use serde::ser::SerializeTuple;
+use serde::{Deserialize, Serialize};
 
 use crate::color::{css4, xkcd};
 use crate::{Rgb8, Rgba8, geom};
@@ -27,6 +27,16 @@ impl Serialize for Rgba8 {
     }
 }
 
+impl<'de> Deserialize<'de> for Rgba8 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
 impl Serialize for Rgb8 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -40,14 +50,31 @@ impl Serialize for Rgb8 {
     }
 }
 
+impl<'de> Deserialize<'de> for Rgb8 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: Cow<'de, str> = Deserialize::deserialize(deserializer)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
 impl Serialize for geom::Size {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_tuple(2)?;
-        state.serialize_element(&self.width())?;
-        state.serialize_element(&self.height())?;
-        state.end()
+        (self.width(), self.height()).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for geom::Size {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let (width, height) = <(f32, f32)>::deserialize(deserializer)?;
+        Ok(Self::new(width, height))
     }
 }

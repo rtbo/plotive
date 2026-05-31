@@ -1,6 +1,8 @@
 /*!
  * This module deals with colors and style of data series.
  */
+use plotive_base::color;
+
 use crate::style::{self, catppuccin, defaults, dracula};
 use crate::{ResolveColor, Rgba8};
 
@@ -73,6 +75,50 @@ pub struct IndexColor(pub usize);
 
 impl style::Color for IndexColor {}
 
+/// An error type for parsing an IndexColor from a string
+#[derive(Debug, Clone, Copy)]
+pub enum IndexColorParseError {
+    /// Failed to parse an series index color (e.g. "L1", "L2", etc.)
+    InvalidFormat,
+    /// Series color index must start at one (e.g. "L1" is valid, but "L0" is not)
+    InvalidIndex,
+}
+
+impl std::fmt::Display for IndexColorParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IndexColorParseError::InvalidFormat => write!(f, "Invalid series color format"),
+            IndexColorParseError::InvalidIndex => write!(f, "Series color index must start at one"),
+        }
+    }
+}
+
+impl std::error::Error for IndexColorParseError {}
+
+impl std::str::FromStr for IndexColor {
+    type Err = IndexColorParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("L") {
+            let index = s[1..]
+                .parse::<usize>()
+                .map_err(|_| IndexColorParseError::InvalidIndex)?;
+            if index == 0 {
+                Err(IndexColorParseError::InvalidIndex)
+            } else {
+                Ok(IndexColor(index - 1))
+            }
+        } else {
+            Err(IndexColorParseError::InvalidFormat)
+        }
+    }
+}
+
+impl std::fmt::Display for IndexColor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "L{}", self.0 + 1)
+    }
+}
+
 /// A series color that is automatically chosen from a palette based on the series index
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AutoColor;
@@ -110,6 +156,55 @@ impl From<Rgba8> for Color {
 }
 
 impl style::Color for Color {}
+
+/// an error type for parsing a Color from a string
+#[derive(Debug)]
+
+pub enum ColorParseError {
+    /// Failed to parse an series index color (e.g. "L1", "L2", etc.)
+    Index(IndexColorParseError),
+    /// Failed to parse a fixed RGB color (e.g. "#RRGGBB", "antiquewhite", "rgb(...)", etc.)
+    Fixed(color::ParseError),
+}
+
+impl From<IndexColorParseError> for ColorParseError {
+    fn from(e: IndexColorParseError) -> Self {
+        ColorParseError::Index(e)
+    }
+}
+
+impl From<color::ParseError> for ColorParseError {
+    fn from(e: color::ParseError) -> Self {
+        ColorParseError::Fixed(e)
+    }
+}
+
+impl std::fmt::Display for ColorParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ColorParseError::Index(e) => write!(f, "{}", e),
+            ColorParseError::Fixed(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl std::error::Error for ColorParseError {}
+
+impl std::str::FromStr for Color {
+    type Err = ColorParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s == "auto" {
+            Ok(Color::Auto)
+        } else if s.starts_with("L") {
+            let index = s.parse::<IndexColor>()?;
+            Ok(Color::Index(index))
+        } else {
+            let c = s.parse::<Rgba8>()?;
+            Ok(Color::Fixed(c))
+        }
+    }
+}
 
 impl ResolveColor<IndexColor> for Palette {
     fn resolve_color(&self, col: &IndexColor) -> Rgba8 {

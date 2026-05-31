@@ -377,6 +377,9 @@ impl FromStr for Rgb8 {
         // named color
         else {
             if let Some(col) = names::lookup(raw) {
+                if col.a() != 255 {
+                    return Err(ParseError::InvalidAlphaComponent);
+                }
                 Ok(col.rgb())
             } else {
                 Err(ParseError::UnknownName)
@@ -448,7 +451,7 @@ impl FromStr for Rgba8 {
     }
 }
 
-mod names {
+pub(crate) mod names {
     use std::collections::HashMap;
     use std::sync::LazyLock;
 
