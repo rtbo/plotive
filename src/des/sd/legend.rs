@@ -1,8 +1,12 @@
+use std::borrow::Cow;
+
 use serde::ser::SerializeStruct;
 
 use crate::des::{Legend, figure, legend, plot};
 use crate::geom;
 use crate::style::{defaults, theme};
+
+// MARK: figure::LegendPos
 
 impl serde::Serialize for figure::LegendPos {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -18,6 +22,27 @@ impl serde::Serialize for figure::LegendPos {
         .serialize(serializer)
     }
 }
+
+impl<'de> serde::de::Deserialize<'de> for figure::LegendPos {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let s: Cow<'de, str> = serde::Deserialize::deserialize(deserializer)?;
+        match &*s {
+            "top" => Ok(figure::LegendPos::Top),
+            "right" => Ok(figure::LegendPos::Right),
+            "bottom" => Ok(figure::LegendPos::Bottom),
+            "left" => Ok(figure::LegendPos::Left),
+            _ => Err(serde::de::Error::unknown_variant(
+                &s,
+                &["top", "right", "bottom", "left"],
+            )),
+        }
+    }
+}
+
+// MARK: plot::LegendPos
 
 impl serde::Serialize for plot::LegendPos {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -41,6 +66,39 @@ impl serde::Serialize for plot::LegendPos {
         .serialize(serializer)
     }
 }
+
+impl<'de> serde::de::Deserialize<'de> for plot::LegendPos {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        let s: Cow<'de, str> = serde::Deserialize::deserialize(deserializer)?;
+        match &*s {
+            "out-top" => Ok(plot::LegendPos::OutTop),
+            "out-right" => Ok(plot::LegendPos::OutRight),
+            "out-bottom" => Ok(plot::LegendPos::OutBottom),
+            "out-left" => Ok(plot::LegendPos::OutLeft),
+            "in-top-left" => Ok(plot::LegendPos::InTopLeft),
+            "in-top" => Ok(plot::LegendPos::InTop),
+            "in-top-right" => Ok(plot::LegendPos::InTopRight),
+            "in-right" => Ok(plot::LegendPos::InRight),
+            "in-bottom-right" => Ok(plot::LegendPos::InBottomRight),
+            "in-bottom" => Ok(plot::LegendPos::InBottom),
+            "in-bottom-left" => Ok(plot::LegendPos::InBottomLeft),
+            "in-left" => Ok(plot::LegendPos::InLeft),
+            _ => Err(serde::de::Error::unknown_variant(
+                s.as_ref(),
+                &[
+                    "out-top", "out-right", "out-bottom", "out-left",
+                    "in-top-left", "in-top", "in-top-right", "in-right",
+                    "in-bottom-right", "in-bottom", "in-bottom-left", "in-left",
+                ],
+            )),
+        }
+    }
+}
+
+// MARK: Legend
 
 impl<P> serde::Serialize for Legend<P>
 where

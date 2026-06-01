@@ -19,6 +19,7 @@ plotive-text.workspace = true
 plotive-dsl = { workspace = true, optional = true }
 # feature serde
 serde = { workspace = true, optional = true }
+serde-value = { version = "0.7", optional = true }
 
 [dev-dependencies]
 plotive-iced = { path = "iced", features = ["clipboard"] }
@@ -42,7 +43,7 @@ noto-sans = ["plotive-text/noto-sans"]
 noto-sans-italic = ["plotive-text/noto-sans-italic"]
 noto-serif = ["plotive-text/noto-serif"]
 noto-serif-italic = ["plotive-text/noto-serif-italic"]
-serde = ["plotive-base/serde", "dep:serde"]
+serde = ["plotive-base/serde", "dep:serde", "dep:serde-value"]
 time = []
 utils = []
 
@@ -142,7 +143,7 @@ rand_distr = "0.5.1"
 rand_chacha = "0.9.0"
 rfd = "0.17.1"
 rustybuzz = "0.20.1"
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.228" }
 strict-num = "0.2.0"
 tiny-skia = "0.11.4"
 tiny-skia-path = "0.11.4"
