@@ -4,6 +4,7 @@ use serde::de::MapAccess;
 use serde::ser::SerializeStruct;
 use serde_value::Value;
 
+use crate::des::sd::deserialize_tagged_map_fields;
 use crate::des::{Series, axis, series};
 #[cfg(feature = "time")]
 use crate::time;
@@ -219,52 +220,6 @@ impl<'de> serde::de::Visitor<'de> for SeriesVisitor {
     }
 }
 
-// MARK: helper macro
-
-macro_rules! deserialize_series_fields {
-    ($de:lifetime, $map:expr, $buffered:expr, $($key:expr => $name:ident: Option<$ty:ty>,)+) => {
-        $(
-            let mut $name = None::<$ty>;
-        )+
-        for (key, value) in $buffered {
-            match key.as_str() {
-                "type" => {
-                    return Err(serde::de::Error::duplicate_field("type"));
-                }
-                $($key => {
-                    if $name.is_some() {
-                        return Err(serde::de::Error::duplicate_field($key));
-                    }
-                    $name = Some(
-                        value
-                            .deserialize_into::<$ty>()
-                            .map_err(serde::de::Error::custom)?,
-                    );
-
-                })+
-                _ => {}
-            }
-        }
-
-        while let Some(key) = $map.next_key::<Cow<$de, str>>()? {
-            match key.as_ref() {
-                "type" => {
-                    let _: String = $map.next_value()?;
-                    return Err(serde::de::Error::duplicate_field("type"));
-                }
-                $($key => {
-                    if $name.is_some() {
-                        let _: $ty = $map.next_value()?;
-                        return Err(serde::de::Error::duplicate_field($key));
-                    }
-                    $name = Some($map.next_value::<$ty>()?);
-                })+
-                _ => {}
-            }
-        }
-    }
-}
-
 // MARK: series::Line
 
 impl serde::Serialize for series::Line {
@@ -305,7 +260,6 @@ impl serde::Serialize for series::Line {
     }
 }
 
-
 fn deserialize_line_series<'de, A>(
     map: &mut A,
     buffered: Vec<(String, Value)>,
@@ -313,7 +267,7 @@ fn deserialize_line_series<'de, A>(
 where
     A: MapAccess<'de>,
 {
-    deserialize_series_fields! {
+    deserialize_tagged_map_fields! {
         'de, map, buffered,
         "x" => x_data: Option<series::DataCol>,
         "y" => y_data: Option<series::DataCol>,
