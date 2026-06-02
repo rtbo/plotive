@@ -154,3 +154,67 @@ where
         }
     }
 }
+
+impl<'de, P> serde::de::Deserialize<'de> for Legend<P>
+where
+    P: serde::de::Deserialize<'de> + Default,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::de::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(LegendVisitor {
+            marker: std::marker::PhantomData,
+        })
+    }
+}
+
+struct LegendVisitor<P> {
+    marker: std::marker::PhantomData<P>,
+}
+
+impl<'de, P> serde::de::Visitor<'de> for LegendVisitor<P>
+where
+    P: serde::de::Deserialize<'de> + Default,
+{
+    type Value = Legend<P>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a legend position or a legend object")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let deserializer = serde::de::value::StrDeserializer::<E>::new(v);
+        if let Ok(pos) = P::deserialize(deserializer) {
+            return Ok(Legend::<P>::new(pos));
+        }
+        Err(serde::de::Error::custom(format!(
+            "invalid legend position: {}",
+            v
+        )))
+    }
+
+    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+    where
+        M: serde::de::MapAccess<'de>,
+    {
+        let mut legend = Legend::<P>::default();
+        while let Some(key) = map.next_key::<Cow<'de, str>>()? {
+            match &*key {
+                "pos" => legend = legend.with_pos(map.next_value()?),
+                "font" => todo!("Deserialize legend::EntryFont"),
+                "fill" => legend = legend.with_fill(map.next_value()?),
+                "border" => legend = legend.with_border(map.next_value()?),
+                "columns" => legend = legend.with_columns(map.next_value()?),
+                "padding" => todo!("Deserialize geom::Padding"),
+                "margin" => legend = legend.with_margin(map.next_value()?),
+                "spacing" => legend = legend.with_spacing(map.next_value()?),
+                _ => return Err(serde::de::Error::unknown_field(&key, &["pos", "font", "fill", "border", "columns", "padding", "margin", "spacing"])),
+            }
+        }
+        Ok(legend)
+    }
+}
