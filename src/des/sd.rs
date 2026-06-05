@@ -33,7 +33,6 @@ impl serde::Serialize for figure::Title {
     }
 }
 
-
 impl<'de> serde::Deserialize<'de> for figure::Title {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -189,7 +188,37 @@ impl<'de> serde::de::Visitor<'de> for FigureVisitor {
     }
 }
 
-// MARK: helper macros
+// MARK: map macros
+
+macro_rules! serialize_tagged_map_variant {
+    ($serializer:expr, $tag:expr, ($obj:ident, $typ:ty), $($key:expr => $field:ident,)+) => {
+        {
+            let typ_name = std::stringify!($typ);
+            println!("Serializing {}", typ_name);
+            let default = <$typ>::default();
+            if $obj == &default {
+                $tag.serialize($serializer)
+            } else {
+                let mut len = 1; // for the tag
+                $(
+                    if $obj.$field != default.$field {
+                        len += 1;
+                    }
+                )+
+                let mut map = $serializer.serialize_struct(typ_name, len)?;
+                map.serialize_field("type", $tag)?;
+                $(
+                    if $obj.$field != default.$field {
+                        map.serialize_field($key, &$obj.$field)?;
+                    }
+                )+
+                map.end()
+            }
+        }
+    };
+}
+
+pub(crate) use serialize_tagged_map_variant;
 
 macro_rules! deserialize_map_fields {
     ($de:lifetime, $map:expr, $($key:expr => $name:ident: Option<$ty:ty>,)+) => {
