@@ -3111,6 +3111,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rand_distr",
+ "serde_json",
  "similar",
  "tiny-skia",
 ]

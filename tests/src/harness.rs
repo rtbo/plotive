@@ -28,6 +28,12 @@ pub trait TestHarness {
         Path::new(tests_dir).join("failed").join(file_name)
     }
 
+    fn failed_json_file_path(ref_name: &str) -> PathBuf {
+        let file_name = format!("{}.json", ref_name);
+        let tests_dir = env!("CARGO_MANIFEST_DIR");
+        Path::new(tests_dir).join("failed").join(file_name)
+    }
+
     fn failed_diff_file_path(ref_name: &str) -> PathBuf {
         let file_name = format!("{}{}", ref_name, Self::diff_file_suffix());
         let tests_dir = env!("CARGO_MANIFEST_DIR");
@@ -38,9 +44,9 @@ pub trait TestHarness {
 
     fn diff_fig(actual: &Self::DrawnFig, ref_: &Self::DrawnFig) -> Option<Self::DiffFig>;
 
-    fn serialize_fig(file: &Path, fig: &Self::DrawnFig);
-    fn deserialize_fig(file: &Path) -> Self::DrawnFig;
-    fn serialize_diff(file: &Path, diff: &Self::DiffFig);
+    fn save_fig(file: &Path, fig: &Self::DrawnFig);
+    fn load_fig(file: &Path) -> Self::DrawnFig;
+    fn save_diff(file: &Path, diff: &Self::DiffFig);
 
     fn regenerate_refs() -> bool;
 
@@ -48,12 +54,13 @@ pub trait TestHarness {
         let ref_file = Self::ref_file_path(&ref_name);
         let failed_file = Self::failed_file_path(&ref_name);
         let failed_diff_file = Self::failed_diff_file_path(&ref_name);
+        let failed_json_file = Self::failed_json_file_path(&ref_name);
 
         let actual_fig = Self::draw_fig(fig, style);
 
         if Self::regenerate_refs() {
             std::fs::create_dir_all(ref_file.parent().unwrap()).unwrap();
-            Self::serialize_fig(&ref_file, &actual_fig);
+            Self::save_fig(&ref_file, &actual_fig);
 
             if std::fs::exists(&failed_file).unwrap() {
                 std::fs::remove_file(&failed_file).unwrap();
@@ -67,7 +74,7 @@ pub trait TestHarness {
 
         if !std::fs::exists(&ref_file).unwrap() {
             std::fs::create_dir_all(failed_file.parent().unwrap()).unwrap();
-            Self::serialize_fig(failed_file.as_path(), &actual_fig);
+            Self::save_fig(failed_file.as_path(), &actual_fig);
             return Err(format!(
                 "No such {} ref: \"{}\"\n  Actual figure written to {}",
                 Self::id(),
@@ -76,30 +83,73 @@ pub trait TestHarness {
             ));
         }
 
-        let ref_fig = Self::deserialize_fig(&ref_file);
+        let ref_fig = Self::load_fig(&ref_file);
 
         if let Some(diff_fig) = Self::diff_fig(&actual_fig, &ref_fig) {
             std::fs::create_dir_all(failed_file.parent().unwrap()).unwrap();
             std::fs::create_dir_all(failed_diff_file.parent().unwrap()).unwrap();
-            Self::serialize_fig(failed_file.as_path(), &actual_fig);
-            Self::serialize_diff(failed_diff_file.as_path(), &diff_fig);
+            Self::save_fig(failed_file.as_path(), &actual_fig);
+            Self::save_diff(failed_diff_file.as_path(), &diff_fig);
 
-            Err(format!(
+            return Err(format!(
                 "{} assertion failed\n  Actual figure: {:?}\n     Ref figure: {:?}\n           Diff: {:?}",
                 Self::id(),
                 failed_file,
                 ref_file,
                 failed_diff_file
-            ))
-        } else {
-            if std::fs::exists(&failed_file).unwrap() {
-                std::fs::remove_file(&failed_file).unwrap();
-            }
-            if std::fs::exists(&failed_diff_file).unwrap() {
-                std::fs::remove_file(&failed_diff_file).unwrap();
-            }
-            Ok(())
+            ));
         }
+
+        let json = serde_json::to_string_pretty(fig).unwrap();
+        let des_fig: des::Figure = match serde_json::from_str(&json) {
+            Ok(fig) => fig,
+            Err(err) => {
+                std::fs::create_dir_all(failed_file.parent().unwrap()).unwrap();
+                std::fs::write(failed_json_file.as_path(), json).unwrap();
+                return Err(format!(
+                    "{} deserialization failed for ref \"{}\": {}\n  Failed JSON written to {}",
+                    Self::id(),
+                    ref_name,
+                    err,
+                    failed_json_file.display()
+                ))
+            }
+        };
+        let des_drawn_fig = Self::draw_fig(&des_fig, style);
+        if let Some(diff_fig) = Self::diff_fig(&actual_fig, &des_drawn_fig) {
+            std::fs::create_dir_all(failed_file.parent().unwrap()).unwrap();
+            std::fs::create_dir_all(failed_diff_file.parent().unwrap()).unwrap();
+            std::fs::create_dir_all(failed_json_file.parent().unwrap()).unwrap();
+            Self::save_fig(failed_file.as_path(), &des_drawn_fig);
+            Self::save_diff(failed_diff_file.as_path(), &diff_fig);
+            std::fs::write(failed_json_file.as_path(), json).unwrap();
+
+            return Err(format!(
+                concat!(
+                    "{} serde round-trip assertion failed\n",
+                    "  Actual figure: {:?}\n",
+                    "     Ref figure: {:?}\n",
+                    "           Diff: {:?}\n",
+                    "    Failed JSON: {:?}",
+                ),
+                Self::id(),
+                failed_file,
+                ref_file,
+                failed_diff_file,
+                failed_json_file,
+            ));
+        }
+
+        if std::fs::exists(&failed_file).unwrap() {
+            std::fs::remove_file(&failed_file).unwrap();
+        }
+        if std::fs::exists(&failed_diff_file).unwrap() {
+            std::fs::remove_file(&failed_diff_file).unwrap();
+        }
+        if std::fs::exists(&failed_json_file).unwrap() {
+            std::fs::remove_file(&failed_json_file).unwrap();
+        }
+        Ok(())
     }
 }
 
@@ -150,15 +200,15 @@ impl TestHarness for PxlHarness {
             || std::env::var("REGENERATE_PNG_REFS").is_ok()
     }
 
-    fn serialize_fig(file: &Path, fig: &Self::DrawnFig) {
+    fn save_fig(file: &Path, fig: &Self::DrawnFig) {
         fig.save_png(file).unwrap();
     }
 
-    fn deserialize_fig(file: &Path) -> Self::DrawnFig {
+    fn load_fig(file: &Path) -> Self::DrawnFig {
         tiny_skia::Pixmap::load_png(file).unwrap()
     }
 
-    fn serialize_diff(file: &Path, diff: &Self::DiffFig) {
+    fn save_diff(file: &Path, diff: &Self::DiffFig) {
         diff.save_png(file).unwrap();
     }
 }
@@ -206,16 +256,16 @@ impl TestHarness for SvgHarness {
             || std::env::var("REGENERATE_SVG_REFS").is_ok()
     }
 
-    fn serialize_fig(file: &Path, fig: &Self::DrawnFig) {
+    fn save_fig(file: &Path, fig: &Self::DrawnFig) {
         std::fs::write(file, fig).unwrap();
     }
 
-    fn deserialize_fig(file: &Path) -> Self::DrawnFig {
+    fn load_fig(file: &Path) -> Self::DrawnFig {
         let buf = std::fs::read(file).unwrap();
         String::from_utf8(buf).unwrap()
     }
 
-    fn serialize_diff(file: &Path, diff: &Self::DiffFig) {
+    fn save_diff(file: &Path, diff: &Self::DiffFig) {
         std::fs::write(file, diff).unwrap();
     }
 }
