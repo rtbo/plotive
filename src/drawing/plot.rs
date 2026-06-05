@@ -850,7 +850,7 @@ where
 
 fn plot_insets(plot: &des::Plot) -> geom::Padding {
     match plot.insets() {
-        Some(&des::plot::Insets::Fixed(x, y)) => geom::Padding::Center { v: y, h: x },
+        Some(&des::plot::Insets::Fixed(x, y)) => geom::Padding::Center { ver: y, hor: x },
         Some(des::plot::Insets::Auto) => auto_insets(plot),
         None => geom::Padding::Even(0.0),
     }

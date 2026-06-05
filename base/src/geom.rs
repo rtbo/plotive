@@ -417,20 +417,20 @@ pub enum Padding {
     /// Vertical and horizontal padding
     Center {
         /// Vertical padding
-        v: f32,
+        ver: f32,
         /// Horizontal padding
-        h: f32,
+        hor: f32,
     },
     /// Top, right, bottom and left padding
     Custom {
         /// Top padding
-        t: f32,
+        top: f32,
         /// Right padding
-        r: f32,
+        right: f32,
         /// Bottom padding
-        b: f32,
+        bottom: f32,
         /// Left padding
-        l: f32,
+        left: f32,
     },
 }
 
@@ -439,8 +439,8 @@ impl Padding {
     pub const fn top(&self) -> f32 {
         match self {
             Padding::Even(p) => *p,
-            Padding::Center { v, .. } => *v,
-            Padding::Custom { t, .. } => *t,
+            Padding::Center { ver: v, .. } => *v,
+            Padding::Custom { top: t, .. } => *t,
         }
     }
 
@@ -448,8 +448,8 @@ impl Padding {
     pub const fn right(&self) -> f32 {
         match self {
             Padding::Even(p) => *p,
-            Padding::Center { h, .. } => *h,
-            Padding::Custom { r, .. } => *r,
+            Padding::Center { hor: h, .. } => *h,
+            Padding::Custom { right: r, .. } => *r,
         }
     }
 
@@ -457,8 +457,8 @@ impl Padding {
     pub const fn bottom(&self) -> f32 {
         match self {
             Padding::Even(p) => *p,
-            Padding::Center { v, .. } => *v,
-            Padding::Custom { b, .. } => *b,
+            Padding::Center { ver: v, .. } => *v,
+            Padding::Custom { bottom: b, .. } => *b,
         }
     }
 
@@ -466,8 +466,8 @@ impl Padding {
     pub const fn left(&self) -> f32 {
         match self {
             Padding::Even(p) => *p,
-            Padding::Center { h, .. } => *h,
-            Padding::Custom { l, .. } => *l,
+            Padding::Center { hor: h, .. } => *h,
+            Padding::Custom { left: l, .. } => *l,
         }
     }
 
@@ -475,8 +475,8 @@ impl Padding {
     pub const fn sum_ver(&self) -> f32 {
         match self {
             Padding::Even(p) => *p * 2.0,
-            Padding::Center { v, .. } => *v * 2.0,
-            Padding::Custom { t, b, .. } => *t + *b,
+            Padding::Center { ver: v, .. } => *v * 2.0,
+            Padding::Custom { top: t, bottom: b, .. } => *t + *b,
         }
     }
 
@@ -484,8 +484,8 @@ impl Padding {
     pub const fn sum_hor(&self) -> f32 {
         match self {
             Padding::Even(p) => *p * 2.0,
-            Padding::Center { h, .. } => *h * 2.0,
-            Padding::Custom { l, r, .. } => *l + *r,
+            Padding::Center { hor: h, .. } => *h * 2.0,
+            Padding::Custom { left: l, right: r, .. } => *l + *r,
         }
     }
 }
@@ -498,13 +498,13 @@ impl From<f32> for Padding {
 
 impl From<(f32, f32)> for Padding {
     fn from((v, h): (f32, f32)) -> Self {
-        Padding::Center { v, h }
+        Padding::Center { ver: v, hor: h }
     }
 }
 
 impl From<(f32, f32, f32, f32)> for Padding {
     fn from((t, r, b, l): (f32, f32, f32, f32)) -> Self {
-        Padding::Custom { t, r, b, l }
+        Padding::Custom { top: t, right: r, bottom: b, left: l }
     }
 }
 

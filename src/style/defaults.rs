@@ -33,16 +33,16 @@ pub const COLORBAR_MARGIN: f32 = LEGEND_MARGIN;
 
 pub const PLOT_XY_AUTO_INSETS: geom::Padding = geom::Padding::Even(20.0);
 pub const PLOT_VER_BARS_AUTO_INSETS: geom::Padding = geom::Padding::Custom {
-    t: 20.0,
-    r: 20.0,
-    b: 0.0,
-    l: 20.0,
+    top: 20.0,
+    right: 20.0,
+    bottom: 0.0,
+    left: 20.0,
 };
 pub const PLOT_HOR_BARS_AUTO_INSETS: geom::Padding = geom::Padding::Custom {
-    t: 20.0,
-    r: 20.0,
-    b: 20.0,
-    l: 0.0,
+    top: 20.0,
+    right: 20.0,
+    bottom: 20.0,
+    left: 0.0,
 };
 pub const PLOT_AXIS_ARROW_SIZE: f32 = 10.0;
 pub const PLOT_AXIS_ARROW_OVERFLOW: f32 = 10.0;
