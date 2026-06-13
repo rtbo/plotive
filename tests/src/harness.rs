@@ -92,15 +92,15 @@ pub trait TestHarness {
             Self::save_diff(failed_diff_file.as_path(), &diff_fig);
 
             return Err(format!(
-                "{} assertion failed\n  Actual figure: {:?}\n     Ref figure: {:?}\n           Diff: {:?}",
+                "{} assertion failed\n  Actual figure: {}\n     Ref figure: {}\n           Diff: {}",
                 Self::id(),
-                failed_file,
-                ref_file,
-                failed_diff_file
+                failed_file.display(),
+                ref_file.display(),
+                failed_diff_file.display(),
             ));
         }
 
-        let json = serde_json::to_string_pretty(fig).unwrap();
+        let json = serde_json::to_string_pretty(fig).unwrap().replace("  ", "    ");
         let des_fig: des::Figure = match serde_json::from_str(&json) {
             Ok(fig) => fig,
             Err(err) => {
@@ -127,16 +127,16 @@ pub trait TestHarness {
             return Err(format!(
                 concat!(
                     "{} serde round-trip assertion failed\n",
-                    "  Actual figure: {:?}\n",
-                    "     Ref figure: {:?}\n",
-                    "           Diff: {:?}\n",
-                    "    Failed JSON: {:?}",
+                    "  Actual figure: {}\n",
+                    "     Ref figure: {}\n",
+                    "           Diff: {}\n",
+                    "    Failed JSON: {}",
                 ),
                 Self::id(),
-                failed_file,
-                ref_file,
-                failed_diff_file,
-                failed_json_file,
+                failed_file.display(),
+                ref_file.display(),
+                failed_diff_file.display(),
+                failed_json_file.display(),
             ));
         }
 

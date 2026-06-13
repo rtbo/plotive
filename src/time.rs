@@ -338,7 +338,7 @@ impl DateTimeComps {
                 FmtToken::Milli => res.micro = parse_fraction(&mut input_chars, Some(3))?,
                 FmtToken::Micro => res.micro = parse_fraction(&mut input_chars, Some(6))?,
                 FmtToken::Nano => res.micro = parse_fraction(&mut input_chars, Some(9))?,
-                FmtToken::Frac => res.micro = parse_fraction(&mut input_chars, None)?,
+                FmtToken::Frac => res.micro = parse_fraction_opt(&mut input_chars, None)?,
                 FmtToken::Lit(s) => {
                     for c in s.chars() {
                         if c != input_chars.next().ok_or(ParseError::FormatMismatch)? {
@@ -641,7 +641,7 @@ impl TimeDeltaComps {
                 FmtToken::Milli => res.micro = parse_fraction(&mut input_chars, Some(3))?,
                 FmtToken::Micro => res.micro = parse_fraction(&mut input_chars, Some(6))?,
                 FmtToken::Nano => res.micro = parse_fraction(&mut input_chars, Some(9))?,
-                FmtToken::Frac => res.micro = parse_fraction(&mut input_chars, None)?,
+                FmtToken::Frac => res.micro = parse_fraction_opt(&mut input_chars, None)?,
                 FmtToken::Lit(s) => {
                     for c in s.chars() {
                         if c != input_chars.next().ok_or(ParseError::FormatMismatch)? {
@@ -1034,6 +1034,15 @@ fn parse_fraction(chars: &mut Peekable<Chars>, len: Option<usize>) -> Result<u32
 
     let micro = s.parse().unwrap_or(0);
     Ok(micro)
+}
+
+/// Parse the fractional seconds (microseconds), return 0 if it doesn't start by '.'
+fn parse_fraction_opt(chars: &mut Peekable<Chars>, len: Option<usize>) -> Result<u32, ParseError> {
+    if chars.peek() == Some(&'.') {
+        parse_fraction(chars, len)
+    } else {
+        Ok(0)
+    }
 }
 
 fn format_micro_opt<W: fmt::Write>(out: &mut W, mut micro: u32) -> fmt::Result {

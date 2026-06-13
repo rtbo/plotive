@@ -178,7 +178,7 @@ macro_rules! define_rich_text_structs {
         }
 
         /// Rich text structure with plotive theme colors
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         pub struct $text_struct {
             text: String,
             props: $props_struct,

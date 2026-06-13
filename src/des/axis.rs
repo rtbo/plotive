@@ -313,7 +313,7 @@ impl Default for LogScale {
 }
 
 /// Describes the type of an axis scale
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum Scale {
     /// Full auto scale, depending on the data and type of plot.
     /// Will typically translate to auto linear axis for numerical data
@@ -811,7 +811,7 @@ pub mod ticks {
     }
 
     /// Describes the minor ticks of an axis
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MinorTicks {
         /// Minor ticks locator
         locator: Locator,

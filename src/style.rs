@@ -449,7 +449,7 @@ impl From<f32> for MarkerSize {
 }
 
 /// Marker style definition, used in scatter plots
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Marker<C: Color> {
     /// Marker size
     pub size: MarkerSize,

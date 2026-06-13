@@ -4,7 +4,7 @@ use serde_value::Value;
 
 use crate::des::sd::axis::{DeXAxis, DeYAxis};
 use crate::des::sd::{self, deserialize_map_fields, deserialize_tagged_map_fields};
-use crate::des::{Plot, PlotLegend, Subplots, axis, plot, series};
+use crate::des::{Plot, PlotLegend, Subplots, axis, plot, series, colorbar};
 use crate::style::theme;
 
 // MARK: Plot
@@ -71,6 +71,10 @@ impl serde::Serialize for SerPlot<'_> {
             state.serialize_field("legend", &legend)?;
         }
 
+        if let Some(colorbar) = self.plot.colorbar() {
+            state.serialize_field("colorbar", &colorbar)?;
+        }
+
         state.end()
     }
 }
@@ -85,8 +89,8 @@ where
             dir,
         };
         let field_name = match dir {
-            sd::axis::Dir::X => "x_axis",
-            sd::axis::Dir::Y => "y_axis",
+            sd::axis::Dir::X => "xAxis",
+            sd::axis::Dir::Y => "yAxis",
             sd::axis::Dir::Unknown => unreachable!(),
         };
         state.serialize_field(field_name, &axis)?;
@@ -94,8 +98,8 @@ where
         // TODO: avoid the vec allocation
         let oriented_axes = super::axis::SerAxes { axes, dir };
         let field_name = match dir {
-            sd::axis::Dir::X => "x_axes",
-            sd::axis::Dir::Y => "y_axes",
+            sd::axis::Dir::X => "xAxes",
+            sd::axis::Dir::Y => "yAxes",
             sd::axis::Dir::Unknown => unreachable!(),
         };
         state.serialize_field(field_name, &oriented_axes)?;
@@ -186,14 +190,15 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
             "subplot" => subplot: Option<(u32, u32)>,
             "series" => series: Option<DeSeries>,
             "title" => title: Option<String>,
-            "x_axis" => x_axis: Option<DeXAxis>,
-            "y_axis" => y_axis: Option<DeYAxis>,
-            "x_axes" => x_axes: Option<Vec<DeXAxis>>,
-            "y_axes" => y_axes: Option<Vec<DeYAxis>>,
+            "xAxis" => x_axis: Option<DeXAxis>,
+            "yAxis" => y_axis: Option<DeYAxis>,
+            "xAxes" => x_axes: Option<Vec<DeXAxis>>,
+            "yAxes" => y_axes: Option<Vec<DeYAxis>>,
             "fill" => fill: Option<theme::Fill>,
             "border" => border: Option<Option<plot::Border>>,
             "insets" => insets: Option<Option<plot::Insets>>,
             "legend" => legend: Option<PlotLegend>,
+            "colorbar" => colorbar: Option<colorbar::ColorBar>,
         );
 
         let Some(series) = series.map(|s| s.0) else {
@@ -243,6 +248,9 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
         }
         if let Some(legend) = legend {
             plot = plot.with_legend(legend);
+        }
+        if let Some(colorbar) = colorbar {
+            plot = plot.with_colorbar(colorbar);
         }
         Ok(DePlot { plot, subplot })
     }

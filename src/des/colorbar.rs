@@ -12,7 +12,7 @@ impl Default for TitleProps {
 }
 
 /// Position of a color bar relatively to the plot
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub enum Pos {
     /// Position the color bar above the plot area
     Top,
@@ -26,7 +26,7 @@ pub enum Pos {
 }
 
 /// Font configuration for color bar ticks
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct TicksFont {
     /// The font size in figure units
     pub size: f32,
@@ -47,9 +47,10 @@ impl Default for TicksFont {
 }
 
 /// ColorBar configuration for a plot
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ColorBar {
-    pos: Pos,
+    // pub(crate) for serde implementation
+    pub(crate) pos: Pos,
     width: f32,
     title: Option<Title>,
     ticks_font: TicksFont,
@@ -85,7 +86,7 @@ impl ColorBar {
             ..Default::default()
         }
     }
-
+    
     /// Set the width of the color bar and return self for chaining
     pub fn with_width(mut self, width: f32) -> Self {
         self.width = width;

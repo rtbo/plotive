@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
+use serde::de::{Error, SeqAccess};
 use serde::ser::{SerializeSeq, SerializeStruct};
+use serde::{Deserializer, Serializer};
 use serde_value::Value;
 
 use crate::des::sd::{deserialize_map_fields, deserialize_tagged_map_fields};
@@ -90,20 +92,6 @@ impl<'de> serde::de::Visitor<'de> for AxisRefVisitor {
         formatter.write_str("an axis id string or a non-negative axis index")
     }
 
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(axis::Ref::Id(value.to_string()))
-    }
-
-    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        Ok(axis::Ref::Idx(value as usize))
-    }
-
     fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
@@ -113,6 +101,20 @@ impl<'de> serde::de::Visitor<'de> for AxisRefVisitor {
         } else {
             Ok(axis::Ref::Idx(value as usize))
         }
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(axis::Ref::Idx(value as usize))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(axis::Ref::Id(value.to_string()))
     }
 }
 
@@ -184,15 +186,14 @@ impl<'de> serde::de::Visitor<'de> for ScaleVisitor {
         formatter.write_str("a scale type string, a shared scale id string, or a scale object")
     }
 
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        match value {
-            "auto" => Ok(axis::Scale::Auto),
-            "linear" => Ok(axis::Scale::Linear(axis::Range::default())),
-            "log" => Ok(axis::Scale::Log(axis::LogScale::default())),
-            other => Ok(axis::Scale::Shared(other.to_string().into())),
+        if value < 0 {
+            Err(E::custom("axis index cannot be negative"))
+        } else {
+            Ok(axis::Scale::Shared(axis::Ref::Idx(value as usize)))
         }
     }
 
@@ -203,14 +204,15 @@ impl<'de> serde::de::Visitor<'de> for ScaleVisitor {
         Ok(axis::Scale::Shared(axis::Ref::Idx(value as usize)))
     }
 
-    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
     where
         E: serde::de::Error,
     {
-        if value < 0 {
-            Err(E::custom("axis index cannot be negative"))
-        } else {
-            Ok(axis::Scale::Shared(axis::Ref::Idx(value as usize)))
+        match value {
+            "auto" => Ok(axis::Scale::Auto),
+            "linear" => Ok(axis::Scale::Linear(axis::Range::default())),
+            "log" => Ok(axis::Scale::Log(axis::LogScale::default())),
+            other => Ok(axis::Scale::Shared(other.to_string().into())),
         }
     }
 
@@ -332,8 +334,63 @@ impl serde::Serialize for axis::ticks::Locator {
                     "base" => base,
                 )
             }
-            #[allow(unreachable_patterns)]
-            _ => todo!("Serialize other locator types"),
+            #[cfg(feature = "time")]
+            axis::ticks::Locator::DateTime(locator) => {
+                let mut map = serializer.serialize_struct("DateTimeLocator", 2)?;
+                map.serialize_field("type", "datetime")?;
+                match locator {
+                    axis::ticks::DateTimeLocator::Auto => {}
+                    axis::ticks::DateTimeLocator::Years(years) => {
+                        map.serialize_field("years", years)?;
+                    }
+                    axis::ticks::DateTimeLocator::Months(months) => {
+                        map.serialize_field("months", months)?;
+                    }
+                    axis::ticks::DateTimeLocator::Weeks(weeks) => {
+                        map.serialize_field("weeks", weeks)?;
+                    }
+                    axis::ticks::DateTimeLocator::Days(days) => {
+                        map.serialize_field("days", days)?;
+                    }
+                    axis::ticks::DateTimeLocator::Hours(hours) => {
+                        map.serialize_field("hours", hours)?;
+                    }
+                    axis::ticks::DateTimeLocator::Minutes(minutes) => {
+                        map.serialize_field("minutes", minutes)?;
+                    }
+                    axis::ticks::DateTimeLocator::Seconds(seconds) => {
+                        map.serialize_field("seconds", seconds)?;
+                    }
+                    axis::ticks::DateTimeLocator::Micros(micros) => {
+                        map.serialize_field("micros", micros)?;
+                    }
+                }
+                map.end()
+            }
+            #[cfg(feature = "time")]
+            axis::ticks::Locator::TimeDelta(locator) => {
+                let mut map = serializer.serialize_struct("TimeDeltaLocator", 2)?;
+                map.serialize_field("type", "timedelta")?;
+                match locator {
+                    axis::ticks::TimeDeltaLocator::Auto => {}
+                    axis::ticks::TimeDeltaLocator::Days(days) => {
+                        map.serialize_field("days", days)?;
+                    }
+                    axis::ticks::TimeDeltaLocator::Hours(hours) => {
+                        map.serialize_field("hours", hours)?;
+                    }
+                    axis::ticks::TimeDeltaLocator::Minutes(minutes) => {
+                        map.serialize_field("minutes", minutes)?;
+                    }
+                    axis::ticks::TimeDeltaLocator::Seconds(seconds) => {
+                        map.serialize_field("seconds", seconds)?;
+                    }
+                    axis::ticks::TimeDeltaLocator::Micros(micros) => {
+                        map.serialize_field("micros", micros)?;
+                    }
+                }
+                map.end()
+            }
         }
     }
 }
@@ -362,8 +419,25 @@ impl<'de> serde::de::Visitor<'de> for LocatorVisitor {
     {
         match value {
             "auto" => Ok(axis::ticks::Locator::Auto),
-            other => Err(E::unknown_variant(other, &["auto"])),
+            "maxn" => Ok(axis::ticks::Locator::MaxN(Default::default())),
+            "pimultiple" => Ok(axis::ticks::Locator::PiMultiple(Default::default())),
+            "log" => Ok(axis::ticks::Locator::Log(Default::default())),
+            other => Err(E::unknown_variant(
+                other,
+                &["auto", "maxn", "pimultiple", "log"],
+            )),
         }
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut ticks: Vec<f64> = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+        while let Some(tick) = seq.next_element()? {
+            ticks.push(tick);
+        }
+        Ok(axis::ticks::Locator::List(ticks.into()))
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -384,6 +458,12 @@ impl<'de> serde::de::Visitor<'de> for LocatorVisitor {
                     "log" => {
                         deserialize_log_locator(&mut map, buffered).map(axis::ticks::Locator::Log)
                     }
+                    #[cfg(feature = "time")]
+                    "datetime" => deserialize_datetime_locator(&mut map, buffered)
+                        .map(axis::ticks::Locator::DateTime),
+                    #[cfg(feature = "time")]
+                    "timedelta" => deserialize_timedelta_locator(&mut map, buffered)
+                        .map(axis::ticks::Locator::TimeDelta),
                     _ => Err(serde::de::Error::unknown_variant(
                         &tag,
                         &["maxn", "pimultiple", "log"],
@@ -455,6 +535,64 @@ where
         locator.base = base;
     }
     Ok(locator)
+}
+
+#[cfg(feature = "time")]
+fn deserialize_datetime_locator<'de, A>(
+    map: &mut A,
+    buffered: Vec<(String, Value)>,
+) -> Result<axis::ticks::DateTimeLocator, A::Error>
+where
+    A: serde::de::MapAccess<'de>,
+{
+    super::deserialize_tagged_enum!(
+        'de, map, buffered, axis::ticks::DateTimeLocator,
+        "years" => Years,
+        "months" => Months,
+        "weeks" => Weeks,
+        "days" => Days,
+        "hours" => Hours,
+        "minutes" => Minutes,
+        "seconds" => Seconds,
+        "micros" => Micros,
+    )
+}
+
+#[cfg(feature = "time")]
+fn deserialize_timedelta_locator<'de, A>(
+    map: &mut A,
+    buffered: Vec<(String, Value)>,
+) -> Result<axis::ticks::TimeDeltaLocator, A::Error>
+where
+    A: serde::de::MapAccess<'de>,
+{
+    super::deserialize_tagged_enum!(
+        'de, map, buffered, axis::ticks::TimeDeltaLocator,
+        "days" => Days,
+        "hours" => Hours,
+        "minutes" => Minutes,
+        "seconds" => Seconds,
+        "micros" => Micros,
+    )
+}
+
+fn deserialize_locator<'de, A>(type_: &str, mut map: A) -> Result<axis::ticks::Locator, A::Error>
+where
+    A: serde::de::MapAccess<'de>,
+{
+    match type_ {
+        "maxn" => Ok(deserialize_maxn_locator(&mut map, Vec::new())?.into()),
+        "pimultiple" => Ok(deserialize_pimultiple_locator(&mut map, Vec::new())?.into()),
+        "log" => Ok(deserialize_log_locator(&mut map, Vec::new())?.into()),
+        #[cfg(feature = "time")]
+        "datetime" => Ok(deserialize_datetime_locator(&mut map, Vec::new())?.into()),
+        #[cfg(feature = "time")]
+        "timedelta" => Ok(deserialize_timedelta_locator(&mut map, Vec::new())?.into()),
+        _ => Err(A::Error::unknown_variant(
+            type_,
+            &["maxn", "pimultiple", "log"],
+        )),
+    }
 }
 
 // MARK: ticks::Formatter
@@ -649,7 +787,7 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
         E: serde::de::Error,
     {
         match value {
-            "auto" | "linear" => Ok(axis::Ticks::default()),
+            "auto" => Ok(axis::Ticks::default()),
             "maxn" => {
                 Ok(axis::Ticks::default().with_locator(axis::ticks::MaxNLocator::default().into()))
             }
@@ -664,7 +802,14 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                 let color = value.parse::<theme::Color>().map_err(|_| {
                     E::unknown_variant(
                         value,
-                        &["auto", "linear", "maxn", "pimultiple", "log", "percent", "[color string]"],
+                        &[
+                            "auto",
+                            "maxn",
+                            "pimultiple",
+                            "log",
+                            "percent",
+                            "[color string]",
+                        ],
                     )
                 })?;
                 Ok(axis::Ticks::default().with_color(color))
@@ -684,7 +829,8 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-    where     A: serde::de::MapAccess<'de>,
+    where
+        A: serde::de::MapAccess<'de>,
     {
         let mut ticks = axis::Ticks::default();
 
@@ -702,13 +848,144 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                     let color = map.next_value()?;
                     ticks = ticks.with_color(color);
                 }
-                _ => return Err(serde::de::Error::unknown_field(&key, &["locator", "formatter", "color"])),
+                // serialized directly as a locator or formatter
+                "type" => {
+                    let type_: &str = map.next_value()?;
+                    match type_ {
+                        "maxn" | "pimultiple" | "log" => {
+                            ticks =
+                                ticks.with_locator(deserialize_locator(type_, &mut map)?.into());
+                        }
+                        #[cfg(feature = "time")]
+                        "datetime" | "timedelta" => {
+                            ticks =
+                                ticks.with_locator(deserialize_locator(type_, &mut map)?.into());
+                        }
+                        "percent" => {
+                            ticks = ticks.with_formatter(Some(
+                                deserialize_percent_formatter(&mut map, Vec::new())?.into(),
+                            ));
+                        }
+                        _ => {
+                            return Err(A::Error::unknown_variant(
+                                type_,
+                                &["maxn", "pimultiple", "log", "timedelta", "datetime", "percent"],
+                            ));
+                        }
+                    }
+                }
+                _ => {
+                    return Err(serde::de::Error::unknown_field(
+                        &key,
+                        &["locator", "formatter", "color", "type"],
+                    ));
+                }
             }
         }
 
         Ok(ticks)
     }
+}
 
+// MARK: MinorTicks
+
+impl serde::Serialize for axis::MinorTicks {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let default = axis::MinorTicks::default();
+        let has_default_locator = self.locator() == default.locator();
+        let has_default_color = self.color() == default.color();
+
+        match (has_default_locator, has_default_color) {
+            (true, true) => "auto".serialize(serializer),
+            (false, true) => self.locator().serialize(serializer),
+            (true, false) => self.color().serialize(serializer),
+            _ => {
+                let len = 2 - has_default_locator as usize - has_default_color as usize;
+                let mut state = serializer.serialize_struct("MinorTicks", len)?;
+                if !has_default_locator {
+                    state.serialize_field("locator", self.locator())?;
+                }
+                if !has_default_color {
+                    state.serialize_field("color", &self.color())?;
+                }
+                state.end()
+            }
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for axis::MinorTicks {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let visitor = MinorTicksVisitor;
+        deserializer.deserialize_any(visitor)
+    }
+}
+
+struct MinorTicksVisitor;
+
+impl<'de> serde::de::Visitor<'de> for MinorTicksVisitor {
+    type Value = axis::MinorTicks;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a minor ticks object or string")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if value == "auto" {
+            return Ok(axis::MinorTicks::default());
+        }
+        let color: Result<theme::Color, _> = value.parse();
+        if let Ok(color) = color {
+            Ok(axis::MinorTicks::default().with_color(color))
+        } else {
+            let locator = LocatorVisitor
+                .visit_str::<serde::de::value::Error>(value)
+                .map_err(|_| {
+                    serde::de::Error::custom("expecting a color or locator string for Minor axis")
+                })?;
+            Ok(axis::MinorTicks::default().with_locator(locator))
+        }
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        let mut minor_ticks = axis::MinorTicks::default();
+
+        while let Some(key) = map.next_key::<Cow<'de, str>>()? {
+            match &*key {
+                "locator" => {
+                    let locator = map.next_value()?;
+                    minor_ticks = minor_ticks.with_locator(locator);
+                }
+                "color" => {
+                    let color = map.next_value()?;
+                    minor_ticks = minor_ticks.with_color(color);
+                }
+                "type" => {
+                    // directly a locator
+                    let type_: &str = map.next_value()?;
+                    let locator = deserialize_locator(type_, &mut map)?;
+                    minor_ticks = minor_ticks.with_locator(locator);
+                }
+                _ => {
+                    return Err(serde::de::Error::unknown_field(&key, &["locator", "color"]));
+                }
+            }
+        }
+
+        Ok(minor_ticks)
+    }
 }
 
 // MARK: Grids
@@ -829,8 +1106,24 @@ impl<'a> serde::Serialize for SerAxis<'a> {
             state.serialize_field("side", side_str)?;
         }
 
+        if self.axis.scale() != &axis::Scale::default() {
+            state.serialize_field("scale", self.axis.scale())?;
+        }
+
         if let Some(ticks) = self.axis.ticks() {
             state.serialize_field("ticks", ticks)?;
+        }
+
+        if let Some(minor_ticks) = self.axis.minor_ticks() {
+            state.serialize_field("minorTicks", minor_ticks)?;
+        }
+
+        if let Some(grid) = self.axis.grid() {
+            state.serialize_field("grid", grid)?;
+        }
+
+        if let Some(minor_grid) = self.axis.minor_grid() {
+            state.serialize_field("minorGrid", minor_grid)?;
         }
 
         state.end()
@@ -933,7 +1226,11 @@ where
             "id" => id: Option<String>,
             "title" => title: Option<axis::Title>,
             "side" => side: Option<String>,
+            "scale" => scale: Option<axis::Scale>,
             "ticks" => ticks: Option<axis::Ticks>,
+            "minorTicks" => minor_ticks: Option<axis::MinorTicks>,
+            "grid" => grid: Option<axis::Grid>,
+            "minorGrid" => minor_grid: Option<axis::MinorGrid>,
         );
 
         let side = match (side.as_deref(), Dr::dir()) {
@@ -974,8 +1271,21 @@ where
         if side == axis::Side::Opposite {
             axis = axis.with_opposite_side();
         }
+        if let Some(scale) = scale {
+            axis = axis.with_scale(scale);
+        }
         if let Some(ticks) = ticks {
             axis = axis.with_ticks(ticks);
+        }
+        if let Some(minor_ticks) = minor_ticks {
+            axis = axis.with_minor_ticks(minor_ticks);
+        }
+        if let Some(grid) = grid {
+            axis = axis.with_grid(grid);
+        }
+
+        if let Some(minor_grid) = minor_grid {
+            axis = axis.with_minor_grid(minor_grid);
         }
 
         Ok(DeAxis {

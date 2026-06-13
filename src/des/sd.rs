@@ -14,7 +14,8 @@ mod series;
 mod style;
 #[cfg(feature = "time")]
 mod time;
-
+mod cmap;
+mod colorbar;
 // MARK: figure::Title
 
 impl serde::Serialize for figure::Title {
@@ -194,7 +195,6 @@ macro_rules! serialize_tagged_map_variant {
     ($serializer:expr, $tag:expr, ($obj:ident, $typ:ty), $($key:expr => $field:ident,)+) => {
         {
             let typ_name = std::stringify!($typ);
-            println!("Serializing {}", typ_name);
             let default = <$typ>::default();
             if $obj == &default {
                 $tag.serialize($serializer)
@@ -235,7 +235,9 @@ macro_rules! deserialize_map_fields {
                     }
                     $name = Some($map.next_value::<$ty>()?);
                 })+
-                _ => {}
+                _ => {
+                    return Err(serde::de::Error::unknown_field(key.as_ref(), &[$($key),+]));
+                }
             }
         }
     }
@@ -281,10 +283,59 @@ macro_rules! deserialize_tagged_map_fields {
                     }
                     $name = Some($map.next_value::<$ty>()?);
                 })+
-                _ => {}
+                _ => {
+                    return Err(serde::de::Error::unknown_field(key.as_ref(), &[$($key),+]));
+                }
             }
         }
     }
 }
 
 pub(crate) use deserialize_tagged_map_fields;
+
+#[allow(unused)]
+macro_rules! deserialize_tagged_enum {
+    ($de:lifetime, $map:expr, $buffered:expr, $enum_ty:ty,  $($key:expr => $variant:ident,)+) => {{
+        let mut enum_val = std::option::Option::None::<$enum_ty>;
+        for (key, value) in $buffered {
+            match key.as_str() {
+                "type" => {
+                    return Err(serde::de::Error::duplicate_field("type"));
+                }
+                $($key => {
+                    if enum_val.is_some() {
+                        return Err(serde::de::Error::duplicate_field($key));
+                    }
+                    let value = value
+                        .deserialize_into()
+                        .map_err(serde::de::Error::custom)?;
+                    enum_val = Some(<$enum_ty>::$variant(value));
+                })+
+                _ => {}
+            }
+        }
+
+        while let Some(key) = $map.next_key::<std::borrow::Cow<$de, str>>()? {
+            match key.as_ref() {
+                "type" => {
+                    let _: String = $map.next_value()?;
+                    return Err(serde::de::Error::duplicate_field("type"));
+                }
+                $($key => {
+                    if enum_val.is_some() {
+                        return Err(serde::de::Error::duplicate_field($key));
+                    }
+                    let value = $map.next_value()?;
+                    enum_val = Some(<$enum_ty>::$variant(value));
+                })+
+                _ => {
+                    return Err(serde::de::Error::unknown_field(key.as_ref(), &[$($key),+]));
+                }
+            }
+        }
+        enum_val.ok_or(serde::de::Error::missing_field("type"))
+    }}
+}
+
+#[allow(unused)]
+pub(crate) use deserialize_tagged_enum;

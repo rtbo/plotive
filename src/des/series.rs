@@ -1078,6 +1078,18 @@ impl BarsGroup {
         }
     }
 
+    /// Set a reference to the x axis and return self for chaining
+    pub fn with_x_axis(mut self, axis: axis::Ref) -> Self {
+        self.x_axis = axis;
+        self
+    }
+
+    /// Set a reference to the y axis and return self for chaining
+    pub fn with_y_axis(mut self, axis: axis::Ref) -> Self {
+        self.y_axis = axis;
+        self
+    }
+
     /// Get the categories data column
     pub fn categories(&self) -> &DataCol {
         &self.categories
