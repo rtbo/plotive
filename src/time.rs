@@ -1154,11 +1154,37 @@ mod tests {
     }
 
     #[test]
+    fn test_format_datetime_comps_no_usecs() {
+        const FMT: &str = "%Y-%m-%d %H:%M:%S%.f";
+        let input = DateTimeComps {
+            year: 2025,
+            month: 1,
+            day: 13,
+            hour: 15,
+            minute: 46,
+            second: 32,
+            micro: 0,
+        };
+        let expected = "2025-01-13 15:46:32";
+        let result = input.fmt_to_string(FMT);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_parse_datetime_comps_no_usecs() {
+        const FMT: &str = "%Y-%m-%d %H:%M:%S%.f";
         let input = "2025-01-13 15:46:32";
-        let fmt = "%Y-%m-%d %H:%M:%S%.f";
-        let result = DateTimeComps::fmt_parse(input, fmt);
-        assert!(matches!(result, Err(ParseError::FormatMismatch)));
+        let expected = DateTimeComps {
+            year: 2025,
+            month: 1,
+            day: 13,
+            hour: 15,
+            minute: 46,
+            second: 32,
+            micro: 0,
+        };
+        let result = DateTimeComps::fmt_parse(input, FMT).unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]

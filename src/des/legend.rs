@@ -29,7 +29,7 @@ impl Default for EntryFont {
 }
 
 /// Legend configuration for a plot
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Legend<Pos> {
     pos: Pos,
     font: EntryFont,

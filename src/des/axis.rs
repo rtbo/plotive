@@ -70,7 +70,7 @@ pub fn ref_id(id: impl Into<String>) -> Ref {
 }
 
 /// Axis definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Axis {
     id: Option<String>,
     title: Option<Title>,
@@ -778,7 +778,7 @@ pub mod ticks {
     }
 
     /// Describes the style of the minor grid lines
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MinorGrid(pub theme::Stroke);
 
     impl Default for MinorGrid {

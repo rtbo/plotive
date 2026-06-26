@@ -4,7 +4,7 @@ use serde_value::Value;
 
 use crate::des::sd::axis::{DeXAxis, DeYAxis};
 use crate::des::sd::{self, deserialize_map_fields, deserialize_tagged_map_fields};
-use crate::des::{Plot, PlotLegend, Subplots, axis, plot, series, colorbar};
+use crate::des::{Annotation, Plot, PlotLegend, Subplots, axis, colorbar, plot, series};
 use crate::style::theme;
 
 // MARK: Plot
@@ -75,6 +75,10 @@ impl serde::Serialize for SerPlot<'_> {
             state.serialize_field("colorbar", &colorbar)?;
         }
 
+        if !self.plot.annotations().is_empty() {
+            state.serialize_field("annotations", self.plot.annotations())?;
+        }
+
         state.end()
     }
 }
@@ -93,7 +97,9 @@ where
             sd::axis::Dir::Y => "yAxis",
             sd::axis::Dir::Unknown => unreachable!(),
         };
-        state.serialize_field(field_name, &axis)?;
+        if axis.axis != &axis::Axis::default() {
+            state.serialize_field(field_name, &axis)?;
+        }
     } else if !axes.is_empty() {
         // TODO: avoid the vec allocation
         let oriented_axes = super::axis::SerAxes { axes, dir };
@@ -199,6 +205,7 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
             "insets" => insets: Option<Option<plot::Insets>>,
             "legend" => legend: Option<PlotLegend>,
             "colorbar" => colorbar: Option<colorbar::ColorBar>,
+            "annotations" => annotations: Option<Vec<Annotation>>,
         );
 
         let Some(series) = series.map(|s| s.0) else {
@@ -251,6 +258,11 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
         }
         if let Some(colorbar) = colorbar {
             plot = plot.with_colorbar(colorbar);
+        }
+        if let Some(annotations) = annotations {
+            for annotation in annotations {
+                plot = plot.with_annotation(annotation);
+            }
         }
         Ok(DePlot { plot, subplot })
     }
@@ -389,10 +401,10 @@ impl serde::Serialize for plot::Border {
             plot::Border::AxisArrow(border) => {
                 let default = plot::AxisArrowBorder::default();
                 if border == &default {
-                    "axis-arrow".serialize(serializer)
+                    "arrow".serialize(serializer)
                 } else {
                     let mut state = serializer.serialize_struct("Border", 2)?;
-                    state.serialize_field("type", "axis-arrow")?;
+                    state.serialize_field("type", "arrow")?;
                     if border.stroke != default.stroke {
                         state.serialize_field("stroke", &border.stroke)?;
                     }
@@ -414,7 +426,7 @@ impl<'de> serde::Deserialize<'de> for plot::Border {
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_map(BorderVisitor)
+        deserializer.deserialize_any(BorderVisitor)
     }
 }
 
@@ -424,8 +436,22 @@ impl<'de> serde::de::Visitor<'de> for BorderVisitor {
     type Value = plot::Border;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter
-            .write_str("a string ('box', 'axis', or 'axis-arrow') or a map with a 'type' field")
+        formatter.write_str("a border type string, a theme color/stroke, or a map with a 'type' field")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        match value {
+            "box" => Ok(plot::Border::Box(Default::default())),
+            "axis" => Ok(plot::Border::Axis(Default::default())),
+            "arrow" => Ok(plot::Border::AxisArrow(Default::default())),
+            _ => {
+                let stroke = theme::Stroke::deserialize(serde::de::value::StrDeserializer::<E>::new(value))?;
+                Ok(plot::Border::Box(plot::BoxBorder(stroke)))
+            }
+        }
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -442,11 +468,11 @@ impl<'de> serde::de::Visitor<'de> for BorderVisitor {
                     // If not, only the fields before `type` are buffered.
                     "box" => deserialize_box_border(&mut map, buffered).map(plot::Border::Box),
                     "axis" => deserialize_axis_border(&mut map, buffered).map(plot::Border::Axis),
-                    "axis-arrow" => deserialize_axis_arrow_border(&mut map, buffered)
+                    "arrow" => deserialize_axis_arrow_border(&mut map, buffered)
                         .map(plot::Border::AxisArrow),
                     _ => Err(serde::de::Error::unknown_variant(
                         &tag,
-                        &["box", "axis", "axis-arrow"],
+                        &["box", "axis", "arrow"],
                     )),
                 };
             }
@@ -455,7 +481,16 @@ impl<'de> serde::de::Visitor<'de> for BorderVisitor {
             buffered.push((key, value));
         }
 
-        Err(serde::de::Error::missing_field("type"))
+        let value = Value::Map(
+            buffered
+                .into_iter()
+                .map(|(key, value)| (Value::String(key), value))
+                .collect(),
+        );
+        let stroke = value
+            .deserialize_into::<theme::Stroke>()
+            .map_err(serde::de::Error::custom)?;
+        Ok(plot::Border::Box(plot::BoxBorder(stroke)))
     }
 }
 
@@ -592,5 +627,34 @@ impl<'de> serde::Deserialize<'de> for plot::Insets {
         }
 
         deserializer.deserialize_any(InsetsVisitor)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_plot_ser() {
+        let plot = Plot::new(vec![series::Line::new(
+            "x".into(),
+            "y".into(),
+        ).into()]);
+
+        let serialized = serde_json::to_string(&plot).unwrap();
+        let expected = r#"{"series":{"type":"line","x":"x","y":"y"}}"#;
+        assert_eq!(serialized, expected);
+    }
+
+    #[test]
+    fn test_plot_de() {
+        let json = r#"{"series":{"type":"line","x":"x","y":"y"}}"#;
+        let plot: Plot = serde_json::from_str(json).unwrap();
+
+        let expected = Plot::new(vec![series::Line::new(
+            "x".into(),
+            "y".into(),
+        ).into()]);
+        assert_eq!(plot, expected);
     }
 }

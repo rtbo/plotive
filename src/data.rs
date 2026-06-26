@@ -1445,7 +1445,7 @@ impl<'a> Source for NamedColumns<'a> {
 }
 
 /// Column implementation backed by vectors, type known at runtime
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VecColumn {
     /// f64 column
     F64(Vec<f64>),

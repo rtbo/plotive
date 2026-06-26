@@ -7,7 +7,7 @@ use crate::text::Font;
 /// The placement is made according to the data coordinates.
 /// By default, lines are plotted under the series, and other annotations are plotted above the series.
 /// This can be changed using [`with_zpos()`](Annotation::with_zpos).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Annotation {
     /// A line plotted on the plot area.
     Line(Line),
@@ -124,7 +124,7 @@ pub enum ZPos {
 }
 
 /// A line plotted on the plot area.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Line {
     direction: LineDir,
     stroke: theme::Stroke,
@@ -136,7 +136,7 @@ pub struct Line {
 
 /// The definition of the direction of a line plotted on the plot area.
 /// This type defines the position and orientation of the line in data coordinates.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LineDir {
     /// A horizontal line passing by the given y value in data coordinates
     Horizontal(f64),
@@ -279,7 +279,7 @@ impl Line {
 }
 
 /// An arrow plotted on the plot area
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Arrow {
     x: f64,
     y: f64,
@@ -386,7 +386,7 @@ impl Arrow {
 }
 
 /// An arbitrary marker to place on the plot area
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Marker {
     x: f64,
     y: f64,
@@ -493,7 +493,7 @@ pub enum Anchor {
 }
 
 /// An arbitrary label to place on the plot area
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Label {
     x: f64,
     y: f64,

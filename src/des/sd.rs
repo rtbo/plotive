@@ -8,6 +8,7 @@ use crate::geom;
 use crate::style::{defaults, theme};
 
 mod axis;
+mod annot;
 mod legend;
 mod plot;
 mod series;
@@ -55,11 +56,16 @@ impl<'de> serde::Deserialize<'de> for figure::Title {
                 Ok(figure::Title::from(value.to_string()))
             }
 
-            fn visit_map<A>(self, _map: A) -> Result<Self::Value, A::Error>
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
             where
                 A: serde::de::MapAccess<'de>,
             {
-                todo!("Deserialize rich title with props and spans")
+                deserialize_map_fields!('de, map,
+                    "text" => text: Option<String>,
+                );
+                Ok(figure::Title::from(
+                    text.ok_or_else(|| serde::de::Error::missing_field("text"))?,
+                ))
             }
         }
         deserializer.deserialize_any(TitleVisitor)
@@ -87,7 +93,7 @@ impl serde::Serialize for Figure {
             state.serialize_field("legend", legend)?;
         }
         if self.padding() != &defaults::FIG_PADDING {
-            todo!("Serialize geom::Padding")
+            state.serialize_field("padding", &self.padding())?;
         }
 
         match self.plots() {
@@ -129,7 +135,7 @@ impl<'de> serde::de::Visitor<'de> for FigureVisitor {
     where
         A: serde::de::MapAccess<'de>,
     {
-        deserialize_map_fields!( 'de, map,
+        deserialize_map_fields!('de, map,
             "plot" => plot: Option<Plot>,
             "plots" => plots: Option<Subplots>,
             "space" => space: Option<f32>,
@@ -137,7 +143,7 @@ impl<'de> serde::de::Visitor<'de> for FigureVisitor {
             "title" => title: Option<figure::Title>,
             "fill" => fill: Option<Option<theme::Fill>>,
             "legend" => legend: Option<FigLegend>,
-            // "padding" => padding: Option<geom::Padding>,
+            "padding" => padding: Option<geom::Padding>,
         );
 
         let plots = match (plot, plots) {
@@ -183,6 +189,10 @@ impl<'de> serde::de::Visitor<'de> for FigureVisitor {
 
         if let Some(legend) = legend {
             figure = figure.with_legend(legend);
+        }
+
+        if let Some(padding) = padding {
+            figure = figure.with_padding(padding);
         }
 
         Ok(figure)
@@ -339,3 +349,34 @@ macro_rules! deserialize_tagged_enum {
 
 #[allow(unused)]
 pub(crate) use deserialize_tagged_enum;
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::des::{series, Plot};
+
+    #[test]
+    fn test_figure_ser() {
+        let figure = Plot::new(vec![series::Line::new(
+            "x".into(),
+            "y".into(),
+        ).into()]).into_figure();
+
+        let serialized = serde_json::to_string(&figure).unwrap();
+        let expected = r#"{"plot":{"series":{"type":"line","x":"x","y":"y"}}}"#;
+        assert_eq!(serialized, expected);
+    }
+
+    #[test]
+    fn test_figure_de() {
+        let json = r#"{"title":"Title","plot":{"series":{"type":"line","x":"x","y":"y"}}}"#;
+        let figure: Figure = serde_json::from_str(json).unwrap();
+
+        let expected = Plot::new(vec![series::Line::new(
+            "x".into(),
+            "y".into(),
+        ).into()]).into_figure().with_title("Title".into());
+        assert_eq!(figure, expected);
+    }
+}

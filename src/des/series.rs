@@ -8,7 +8,7 @@ use crate::{data, style};
 ///
 /// Data columns can contain either inline data (vectors of values) or references
 /// to columns in a data source. This allows for flexible data handling in series.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DataCol {
     /// The data is provided inline, directly in the series
     Inline(data::VecColumn),
@@ -90,7 +90,7 @@ impl From<Vec<time::TimeDelta>> for DataCol {
 ///
 /// This enum represents the different types of series that can be visualized.
 /// Each variant contains specific configuration and data for that series type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Series {
     /// Plots data as a continuous line.
     Line(Line),
@@ -186,7 +186,7 @@ pub enum Interpolation {
 ///
 /// Plots data as a continuous line connecting points in order.
 /// This is one of the most common series types for visualizing trends and continuous data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Line {
     x_data: DataCol,
     y_data: DataCol,
@@ -328,7 +328,7 @@ impl Line {
 /// Marker size is interpreted as an area, so the actual size of the marker will be proportional to the square root of the sizes data value
 /// (e.g. for circle marker: diameter = sqrt(marker size * size column data)).
 /// The sizes data column must have the same length as the x and y data columns.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Scatter {
     x_data: DataCol,
     y_data: DataCol,
@@ -439,7 +439,7 @@ impl Scatter {
 }
 
 /// Definition for the `y2_data` field of the Area plot.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum AreaY2 {
     /// Y2 is a horizontal baseline (usually Y=0)
     Baseline(f64),
@@ -476,7 +476,7 @@ impl From<(DataCol, Interpolation)> for AreaY2 {
 ///
 /// Plots data as a filled area between Y1 and Y2 lines over the X axis.
 /// This is useful for visualizing cumulative data or kernel density estimates
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Area {
     x_data: DataCol,
     y1_data: DataCol,
@@ -633,7 +633,7 @@ impl Area {
 ///
 /// Plots data by grouping values into bins and showing the frequency or density
 /// of values in each bin. Useful for visualizing distributions of continuous data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Histogram {
     x_data: DataCol,
 
@@ -752,7 +752,7 @@ impl Histogram {
 /// (the bar starts at 30% of the bin and ends at 70% of the bin).
 ///
 /// If multiple series are plotted, this offset and width should be adjusted, otherwise the bars will overlap.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BarsPosition {
     /// Offset from the start of the category bin (0.0 to 1.0).
     pub offset: f32,
@@ -773,7 +773,7 @@ impl Default for BarsPosition {
 ///
 /// Plots data as discrete bars. One axis must contain categories, and the other must be numeric.
 /// Each category gets one bar whose height (or length for horizontal bars) represents the data value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Bars {
     x_data: DataCol,
     y_data: DataCol,
@@ -885,7 +885,7 @@ impl Bars {
 ///
 /// Represents a single series of bars within a [`BarsGroup`].
 /// Each `BarSeries` contains data for one set of bars across all categories.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BarSeries {
     data: DataCol,
 
@@ -951,7 +951,7 @@ impl BarSeries {
 /// Orientation of bars in a bar chart.
 ///
 /// Determines whether bars extend vertically (from the x-axis) or horizontally (from the y-axis).
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum BarsOrientation {
     /// Bars extend vertically from the x-axis.
     #[default]
@@ -976,7 +976,7 @@ impl BarsOrientation {
 ///
 /// Defines how multiple bar series are positioned relative to each other:
 /// either side-by-side or stacked on top of each other.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BarsArrangement {
     /// Bars are placed side-by-side within each category.
     Aside(BarsAsideArrangement),
@@ -987,7 +987,7 @@ pub enum BarsArrangement {
 /// Configuration for side-by-side bar arrangement.
 ///
 /// Specifies how bars are positioned when placed side-by-side within each category.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BarsAsideArrangement {
     /// Offset of the first bar within the bin (0.0 to 1.0).
     pub offset: f32,
@@ -1010,7 +1010,7 @@ impl Default for BarsAsideArrangement {
 /// Configuration for stacked bar arrangement.
 ///
 /// Specifies how bars are positioned when stacked on top of each other within each category.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BarsStackArrangement {
     /// Offset of the stacked bars within the bin (0.0 to 1.0).
     pub offset: f32,
@@ -1038,7 +1038,7 @@ impl Default for BarsArrangement {
 /// Represents multiple bar series that share the same categories.
 /// The bars can be arranged either side-by-side or stacked, and can be oriented
 /// vertically or horizontally.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BarsGroup {
     categories: DataCol,
     series: Vec<BarSeries>,

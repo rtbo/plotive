@@ -185,7 +185,7 @@ impl From<LegendPos> for PlotLegend {
 }
 
 /// A plot, containing series, axes, title, legend, and styles
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Plot {
     series: Vec<Series>,
 
@@ -376,7 +376,7 @@ impl Plot {
 }
 
 /// A collection of plots, arranged in a grid
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Subplots {
     rows: u32,
     cols: u32,

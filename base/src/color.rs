@@ -467,8 +467,8 @@ pub(crate) mod names {
     });
 
     pub(crate) fn lookup(name: &str) -> Option<Rgba8> {
-        let key = name.trim();
-        MAP.get(key).copied()
+        let key = name.trim().to_lowercase();
+        MAP.get(key.as_str()).copied()
     }
 }
 

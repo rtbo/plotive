@@ -3052,6 +3052,7 @@ name = "plotive-base"
 version = "0.5.0"
 dependencies = [
  "serde",
+ "serde_json",
  "strict-num 0.2.0",
  "tiny-skia-path",
 ]

@@ -129,12 +129,105 @@ impl serde::Serialize for axis::Range {
     }
 }
 
+struct BoundDeser(f64);
+
+impl<'de> serde::de::Deserialize<'de> for BoundDeser {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = BoundDeser;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a number or null")
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(BoundDeser(value))
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(BoundDeser(value as f64))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(BoundDeser(value as f64))
+            }
+
+            #[cfg(feature = "time")]
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                const FMT: &str = "%Y-%m-%d %H:%M:%S%.f";
+                let datetime= crate::time::DateTime::fmt_parse(value, FMT)
+                    .map_err(|err| E::custom(format!(
+                        "Bound string only allowed for DateTime, got '{}' which can't be parsed as such: {}",
+                        value, err
+                    )))?;
+                Ok(BoundDeser(datetime.timestamp()))
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Err(E::custom("null is not allowed for this bound"))
+            }
+        }
+        deserializer.deserialize_any(Visitor)
+    }
+}
+
 impl<'de> serde::Deserialize<'de> for axis::Range {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let (min, max) = <(Option<f64>, Option<f64>)>::deserialize(deserializer)?;
+        // deserialize range from [min, max] seq
+        // both min and max can be null to indicate automatic bounds
+
+        deserializer.deserialize_seq(RangeVisitor)
+    }
+}
+
+struct RangeVisitor;
+
+impl<'de> serde::de::Visitor<'de> for RangeVisitor {
+    type Value = axis::Range;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a range as a [min, max] sequence")
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let min: Option<Option<BoundDeser>> = seq.next_element()?;
+        let max: Option<Option<BoundDeser>> = seq.next_element()?;
+
+        if min.is_none() || max.is_none() {
+            return Err(serde::de::Error::invalid_length(
+                seq.size_hint().unwrap_or(0),
+                &self,
+            ));
+        }
+        let min = min.unwrap().map(|b| b.0);
+        let max = max.unwrap().map(|b| b.0);
+
         Ok(axis::Range(min, max))
     }
 }
@@ -150,7 +243,7 @@ impl serde::Serialize for axis::Scale {
             axis::Scale::Auto => "auto".serialize(serializer),
             axis::Scale::Linear(range) => {
                 if range == &axis::Range::default() {
-                    "linear".serialize(serializer)
+                    "lin".serialize(serializer)
                 } else {
                     range.serialize(serializer)
                 }
@@ -163,7 +256,11 @@ impl serde::Serialize for axis::Scale {
                     "range" => range,
                 )
             }
-            axis::Scale::Shared(id) => id.serialize(serializer),
+            axis::Scale::Shared(id) => {
+                let mut map = serializer.serialize_struct("SharedScale", 1)?;
+                map.serialize_field("ref", id)?;
+                map.end()
+            }
         }
     }
 }
@@ -210,26 +307,18 @@ impl<'de> serde::de::Visitor<'de> for ScaleVisitor {
     {
         match value {
             "auto" => Ok(axis::Scale::Auto),
-            "linear" => Ok(axis::Scale::Linear(axis::Range::default())),
+            "lin" => Ok(axis::Scale::Linear(axis::Range::default())),
             "log" => Ok(axis::Scale::Log(axis::LogScale::default())),
             other => Ok(axis::Scale::Shared(other.to_string().into())),
         }
     }
 
-    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {
-        // deserialize linear scale from [min, max] array
-        // both min and max can be null to indicate automatic bounds
-        let Some(min) = seq.next_element()? else {
-            return Err(serde::de::Error::invalid_length(0, &self));
-        };
-        let Some(max) = seq.next_element()? else {
-            return Err(serde::de::Error::invalid_length(1, &self));
-        };
-        let range = axis::Range(min, max);
-        Ok(axis::Scale::Linear(range))
+        let visitor = RangeVisitor;
+        visitor.visit_seq(seq).map(axis::Scale::Linear)
     }
 
     fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -244,13 +333,15 @@ impl<'de> serde::de::Visitor<'de> for ScaleVisitor {
                 return match tag.as_str() {
                     // If type is first, `buffered` is empty and we deserialize directly from map.
                     // If not, only the fields before `type` are buffered.
-                    "linear" | "lin" => {
-                        deserialize_lin_scale(&mut map, buffered).map(axis::Scale::Linear)
+                    "lin" => deserialize_lin_scale(&mut map, buffered).map(axis::Scale::Linear),
+                    "log" => deserialize_log_scale(&mut map, buffered).map(axis::Scale::Log),
+                    "shared" => {
+                        deserialize_shared_scale(&mut map, buffered).map(axis::Scale::Shared)
                     }
-                    "logarithmic" | "log" => {
-                        deserialize_log_scale(&mut map, buffered).map(axis::Scale::Log)
-                    }
-                    _ => Err(serde::de::Error::unknown_variant(&tag, &["lin", "log"])),
+                    _ => Err(serde::de::Error::unknown_variant(
+                        &tag,
+                        &["lin", "log", "shared"],
+                    )),
                 };
             }
 
@@ -300,6 +391,23 @@ where
         log_scale.range = range;
     }
     Ok(log_scale)
+}
+
+fn deserialize_shared_scale<'de, A>(
+    map: &mut A,
+    buffered: Vec<(String, Value)>,
+) -> Result<axis::Ref, A::Error>
+where
+    A: serde::de::MapAccess<'de>,
+{
+    deserialize_tagged_map_fields!(
+        'de, map, buffered,
+        "ref" => id: Option<axis::Ref>,
+    );
+    let Some(id) = id else {
+        return Err(serde::de::Error::missing_field("ref"));
+    };
+    Ok(id)
 }
 
 // MARK: ticks::Locator
@@ -869,7 +977,14 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                         _ => {
                             return Err(A::Error::unknown_variant(
                                 type_,
-                                &["maxn", "pimultiple", "log", "timedelta", "datetime", "percent"],
+                                &[
+                                    "maxn",
+                                    "pimultiple",
+                                    "log",
+                                    "timedelta",
+                                    "datetime",
+                                    "percent",
+                                ],
                             ));
                         }
                     }
@@ -1283,7 +1398,6 @@ where
         if let Some(grid) = grid {
             axis = axis.with_grid(grid);
         }
-
         if let Some(minor_grid) = minor_grid {
             axis = axis.with_minor_grid(minor_grid);
         }
@@ -1292,5 +1406,28 @@ where
             axis,
             phantom: PhantomData,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shared_scale_deser() {
+        let json = r#"
+        {
+            "scale": {
+                "type": "shared",
+                "ref": "x2"
+            }
+        }
+        "#;
+
+        let axis: axis::Axis = serde_json::from_str(json).unwrap();
+        assert!(matches!(
+            axis.scale(),
+            axis::Scale::Shared(axis::Ref::Id(id)) if id == "x2"
+        ));
     }
 }
