@@ -258,6 +258,7 @@ impl serde::Serialize for axis::Scale {
             }
             axis::Scale::Shared(id) => {
                 let mut map = serializer.serialize_struct("SharedScale", 1)?;
+                map.serialize_field("type", "shared")?;
                 map.serialize_field("ref", id)?;
                 map.end()
             }
@@ -851,6 +852,7 @@ where
     })
 }
 
+#[cfg(feature = "time")]
 fn deserialize_datetime_formatter<'de, A>(
     map: &mut A,
     buffered: Vec<(String, Value)>,
@@ -882,6 +884,7 @@ where
     }
 }
 
+#[cfg(feature = "time")]
 fn deserialize_timedelta_formatter<'de, A>(
     map: &mut A,
     buffered: Vec<(String, Value)>,
@@ -1491,21 +1494,30 @@ where
 mod tests {
     use super::*;
 
+    const SHARED_SCALE_JSON: &str = r#"
+{
+  "scale": {
+    "type": "shared",
+    "ref": "x2"
+  }
+}
+"#;
+
+    #[test]
+    fn test_shared_scale_ser() {
+        let input =
+            axis::Axis::new().with_scale(axis::Scale::Shared(axis::Ref::Id("x2".to_string())));
+        let result = serde_json::to_string_pretty(&input).unwrap();
+        let expected = SHARED_SCALE_JSON.trim();
+        assert_eq!(result, expected);
+    }
+
     #[test]
     fn test_shared_scale_deser() {
-        let json = r#"
-        {
-            "scale": {
-                "type": "shared",
-                "ref": "x2"
-            }
-        }
-        "#;
-
-        let axis: axis::Axis = serde_json::from_str(json).unwrap();
-        assert!(matches!(
-            axis.scale(),
-            axis::Scale::Shared(axis::Ref::Id(id)) if id == "x2"
-        ));
+        let input = SHARED_SCALE_JSON;
+        let result: axis::Axis = serde_json::from_str(input).unwrap();
+        let expected =
+            axis::Axis::new().with_scale(axis::Scale::Shared(axis::Ref::Id("x2".to_string())));
+        assert_eq!(result, expected);
     }
 }
