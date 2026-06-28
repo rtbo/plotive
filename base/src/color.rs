@@ -2,8 +2,8 @@
 use std::str::FromStr;
 use std::{error, fmt};
 
-mod css4;
-mod xkcd;
+pub(crate) mod css4;
+pub(crate) mod xkcd;
 
 pub use css4::*;
 
@@ -60,7 +60,7 @@ impl Rgba8 {
     }
 
     /// Get the HTML hex string representation of the color, e.g. `#ff0000` for red.
-    /// If the alpha channel is not 255, the form "rgba(r, g, b, a)" is used.
+    /// If the alpha channel is not 255, the form "rgba(r, g, b, a)" is used instead (with alpha normalized to [0, 1]).
     pub fn html(&self) -> String {
         if self.a() == 255 {
             format!("#{:02x}{:02x}{:02x}", self.r(), self.g(), self.b())
@@ -376,9 +376,10 @@ impl FromStr for Rgb8 {
         }
         // named color
         else {
-            if let Some(col) = css4::lookup_name(raw) {
-                Ok(col.rgb())
-            } else if let Some(col) = xkcd::lookup_name(raw) {
+            if let Some(col) = names::lookup(raw) {
+                if col.a() != 255 {
+                    return Err(ParseError::InvalidAlphaComponent);
+                }
                 Ok(col.rgb())
             } else {
                 Err(ParseError::UnknownName)
@@ -441,14 +442,33 @@ impl FromStr for Rgba8 {
         }
         // named color
         else {
-            if let Some(col) = css4::lookup_name(raw) {
-                Ok(col)
-            } else if let Some(col) = xkcd::lookup_name(raw) {
+            if let Some(col) = names::lookup(raw) {
                 Ok(col)
             } else {
                 Err(ParseError::UnknownName)
             }
         }
+    }
+}
+
+pub(crate) mod names {
+    use std::collections::HashMap;
+    use std::sync::LazyLock;
+
+    use crate::Rgba8;
+    use crate::color::{css4, xkcd};
+
+    static MAP: LazyLock<HashMap<&'static str, Rgba8>> = LazyLock::new(|| {
+        // Start with XKCD colors, then CSS4 so CSS4 names take precedence on collisions.
+        let mut map = HashMap::with_capacity(xkcd::COLORS.len() + css4::COLORS.len());
+        map.extend(xkcd::COLORS.iter().map(|(name, rgba)| (*name, *rgba)));
+        map.extend(css4::COLORS.iter().map(|(name, rgba)| (*name, *rgba)));
+        map
+    });
+
+    pub(crate) fn lookup(name: &str) -> Option<Rgba8> {
+        let key = name.trim().to_lowercase();
+        MAP.get(key.as_str()).copied()
     }
 }
 

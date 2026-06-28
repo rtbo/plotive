@@ -78,10 +78,10 @@ where
 
         // Resolve axis reference to index, to ensure no error can happen later during drawing
         let x_axis = axes
-            .or_find_idx(Orientation::X, annot.x_axis())?
+            .orientation_find_idx(Orientation::X, annot.x_axis())?
             .ok_or_else(|| super::Error::UnknownAxisRef(annot.x_axis().clone()))?;
         let y_axis = axes
-            .or_find_idx(Orientation::Y, annot.y_axis())?
+            .orientation_find_idx(Orientation::Y, annot.y_axis())?
             .ok_or_else(|| super::Error::UnknownAxisRef(annot.y_axis().clone()))?;
         annot = annot.with_axes(des::axis::Ref::Idx(x_axis), des::axis::Ref::Idx(y_axis));
 
@@ -140,11 +140,11 @@ impl Annot {
         S: render::Surface,
     {
         let x_axis = axes
-            .or_find(Orientation::X, self.x_axis())
+            .orientation_find(Orientation::X, self.x_axis())
             .unwrap()
             .unwrap();
         let y_axis = axes
-            .or_find(Orientation::Y, self.y_axis())
+            .orientation_find(Orientation::Y, self.y_axis())
             .unwrap()
             .unwrap();
         match self {

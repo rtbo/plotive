@@ -338,7 +338,7 @@ impl DateTimeComps {
                 FmtToken::Milli => res.micro = parse_fraction(&mut input_chars, Some(3))?,
                 FmtToken::Micro => res.micro = parse_fraction(&mut input_chars, Some(6))?,
                 FmtToken::Nano => res.micro = parse_fraction(&mut input_chars, Some(9))?,
-                FmtToken::Frac => res.micro = parse_fraction(&mut input_chars, None)?,
+                FmtToken::Frac => res.micro = parse_fraction_opt(&mut input_chars, None)?,
                 FmtToken::Lit(s) => {
                     for c in s.chars() {
                         if c != input_chars.next().ok_or(ParseError::FormatMismatch)? {
@@ -641,7 +641,7 @@ impl TimeDeltaComps {
                 FmtToken::Milli => res.micro = parse_fraction(&mut input_chars, Some(3))?,
                 FmtToken::Micro => res.micro = parse_fraction(&mut input_chars, Some(6))?,
                 FmtToken::Nano => res.micro = parse_fraction(&mut input_chars, Some(9))?,
-                FmtToken::Frac => res.micro = parse_fraction(&mut input_chars, None)?,
+                FmtToken::Frac => res.micro = parse_fraction_opt(&mut input_chars, None)?,
                 FmtToken::Lit(s) => {
                     for c in s.chars() {
                         if c != input_chars.next().ok_or(ParseError::FormatMismatch)? {
@@ -1036,6 +1036,15 @@ fn parse_fraction(chars: &mut Peekable<Chars>, len: Option<usize>) -> Result<u32
     Ok(micro)
 }
 
+/// Parse the fractional seconds (microseconds), return 0 if it doesn't start by '.'
+fn parse_fraction_opt(chars: &mut Peekable<Chars>, len: Option<usize>) -> Result<u32, ParseError> {
+    if chars.peek() == Some(&'.') {
+        parse_fraction(chars, len)
+    } else {
+        Ok(0)
+    }
+}
+
 fn format_micro_opt<W: fmt::Write>(out: &mut W, mut micro: u32) -> fmt::Result {
     if micro != 0 {
         write!(out, ".")?;
@@ -1145,11 +1154,37 @@ mod tests {
     }
 
     #[test]
+    fn test_format_datetime_comps_no_usecs() {
+        const FMT: &str = "%Y-%m-%d %H:%M:%S%.f";
+        let input = DateTimeComps {
+            year: 2025,
+            month: 1,
+            day: 13,
+            hour: 15,
+            minute: 46,
+            second: 32,
+            micro: 0,
+        };
+        let expected = "2025-01-13 15:46:32";
+        let result = input.fmt_to_string(FMT);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_parse_datetime_comps_no_usecs() {
+        const FMT: &str = "%Y-%m-%d %H:%M:%S%.f";
         let input = "2025-01-13 15:46:32";
-        let fmt = "%Y-%m-%d %H:%M:%S%.f";
-        let result = DateTimeComps::fmt_parse(input, fmt);
-        assert!(matches!(result, Err(ParseError::FormatMismatch)));
+        let expected = DateTimeComps {
+            year: 2025,
+            month: 1,
+            day: 13,
+            hour: 15,
+            minute: 46,
+            second: 32,
+            micro: 0,
+        };
+        let result = DateTimeComps::fmt_parse(input, FMT).unwrap();
+        assert_eq!(result, expected);
     }
 
     #[test]

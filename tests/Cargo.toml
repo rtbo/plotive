@@ -10,10 +10,11 @@ keywords.workspace = true
 publish = false
 
 [dependencies]
-plotive = { workspace = true, features=["time", "utils"] }
+plotive = { workspace = true, features=["serde", "time", "utils"] }
 plotive-pxl.workspace = true
 plotive-svg.workspace = true
 tiny-skia.workspace = true
+serde_json.workspace = true
 similar = "2.7.0"
 rand.workspace = true
 rand_distr.workspace = true

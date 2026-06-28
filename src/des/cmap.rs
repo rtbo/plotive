@@ -4,7 +4,7 @@ use crate::color::Rgb8;
 use crate::des::axis;
 
 /// Describes how to interpolate between colors in a color map, either in linear RGB or perceptual color space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum LerpMethod {
     /// Do not interpolate colors, only pick the nearest one
     Nearest,
@@ -13,6 +13,7 @@ pub enum LerpMethod {
     /// and can result in less visually appealing color maps.
     /// Use this if you have significant amount of stops in the colormap gradient or significant performance constraints.
     SRgb,
+    #[default]
     /// Interpolate colors in the linear RGB color space.
     LinearRgb,
     /// Interpolate colors in a perceptual color space (OkLab).
@@ -22,13 +23,15 @@ pub enum LerpMethod {
 }
 
 /// A color map that can be converted to a `MapColor` implementation at draw time.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LerpColorMap {
     method: LerpMethod,
     start: Rgb8,
     end: Rgb8,
     stops: Vec<(f32, Rgb8)>,
     scale: axis::Scale,
+    #[cfg(feature = "serde")]
+    name: Option<&'static str>,
 }
 
 impl LerpColorMap {
@@ -40,16 +43,42 @@ impl LerpColorMap {
             end,
             scale: Default::default(),
             stops: Vec::new(),
+            #[cfg(feature = "serde")]
+            name: None,
         }
     }
+
     /// Adds a color stop at the specified position (between 0.0 and 1.0) with the given color.
     pub fn with_stop(mut self, (position, color): (f32, Rgb8)) -> Self {
         assert!(
             position > 0.0 && position < 1.0,
             "Color stop position must be in range"
         );
+        #[cfg(feature = "serde")]
+        {
+            self.name = None;
+        }
         self.stops.push((position, color));
         self.stops.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        self
+    }
+
+    /// Set all the stops at once.
+    /// Previously set stops are erased
+    pub fn with_stops(mut self, stops: Vec<(f32, Rgb8)>) -> Self {
+        assert!(
+            stops
+                .iter()
+                .all(|(position, _)| position > &0.0 && position < &1.0),
+            "Color stop position must be in range"
+        );
+        #[cfg(feature = "serde")]
+        {
+            self.name = None;
+        }
+        let mut stops = stops;
+        stops.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        self.stops = stops;
         self
     }
 
@@ -58,6 +87,10 @@ impl LerpColorMap {
     /// By default, the colormap will map linearly the full range of data values in the plot, but this can be overridden with this method.
     pub fn with_scale(mut self, scale: axis::Scale) -> Self {
         assert!(!scale.is_shared(), "Color map scale cannot be shared");
+        #[cfg(feature = "serde")]
+        {
+            self.name = None;
+        }
         self.scale = scale;
         self
     }
@@ -88,6 +121,40 @@ impl LerpColorMap {
     /// If None, the color map is assumed to map the range of data values in the plot.
     pub fn scale(&self) -> &axis::Scale {
         &self.scale
+    }
+
+    #[cfg(feature = "serde")]
+    pub(crate) fn name(&self) -> Option<&'static str> {
+        self.name
+    }
+
+    #[allow(unused)]
+    fn with_name(mut self, name: &'static str) -> Self {
+        #[cfg(feature = "serde")]
+        {
+            self.name = Some(name);
+        }
+        self
+    }
+
+    #[cfg(feature = "serde")]
+    pub(crate) fn is_monotonic(&self) -> bool {
+        let div = 1.0 / (self.stops.len() as f32 + 1.0);
+        let mut cur = div;
+        for (pos, _) in self.stops.iter() {
+            if (cur - pos).abs() < 0.00001 {
+                cur += div;
+            } else {
+                return false;
+            }
+        }
+        true
+    }
+}
+
+impl Default for LerpColorMap {
+    fn default() -> Self {
+        viridis()
     }
 }
 
@@ -174,6 +241,7 @@ pub fn stellar() -> LerpColorMap {
     .with_stop(stop_for_temp(10000.0))
     .with_stop(stop_for_temp(12500.0))
     .with_scale((MIN_TEMP, MAX_TEMP).into())
+    .with_name("stellar")
 }
 
 /// The famous "viridis" color map from matplotlib
@@ -185,5 +253,6 @@ pub fn viridis() -> LerpColorMap {
         Rgb8::from_hex(b"#5bc862"),
         Rgb8::from_hex(b"#fde724"),
     ];
-    (LerpMethod::Perceptual, STOPS).into()
+    let cmap: LerpColorMap = (LerpMethod::Perceptual, STOPS).into();
+    cmap.with_name("viridis")
 }

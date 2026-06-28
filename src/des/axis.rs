@@ -35,7 +35,7 @@ pub enum Side {
 /// Axes references can be used in two contexts:
 ///     - sharing axes across different subplots of a figure
 ///     - attach series to a specific axis in the case of multiple X or Y axes
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ref {
     /// Reference by index in the order declared in the plot,
     /// for the given orientation (X or Y), and starting at 0.
@@ -43,15 +43,6 @@ pub enum Ref {
     /// To refer to indices in a different plot (for subplot shared axes),
     /// you may use [Ref::Id]
     Idx(usize),
-    /// Reference by index in the order declared in the figure,
-    /// for the given orientation (X or Y), and starting at 0.
-    /// As an example, if a figure has 2 plots, each with a single X axis and two Y axes,
-    /// Ref::FigIdx(1) will refer to the X axis of the second plot in X context,
-    /// and to the second Y axis of the first plot in Y context.
-    ///
-    /// FigIdx can only be used in the context of shared axes across subplots (see [`Scale::Shared`]).
-    /// An error is raised if it is assigned to a series or annotation.
-    FigIdx(usize),
     /// Reference by id (see [Axis::id]) or by title (see [Axis::title]).
     /// If two axes have the same id or title, the first one found will be used.
     Id(String),
@@ -79,7 +70,7 @@ pub fn ref_id(id: impl Into<String>) -> Ref {
 }
 
 /// Axis definition
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Axis {
     id: Option<String>,
     title: Option<Title>,
@@ -240,7 +231,7 @@ impl Axis {
 
 /// Describe the bounds of an axis in data space
 /// None means automatic bounds depending on the data
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Range(pub Option<f64>, pub Option<f64>);
 
 impl From<(Option<f64>, Option<f64>)> for Range {
@@ -290,7 +281,7 @@ impl Range {
 }
 
 /// Describe a logarithmic scale options
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LogScale {
     /// Logarithm base (typically 10.0)
     pub base: f64,
@@ -322,7 +313,7 @@ impl Default for LogScale {
 }
 
 /// Describes the type of an axis scale
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub enum Scale {
     /// Full auto scale, depending on the data and type of plot.
     /// Will typically translate to auto linear axis for numerical data
@@ -403,7 +394,7 @@ pub mod ticks {
     use crate::text::Font;
 
     /// Describes how to locate the ticks of an axis
-    #[derive(Debug, Default, Clone)]
+    #[derive(Debug, Default, Clone, PartialEq)]
     pub enum Locator {
         /// Automatic tick placement, that depends on the type of axis (linear, logarithmic, categories),
         /// on the axis data range (bounds) and whether the ticks are major or minor
@@ -430,7 +421,7 @@ pub mod ticks {
     }
 
     /// A locator that places ticks at the specified locations in data space
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct ListLocator(pub Vec<f64>);
 
     impl From<Vec<f64>> for Locator {
@@ -452,7 +443,7 @@ pub mod ticks {
     }
 
     /// A locator that places ticks automatically, using the specified number of bins and steps
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MaxNLocator {
         /// Number of bins (that is number of ticks - 1)
         pub bins: u32,
@@ -478,7 +469,7 @@ pub mod ticks {
 
     /// A locator that places ticks at multiples of π
     /// The axis will be annotated with `× π`
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct PiMultipleLocator {
         /// Number of bins (that is number of ticks - 1)
         pub bins: u32,
@@ -497,7 +488,7 @@ pub mod ticks {
     }
 
     /// A locator that places ticks on a logarithmic scale
-    #[derive(Debug, Clone, Copy)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct LogLocator {
         /// Logarithm base
         pub base: f64,
@@ -517,7 +508,7 @@ pub mod ticks {
 
     #[cfg(feature = "time")]
     /// Describes how to locate the ticks of a DateTime axis
-    #[derive(Debug, Default, Clone, Copy)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq)]
     pub enum DateTimeLocator {
         /// Automatic tick placement for DateTime axis using
         /// the axis bounds and heuristics to have a reasonable number of ticks
@@ -550,7 +541,7 @@ pub mod ticks {
 
     #[cfg(feature = "time")]
     /// Describes how to locate the ticks of a TimeDelta axis
-    #[derive(Debug, Default, Clone, Copy)]
+    #[derive(Debug, Default, Clone, Copy, PartialEq)]
     pub enum TimeDeltaLocator {
         /// Automatic tick placement for TimeDelta axis using
         /// the axis bounds and heuristics to have a reasonable number of ticks
@@ -577,7 +568,7 @@ pub mod ticks {
 
     #[allow(missing_copy_implementations)]
     /// Describes how to format the ticks labels
-    #[derive(Debug, Default, Clone)]
+    #[derive(Debug, Default, Clone, PartialEq)]
     pub enum Formatter {
         /// Automatic tick formatting.
         /// Depending on the scale and locator, the formatter will pick a suitable format.
@@ -604,7 +595,7 @@ pub mod ticks {
     }
 
     /// A label formatter for DateTime ticks
-    #[derive(Debug, Clone, Copy, Default)]
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
     pub struct PercentFormatter {
         /// Number of decimal places
         /// None means automatic
@@ -619,7 +610,7 @@ pub mod ticks {
 
     #[cfg(feature = "time")]
     /// A label formatter for DateTime ticks
-    #[derive(Debug, Clone, Default)]
+    #[derive(Debug, Clone, Default, PartialEq)]
     pub enum DateTimeFormatter {
         /// Choose the format automatically according to time bounds
         #[default]
@@ -635,6 +626,21 @@ pub mod ticks {
     }
 
     #[cfg(feature = "time")]
+    impl DateTimeFormatter {
+        /// Returns the format string for this formatter, if any
+        /// None means automatic formatting
+        pub fn fmt_str(&self) -> Option<String> {
+            match self {
+                DateTimeFormatter::Auto => None,
+                DateTimeFormatter::DateTime => Some("%Y-%m-%d %H:%M:%S".to_string()),
+                DateTimeFormatter::Date => Some("%Y-%m-%d".to_string()),
+                DateTimeFormatter::Time => Some("%H:%M:%S".to_string()),
+                DateTimeFormatter::Custom(fmt) => Some(fmt.clone()),
+            }
+        }
+    }
+
+    #[cfg(feature = "time")]
     impl From<DateTimeFormatter> for Formatter {
         fn from(fmt: DateTimeFormatter) -> Self {
             Formatter::DateTime(fmt)
@@ -643,13 +649,25 @@ pub mod ticks {
 
     #[cfg(feature = "time")]
     /// A label formatter for TimeDelta ticks
-    #[derive(Debug, Clone, Default)]
+    #[derive(Debug, Clone, Default, PartialEq)]
     pub enum TimeDeltaFormatter {
         /// Choose the format automatically based on data bounds
         #[default]
         Auto,
         /// Format the ticks with a custom TimeDelta format (see [crate::time::TimeDelta::fmt_parse])
         Custom(String),
+    }
+
+    #[cfg(feature = "time")]
+    impl TimeDeltaFormatter {
+        /// Returns the format string for this formatter, if any
+        /// None means automatic formatting
+        pub fn fmt_str(&self) -> Option<String> {
+            match self {
+                TimeDeltaFormatter::Auto => None,
+                TimeDeltaFormatter::Custom(fmt) => Some(fmt.clone()),
+            }
+        }
     }
 
     #[cfg(feature = "time")]
@@ -660,7 +678,7 @@ pub mod ticks {
     }
 
     /// Describes the font of the ticks labels
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct TicksFont {
         /// The font of the ticks labels
         pub font: Font,
@@ -678,7 +696,7 @@ pub mod ticks {
     }
 
     /// Describes the style of the major grid lines
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct Grid(pub theme::Stroke);
 
     impl Default for Grid {
@@ -698,8 +716,20 @@ pub mod ticks {
         }
     }
 
+    impl From<Grid> for theme::Stroke {
+        fn from(grid: Grid) -> Self {
+            grid.0
+        }
+    }
+
+    impl AsRef<theme::Stroke> for Grid {
+        fn as_ref(&self) -> &theme::Stroke {
+            &self.0
+        }
+    }
+
     /// Describes the major ticks of an axis
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct Ticks {
         locator: Locator,
         formatter: Option<Formatter>,
@@ -775,7 +805,7 @@ pub mod ticks {
     }
 
     /// Describes the style of the minor grid lines
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MinorGrid(pub theme::Stroke);
 
     impl Default for MinorGrid {
@@ -795,8 +825,20 @@ pub mod ticks {
         }
     }
 
+    impl From<MinorGrid> for theme::Stroke {
+        fn from(grid: MinorGrid) -> Self {
+            grid.0
+        }
+    }
+
+    impl AsRef<theme::Stroke> for MinorGrid {
+        fn as_ref(&self) -> &theme::Stroke {
+            &self.0
+        }
+    }
+
     /// Describes the minor ticks of an axis
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq)]
     pub struct MinorTicks {
         /// Minor ticks locator
         locator: Locator,

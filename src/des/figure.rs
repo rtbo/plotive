@@ -14,7 +14,7 @@ impl Default for TitleProps {
 }
 
 /// Position of the legend relatively to the figure
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub enum LegendPos {
     /// Position the legend at the top of the figure
     Top,
@@ -44,7 +44,7 @@ impl From<LegendPos> for FigLegend {
 }
 
 /// Figure structure. This is the top-level structure representing a figure to be drawn.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Figure {
     plots: Plots,
 
@@ -138,7 +138,7 @@ impl Figure {
 }
 
 /// Collection of plots for a figure
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Plots {
     /// Unique plot on the figure
     Plot(Plot),

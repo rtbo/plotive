@@ -34,7 +34,7 @@ fn main() {
         .into();
 
     let plot = des::Plot::new(vec![series1, series2])
-        .with_border(des::plot::AxisArrow::default().into())
+        .with_border(des::plot::AxisArrowBorder::default().into())
         .with_x_axis(x_axis)
         .with_y_axis(y1_axis)
         .with_y_axis(y2_axis);

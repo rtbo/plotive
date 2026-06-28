@@ -12,6 +12,9 @@ pub mod legend;
 pub mod plot;
 pub mod series;
 
+#[cfg(feature = "serde")]
+mod sd;
+
 pub use annot::Annotation;
 pub use axis::Axis;
 pub use colorbar::ColorBar;
@@ -112,7 +115,7 @@ macro_rules! define_rich_text_structs {
         pub type $opt_props_struct = $crate::text::rich::TextOptProps<$crate::style::theme::Color>;
 
         /// Rich text base properties with plotive theme colors
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         pub struct $props_struct($crate::text::rich::TextProps<$crate::style::theme::Color>);
 
         impl $props_struct {
@@ -175,7 +178,7 @@ macro_rules! define_rich_text_structs {
         }
 
         /// Rich text structure with plotive theme colors
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, PartialEq)]
         pub struct $text_struct {
             text: String,
             props: $props_struct,

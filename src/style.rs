@@ -228,6 +228,14 @@ const DASHED_DASH: &[f32] = &[5.0, 5.0];
 const DOT_DASH: &[f32] = &[1.0, 1.0];
 const DASH_DOT_DASH: &[f32] = &[5.0, 5.0, 1.0, 5.0];
 
+/// Trait for types that have a default stroke width for serialization purposes
+/// The trait is implemented for color types, so that the default stroke width
+/// can be associated with the color type used in the stroke.
+pub trait DefaultStrokeWidth {
+    /// Return the default stroke width for this color type.
+    fn default_stroke_width() -> f32;
+}
+
 impl<C: Color> Stroke<C> {
     /// Set the line width in figure units, returning self for chaining
     pub fn with_width(self, width: f32) -> Self {
@@ -266,6 +274,20 @@ impl<C: Color> Stroke<C> {
             color,
             width: self.width,
             pattern,
+        }
+    }
+}
+
+impl<C> Default for Stroke<C>
+where
+    C: Color + Default + DefaultStrokeWidth,
+{
+    fn default() -> Self {
+        Stroke {
+            color: C::default(),
+            width: C::default_stroke_width(),
+            pattern: LinePattern::default(),
+            opacity: None,
         }
     }
 }
@@ -342,7 +364,7 @@ where
 
 impl<C: Color> Fill<C> {
     /// Set the fill opacity (0.0 to 1.0), returning self for chaining
-    pub fn with_opacity(self, opacity: f32) -> Self {
+    pub const fn with_opacity(self, opacity: f32) -> Self {
         match self {
             Fill::Solid { color, .. } => Fill::Solid {
                 color,
@@ -374,7 +396,7 @@ impl<C: Color> From<C> for Fill<C> {
 }
 
 /// Shape of a marker, used in scatter plots
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum MarkerShape {
     /// Circle marker (the default)
     #[default]
@@ -399,7 +421,7 @@ pub enum MarkerShape {
 
 /// Size of a marker, used in scatter plots
 /// The size is interpreted as an area, so it scales quadratically with the visual size of the marker.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MarkerSize(pub f32);
 
 impl MarkerSize {
@@ -427,7 +449,7 @@ impl From<f32> for MarkerSize {
 }
 
 /// Marker style definition, used in scatter plots
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Marker<C: Color> {
     /// Marker size
     pub size: MarkerSize,
@@ -439,7 +461,10 @@ pub struct Marker<C: Color> {
     pub stroke: Option<Stroke<C>>,
 }
 
-impl<C: Color> Marker<C> {
+impl<C> Marker<C>
+where
+    C: Color + DefaultStrokeWidth,
+{
     /// Create a new marker with both fill and stroke set to the same color
     pub fn new_with_color(color: C) -> Self {
         Marker {
@@ -451,7 +476,7 @@ impl<C: Color> Marker<C> {
             }),
             stroke: Some(Stroke {
                 color,
-                width: defaults::SERIES_LINE_WIDTH,
+                width: C::default_stroke_width(),
                 pattern: LinePattern::default(),
                 opacity: None,
             }),
@@ -499,7 +524,7 @@ impl<C: Color> Marker<C> {
 
         let mut stroke = self.stroke.unwrap_or_else(|| Stroke {
             color,
-            width: defaults::SERIES_LINE_WIDTH,
+            width: C::default_stroke_width(),
             opacity: None,
             pattern: LinePattern::default(),
         });
@@ -545,7 +570,7 @@ impl<C: Color> Marker<C> {
 
 impl<C> Default for Marker<C>
 where
-    C: Color + Default,
+    C: Color + Default + DefaultStrokeWidth,
 {
     fn default() -> Self {
         Marker::new_with_color(C::default())

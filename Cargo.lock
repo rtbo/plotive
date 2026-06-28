@@ -1784,6 +1784,8 @@ checksum = "7714e70437a7dc3ac8eb7e6f8df75fd8eb422675fc7678aff7364301092b1017"
 dependencies = [
  "equivalent",
  "hashbrown 0.16.1",
+ "serde",
+ "serde_core",
 ]
 
 [[package]]
@@ -2346,6 +2348,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0676bb32a98c1a483ce53e500a81ad9c3d5b3f7c920c28c24e9cb0980d0b5bc8"
 
 [[package]]
+name = "noyalib"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c4d40221dba649ed01664957d3e0248511fa7b01fd2fb77e6b9041593258f6e"
+dependencies = [
+ "indexmap",
+ "itoa",
+ "memchr",
+ "rustc-hash 2.1.1",
+ "ryu",
+ "serde",
+ "serde_ignored",
+ "smallvec",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2872,6 +2890,15 @@ dependencies = [
 
 [[package]]
 name = "ordered-float"
+version = "2.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "ordered-float"
 version = "5.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f4779c6901a562440c3786d08192c6fbda7c1c2060edd10006b05ee35d10f2d"
@@ -3004,6 +3031,7 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 name = "plotive"
 version = "0.5.0"
 dependencies = [
+ "noyalib",
  "ode_solvers",
  "plotive-base",
  "plotive-dsl",
@@ -3014,12 +3042,17 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rand_distr",
+ "serde",
+ "serde-value",
+ "serde_json",
 ]
 
 [[package]]
 name = "plotive-base"
 version = "0.5.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "strict-num 0.2.0",
  "tiny-skia-path",
 ]
@@ -3079,6 +3112,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rand_distr",
+ "serde_json",
  "similar",
  "tiny-skia",
 ]
@@ -3570,9 +3604,9 @@ dependencies = [
 
 [[package]]
 name = "ryu"
-version = "1.0.20"
+version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28d3b2b1366ec20994f1fd18c3c594f05c5dd4bc44d8bb0c1c632c8d6829481f"
+checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "safe_arch"
@@ -3634,6 +3668,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-value"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
+dependencies = [
+ "ordered-float 2.10.1",
+ "serde",
+]
+
+[[package]]
 name = "serde_core"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3654,15 +3698,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_json"
-version = "1.0.142"
+name = "serde_ignored"
+version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "030fedb782600dcbd6f02d479bf0d817ac3bb40d644745b769d6a96bc3afc5a7"
+checksum = "115dffd5f3853e06e746965a20dcbae6ee747ae30b543d91b0e089668bb07798"
+dependencies = [
+ "serde",
+ "serde_core",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.150"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8014e44b4736ed0538adeecded0fce2a272f22dc9578a7eb6b2d9993c74cfb9"
 dependencies = [
  "itoa",
  "memchr",
- "ryu",
  "serde",
+ "serde_core",
+ "zmij",
 ]
 
 [[package]]
@@ -4694,7 +4749,7 @@ dependencies = [
  "ndk-sys",
  "objc",
  "once_cell",
- "ordered-float",
+ "ordered-float 5.1.0",
  "parking_lot",
  "portable-atomic",
  "portable-atomic-util",
@@ -5442,6 +5497,12 @@ dependencies = [
  "quote",
  "syn",
 ]
+
+[[package]]
+name = "zmij"
+version = "1.0.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8848ee67ecc8aedbaf3e4122217aff892639231befc6a1b58d29fff4c2cabaa"
 
 [[package]]
 name = "zune-core"

@@ -1,7 +1,7 @@
 //! Theme definitions and implementations
 
 use crate::color::{self, Rgb8, Rgba8};
-use crate::style::{catppuccin, dracula};
+use crate::style::{DefaultStrokeWidth, catppuccin, dracula};
 use crate::{style, text};
 
 /// A theme, for styling figures
@@ -183,6 +183,19 @@ impl std::str::FromStr for Col {
     }
 }
 
+impl std::fmt::Display for Col {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Col::Background => "background",
+            Col::Foreground => "foreground",
+            Col::Grid => "grid",
+            Col::LegendFill => "legend_fill",
+            Col::LegendBorder => "legend_border",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 impl color::ResolveColor<Col> for Theme {
     fn resolve_color(&self, col: &Col) -> Rgba8 {
         match col {
@@ -231,6 +244,15 @@ impl std::str::FromStr for Color {
     }
 }
 
+impl std::fmt::Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Color::Theme(col) => write!(f, "{}", col),
+            Color::Fixed(c) => write!(f, "{}", c.html()),
+        }
+    }
+}
+
 impl text::rich::Foreground for Color {
     fn foreground() -> Self {
         Color::Theme(Col::Foreground)
@@ -246,6 +268,12 @@ impl color::ResolveColor<Color> for Theme {
     }
 }
 
+impl super::DefaultStrokeWidth for Color {
+    fn default_stroke_width() -> f32 {
+        1.0
+    }
+}
+
 /// Stroke style for theme elements
 pub type Stroke = style::Stroke<Color>;
 
@@ -255,7 +283,7 @@ impl From<Col> for Stroke {
     fn from(col: Col) -> Self {
         Stroke {
             color: col.into(),
-            width: 1.0,
+            width: Color::default_stroke_width(),
             pattern: style::LinePattern::default(),
             opacity: None,
         }
