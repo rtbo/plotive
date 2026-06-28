@@ -157,16 +157,17 @@ fn save_fig<D>(
                 Some(path) => path.to_string_lossy().to_string(),
                 None => format!("{}.png", default_name),
             };
-            prepared_fig.save_png(
-                &file_name,
-                data_source,
-                plotive_pxl::Params {
-                    style: args.style.as_ref().cloned().unwrap_or_default(),
-                    scale: 2.0,
-                    fontdb: Some(fontdb),
-                },
-            )
-            .unwrap();
+            prepared_fig
+                .save_png(
+                    &file_name,
+                    data_source,
+                    plotive_pxl::Params {
+                        style: args.style.as_ref().cloned().unwrap_or_default(),
+                        scale: 2.0,
+                        fontdb: Some(fontdb),
+                    },
+                )
+                .unwrap();
         }
     }
 
@@ -177,17 +178,18 @@ fn save_fig<D>(
                 Some(path) => path.to_string_lossy().to_string(),
                 None => format!("{}.svg", default_name),
             };
-            prepared_fig.save_svg(
-                &file_name,
-                data_source,
-                plotive_svg::Params {
-                    style: args.style.as_ref().cloned().unwrap_or_default(),
-                    scale: 1.0,
-                    fontdb: Some(fontdb),
-                    id_prefix: Some(format!("{}", default_name)),
-                },
-            )
-            .unwrap();
+            prepared_fig
+                .save_svg(
+                    &file_name,
+                    data_source,
+                    plotive_svg::Params {
+                        style: args.style.as_ref().cloned().unwrap_or_default(),
+                        scale: 1.0,
+                        fontdb: Some(fontdb),
+                        id_prefix: Some(format!("{}", default_name)),
+                    },
+                )
+                .unwrap();
         }
     }
 
@@ -200,11 +202,7 @@ fn save_fig<D>(
                 None => format!("{}.json", default_name),
             };
 
-            serde_json::to_writer_pretty(
-                std::fs::File::create(&file_name).unwrap(),
-                &fig,
-            )
-            .unwrap();
+            serde_json::to_writer_pretty(std::fs::File::create(&file_name).unwrap(), &fig).unwrap();
         }
     }
 
@@ -217,11 +215,7 @@ fn save_fig<D>(
                 None => format!("{}.yml", default_name),
             };
 
-            noyalib::to_writer(
-                std::fs::File::create(&file_name).unwrap(),
-                &fig,
-            )
-            .unwrap();
+            noyalib::to_writer(std::fs::File::create(&file_name).unwrap(), &fig).unwrap();
         }
     }
 
@@ -229,14 +223,15 @@ fn save_fig<D>(
         let data_source = data_source.copy();
         let fontdb = Arc::new(fontdb.clone());
 
-        prepared_fig.show(
-            data_source,
-            plotive_iced::show::Params {
-                style: args.style.clone(),
-                fontdb: Some(fontdb),
-                ..Default::default()
-            },
-        )
-        .unwrap();
+        prepared_fig
+            .show(
+                data_source,
+                plotive_iced::show::Params {
+                    style: args.style.clone(),
+                    fontdb: Some(fontdb),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
     }
 }

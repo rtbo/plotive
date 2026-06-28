@@ -436,7 +436,8 @@ impl<'de> serde::de::Visitor<'de> for BorderVisitor {
     type Value = plot::Border;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a border type string, a theme color/stroke, or a map with a 'type' field")
+        formatter
+            .write_str("a border type string, a theme color/stroke, or a map with a 'type' field")
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -448,7 +449,8 @@ impl<'de> serde::de::Visitor<'de> for BorderVisitor {
             "axis" => Ok(plot::Border::Axis(Default::default())),
             "arrow" => Ok(plot::Border::AxisArrow(Default::default())),
             _ => {
-                let stroke = theme::Stroke::deserialize(serde::de::value::StrDeserializer::<E>::new(value))?;
+                let stroke =
+                    theme::Stroke::deserialize(serde::de::value::StrDeserializer::<E>::new(value))?;
                 Ok(plot::Border::Box(plot::BoxBorder(stroke)))
             }
         }
@@ -636,10 +638,7 @@ mod tests {
 
     #[test]
     fn test_plot_ser() {
-        let plot = Plot::new(vec![series::Line::new(
-            "x".into(),
-            "y".into(),
-        ).into()]);
+        let plot = Plot::new(vec![series::Line::new("x".into(), "y".into()).into()]);
 
         let serialized = serde_json::to_string(&plot).unwrap();
         let expected = r#"{"series":{"type":"line","x":"x","y":"y"}}"#;
@@ -651,10 +650,7 @@ mod tests {
         let json = r#"{"series":{"type":"line","x":"x","y":"y"}}"#;
         let plot: Plot = serde_json::from_str(json).unwrap();
 
-        let expected = Plot::new(vec![series::Line::new(
-            "x".into(),
-            "y".into(),
-        ).into()]);
+        let expected = Plot::new(vec![series::Line::new("x".into(), "y".into()).into()]);
         assert_eq!(plot, expected);
     }
 }

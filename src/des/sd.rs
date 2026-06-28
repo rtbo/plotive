@@ -7,16 +7,16 @@ use crate::des::{FigLegend, Plot, Subplots, figure};
 use crate::geom;
 use crate::style::{defaults, theme};
 
-mod axis;
 mod annot;
+mod axis;
+mod cmap;
+mod colorbar;
 mod legend;
 mod plot;
 mod series;
 mod style;
 #[cfg(feature = "time")]
 mod time;
-mod cmap;
-mod colorbar;
 // MARK: figure::Title
 
 impl serde::Serialize for figure::Title {
@@ -350,18 +350,15 @@ macro_rules! deserialize_tagged_enum {
 #[allow(unused)]
 pub(crate) use deserialize_tagged_enum;
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::des::{series, Plot};
+    use crate::des::{Plot, series};
 
     #[test]
     fn test_figure_ser() {
-        let figure = Plot::new(vec![series::Line::new(
-            "x".into(),
-            "y".into(),
-        ).into()]).into_figure();
+        let figure =
+            Plot::new(vec![series::Line::new("x".into(), "y".into()).into()]).into_figure();
 
         let serialized = serde_json::to_string(&figure).unwrap();
         let expected = r#"{"plot":{"series":{"type":"line","x":"x","y":"y"}}}"#;
@@ -373,10 +370,9 @@ mod tests {
         let json = r#"{"title":"Title","plot":{"series":{"type":"line","x":"x","y":"y"}}}"#;
         let figure: Figure = serde_json::from_str(json).unwrap();
 
-        let expected = Plot::new(vec![series::Line::new(
-            "x".into(),
-            "y".into(),
-        ).into()]).into_figure().with_title("Title".into());
+        let expected = Plot::new(vec![series::Line::new("x".into(), "y".into()).into()])
+            .into_figure()
+            .with_title("Title".into());
         assert_eq!(figure, expected);
     }
 }

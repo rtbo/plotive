@@ -134,7 +134,9 @@ where
     match line.direction() {
         annot::LineDir::Horizontal(y) => state.serialize_field("horizontal", &y)?,
         annot::LineDir::Vertical(x) => state.serialize_field("vertical", &x)?,
-        annot::LineDir::Slope { x, y, slope } => state.serialize_field("slope", &((x, y), slope))?,
+        annot::LineDir::Slope { x, y, slope } => {
+            state.serialize_field("slope", &((x, y), slope))?
+        }
         annot::LineDir::TwoPoints { x1, y1, x2, y2 } => {
             state.serialize_field("twoPoints", &((x1, y1), (x2, y2)))?
         }
@@ -142,7 +144,13 @@ where
     if line.stroke() != &theme::Stroke::from(theme::Col::Foreground) {
         state.serialize_field("stroke", line.stroke())?;
     }
-    serialize_base_fields(&mut state, line.x_axis(), line.y_axis(), line.zpos(), annot::ZPos::BelowSeries)?;
+    serialize_base_fields(
+        &mut state,
+        line.x_axis(),
+        line.y_axis(),
+        line.zpos(),
+        annot::ZPos::BelowSeries,
+    )?;
     state.end()
 }
 
@@ -160,7 +168,13 @@ where
     if (arrow.head_size() - 10.0).abs() > f32::EPSILON {
         state.serialize_field("headSize", &arrow.head_size())?;
     }
-    serialize_base_fields(&mut state, arrow.x_axis(), arrow.y_axis(), arrow.zpos(), annot::ZPos::AboveSeries)?;
+    serialize_base_fields(
+        &mut state,
+        arrow.x_axis(),
+        arrow.y_axis(),
+        arrow.zpos(),
+        annot::ZPos::AboveSeries,
+    )?;
     state.end()
 }
 
@@ -173,7 +187,13 @@ where
     if marker.marker() != &theme::Marker::default() {
         state.serialize_field("marker", marker.marker())?;
     }
-    serialize_base_fields(&mut state, marker.x_axis(), marker.y_axis(), marker.zpos(), annot::ZPos::AboveSeries)?;
+    serialize_base_fields(
+        &mut state,
+        marker.x_axis(),
+        marker.y_axis(),
+        marker.zpos(),
+        annot::ZPos::AboveSeries,
+    )?;
     state.end()
 }
 
@@ -198,7 +218,13 @@ where
     if label.angle() != 0.0 {
         state.serialize_field("angle", &label.angle())?;
     }
-    serialize_base_fields(&mut state, label.x_axis(), label.y_axis(), label.zpos(), annot::ZPos::AboveSeries)?;
+    serialize_base_fields(
+        &mut state,
+        label.x_axis(),
+        label.y_axis(),
+        label.zpos(),
+        annot::ZPos::AboveSeries,
+    )?;
     state.end()
 }
 
@@ -233,9 +259,15 @@ impl<'de> serde::de::Visitor<'de> for AnnotVisitor {
                     // If type is first, `buffered` is empty and we deserialize directly from map.
                     // If not, only the fields before `type` are buffered.
                     "line" => deserialize_line_annotation(&mut map, buffered).map(Annotation::Line),
-                    "arrow" => deserialize_arrow_annotation(&mut map, buffered).map(Annotation::Arrow),
-                    "marker" => deserialize_marker_annotation(&mut map, buffered).map(Annotation::Marker),
-                    "label" => deserialize_label_annotation(&mut map, buffered).map(Annotation::Label),
+                    "arrow" => {
+                        deserialize_arrow_annotation(&mut map, buffered).map(Annotation::Arrow)
+                    }
+                    "marker" => {
+                        deserialize_marker_annotation(&mut map, buffered).map(Annotation::Marker)
+                    }
+                    "label" => {
+                        deserialize_label_annotation(&mut map, buffered).map(Annotation::Label)
+                    }
                     _ => Err(serde::de::Error::unknown_variant(
                         &tag,
                         &["line", "arrow", "marker", "label"],
@@ -278,7 +310,9 @@ where
     count += slope.is_some() as usize;
     count += two_points.is_some() as usize;
     if count != 1 {
-        return Err(A::Error::custom("line annotations require exactly one of horizontal, vertical, slope, or twoPoints"));
+        return Err(A::Error::custom(
+            "line annotations require exactly one of horizontal, vertical, slope, or twoPoints",
+        ));
     }
 
     let mut annot = if let Some(y) = horizontal {
@@ -436,5 +470,3 @@ where
 
     Ok(annot)
 }
-
-

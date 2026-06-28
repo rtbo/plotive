@@ -130,7 +130,8 @@ impl LerpColorMap {
 
     #[allow(unused)]
     fn with_name(mut self, name: &'static str) -> Self {
-        #[cfg(feature = "serde")] {
+        #[cfg(feature = "serde")]
+        {
             self.name = Some(name);
         }
         self

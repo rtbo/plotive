@@ -476,7 +476,9 @@ impl Padding {
         match self {
             Padding::Even(p) => *p * 2.0,
             Padding::Center { ver: v, .. } => *v * 2.0,
-            Padding::Custom { top: t, bottom: b, .. } => *t + *b,
+            Padding::Custom {
+                top: t, bottom: b, ..
+            } => *t + *b,
         }
     }
 
@@ -485,7 +487,9 @@ impl Padding {
         match self {
             Padding::Even(p) => *p * 2.0,
             Padding::Center { hor: h, .. } => *h * 2.0,
-            Padding::Custom { left: l, right: r, .. } => *l + *r,
+            Padding::Custom {
+                left: l, right: r, ..
+            } => *l + *r,
         }
     }
 }
@@ -504,7 +508,12 @@ impl From<(f32, f32)> for Padding {
 
 impl From<(f32, f32, f32, f32)> for Padding {
     fn from((t, r, b, l): (f32, f32, f32, f32)) -> Self {
-        Padding::Custom { top: t, right: r, bottom: b, left: l }
+        Padding::Custom {
+            top: t,
+            right: r,
+            bottom: b,
+            left: l,
+        }
     }
 }
 

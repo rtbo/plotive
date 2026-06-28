@@ -156,7 +156,9 @@ fn deserialize_i64_vec(values: &[Value]) -> Result<Vec<Option<i64>>, Box<dyn std
         .collect()
 }
 
-fn deserialize_string_vec(values: &[Value]) -> Result<Vec<Option<String>>, Box<dyn std::error::Error>> {
+fn deserialize_string_vec(
+    values: &[Value],
+) -> Result<Vec<Option<String>>, Box<dyn std::error::Error>> {
     values
         .iter()
         .map(|v| match v {
@@ -168,7 +170,9 @@ fn deserialize_string_vec(values: &[Value]) -> Result<Vec<Option<String>>, Box<d
 }
 
 #[cfg(feature = "time")]
-fn deserialize_datetime_vec(values: &[Value]) -> Result<Vec<Option<crate::time::DateTime>>, Box<dyn std::error::Error>> {
+fn deserialize_datetime_vec(
+    values: &[Value],
+) -> Result<Vec<Option<crate::time::DateTime>>, Box<dyn std::error::Error>> {
     const FMT: &str = "%Y-%m-%d %H:%M:%S%.f";
     values
         .iter()
@@ -180,23 +184,21 @@ fn deserialize_datetime_vec(values: &[Value]) -> Result<Vec<Option<crate::time::
                     .map(Some)
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
             }
-            Value::F64(f) => {
-                crate::time::DateTime::from_timestamp(*f)
-                    .map(Some)
-                    .ok_or_else(|| "invalid time".into())
-            }
-            Value::I64(i) => {
-                crate::time::DateTime::from_timestamp(*i as f64)
-                    .map(Some)
-                    .ok_or_else(|| "invalid time".into())
-            }
+            Value::F64(f) => crate::time::DateTime::from_timestamp(*f)
+                .map(Some)
+                .ok_or_else(|| "invalid time".into()),
+            Value::I64(i) => crate::time::DateTime::from_timestamp(*i as f64)
+                .map(Some)
+                .ok_or_else(|| "invalid time".into()),
             _ => Err("Cannot convert value to DateTime".into()),
         })
         .collect()
 }
 
 #[cfg(feature = "time")]
-fn deserialize_timedelta_vec(values: &[Value]) -> Result<Vec<Option<crate::time::TimeDelta>>, Box<dyn std::error::Error>> {
+fn deserialize_timedelta_vec(
+    values: &[Value],
+) -> Result<Vec<Option<crate::time::TimeDelta>>, Box<dyn std::error::Error>> {
     values
         .iter()
         .map(|_v| {
@@ -238,7 +240,14 @@ impl<'de> serde::Deserialize<'de> for series::Interpolation {
             "spline" => Ok(series::Interpolation::Spline),
             _ => Err(serde::de::Error::unknown_variant(
                 &s,
-                &["default", "linear", "step-early", "step-middle", "step-late", "spline"],
+                &[
+                    "default",
+                    "linear",
+                    "step-early",
+                    "step-middle",
+                    "step-late",
+                    "spline",
+                ],
             )),
         }
     }
@@ -297,7 +306,9 @@ impl<'de> serde::de::Visitor<'de> for SeriesVisitor {
                         deserialize_scatter_series(&mut map, buffered).map(Series::Scatter)
                     }
                     "area" => deserialize_area_series(&mut map, buffered).map(Series::Area),
-                    "hist" => deserialize_histogram_series(&mut map, buffered).map(Series::Histogram),
+                    "hist" => {
+                        deserialize_histogram_series(&mut map, buffered).map(Series::Histogram)
+                    }
                     "bars" => deserialize_bars_series(&mut map, buffered).map(Series::Bars),
                     "bars-group" => {
                         deserialize_bars_group_series(&mut map, buffered).map(Series::BarsGroup)
@@ -857,7 +868,8 @@ impl serde::Serialize for series::Bars {
         }
 
         let default_pos = series::BarsPosition::default();
-        if self.position().offset != default_pos.offset || self.position().width != default_pos.width
+        if self.position().offset != default_pos.offset
+            || self.position().width != default_pos.width
         {
             state.serialize_field("position", self.position())?;
         }
@@ -952,7 +964,9 @@ impl serde::Serialize for series::BarsArrangement {
         match self {
             series::BarsArrangement::Aside(arr) => {
                 let default = series::BarsAsideArrangement::default();
-                if arr.offset == default.offset && arr.width == default.width && arr.gap == default.gap
+                if arr.offset == default.offset
+                    && arr.width == default.width
+                    && arr.gap == default.gap
                 {
                     "aside".serialize(serializer)
                 } else {
@@ -1045,20 +1059,27 @@ impl<'de> serde::de::Visitor<'de> for BarsArrangementVisitor {
         match typ.as_deref() {
             Some("aside") | None => {
                 let default = series::BarsAsideArrangement::default();
-                Ok(series::BarsArrangement::Aside(series::BarsAsideArrangement {
-                    offset: offset.unwrap_or(default.offset),
-                    width: width.unwrap_or(default.width),
-                    gap: gap.unwrap_or(default.gap),
-                }))
+                Ok(series::BarsArrangement::Aside(
+                    series::BarsAsideArrangement {
+                        offset: offset.unwrap_or(default.offset),
+                        width: width.unwrap_or(default.width),
+                        gap: gap.unwrap_or(default.gap),
+                    },
+                ))
             }
             Some("stack") => {
                 let default = series::BarsStackArrangement::default();
-                Ok(series::BarsArrangement::Stack(series::BarsStackArrangement {
-                    offset: offset.unwrap_or(default.offset),
-                    width: width.unwrap_or(default.width),
-                }))
+                Ok(series::BarsArrangement::Stack(
+                    series::BarsStackArrangement {
+                        offset: offset.unwrap_or(default.offset),
+                        width: width.unwrap_or(default.width),
+                    },
+                ))
             }
-            Some(other) => Err(serde::de::Error::unknown_variant(other, &["aside", "stack"])),
+            Some(other) => Err(serde::de::Error::unknown_variant(
+                other,
+                &["aside", "stack"],
+            )),
         }
     }
 }
@@ -1204,4 +1225,3 @@ where
 
     Ok(group)
 }
-

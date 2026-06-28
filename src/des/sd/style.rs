@@ -236,10 +236,7 @@ where
             (None, None) => return Err(serde::de::Error::missing_field("color")),
         };
 
-        Ok(style::Fill::Solid {
-            color,
-            opacity,
-        })
+        Ok(style::Fill::Solid { color, opacity })
     }
 }
 
@@ -295,9 +292,8 @@ impl<'de> serde::de::Visitor<'de> for LinePatternVisitor {
     where
         E: serde::de::Error,
     {
-        str_to_line_pattern(value).ok_or_else(|| {
-            E::unknown_variant(value, &["solid", "dashed", "dotted", "dash-dot"])
-        })
+        str_to_line_pattern(value)
+            .ok_or_else(|| E::unknown_variant(value, &["solid", "dashed", "dotted", "dash-dot"]))
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -899,17 +895,17 @@ mod tests {
     fn deserialize_series_stroke_number_uses_default_color() {
         let stroke: style::series::Stroke = serde_json::from_str("2.5").unwrap();
 
-        assert_eq!(
-            stroke,
-            style::series::Stroke::default().with_width(2.5),
-        );
+        assert_eq!(stroke, style::series::Stroke::default().with_width(2.5),);
     }
 
     #[test]
     fn deserialize_theme_stroke_auto_still_fails_without_default() {
         let err = serde_json::from_str::<style::theme::Stroke>("\"auto\"").unwrap_err();
 
-        assert!(err.to_string().contains("there is no default stroke defined"));
+        assert!(
+            err.to_string()
+                .contains("there is no default stroke defined")
+        );
     }
 
     #[test]
@@ -1001,7 +997,8 @@ mod tests {
 
         assert_eq!(
             stroke,
-            style::series::Stroke::default().with_pattern(style::LinePattern::Dash(style::Dash(vec![2.0, 3.0]))),
+            style::series::Stroke::default()
+                .with_pattern(style::LinePattern::Dash(style::Dash(vec![2.0, 3.0]))),
         );
     }
 
@@ -1015,4 +1012,3 @@ mod tests {
         assert_eq!(deserialized, stroke);
     }
 }
-

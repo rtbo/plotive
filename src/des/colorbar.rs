@@ -86,7 +86,7 @@ impl ColorBar {
             ..Default::default()
         }
     }
-    
+
     /// Set the width of the color bar and return self for chaining
     pub fn with_width(mut self, width: f32) -> Self {
         self.width = width;

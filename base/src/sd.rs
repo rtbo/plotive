@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use std::fmt;
 use std::sync::LazyLock;
 
-
 use crate::color::{css4, xkcd};
 use crate::geom::{Padding, Size};
 use crate::{Rgb8, Rgba8, geom};
@@ -388,7 +387,13 @@ mod tests {
     fn test_padding_ser() {
         let tests = vec![
             (Padding::Even(10.0), "10.0"),
-            (Padding::Center { ver: 5.0, hor: 15.0 }, "[5.0,15.0]"),
+            (
+                Padding::Center {
+                    ver: 5.0,
+                    hor: 15.0,
+                },
+                "[5.0,15.0]",
+            ),
             (
                 Padding::Custom {
                     top: 1.0,
@@ -409,14 +414,29 @@ mod tests {
     fn test_padding_deser() {
         let tests = vec![
             ("10.0", Padding::Even(10.0)),
-            ("[5.0, 15.0]", Padding::Center { ver: 5.0, hor: 15.0 }),
-            ("[1.0, 2.0, 3.0, 4.0]", Padding::Custom {
-                top: 1.0,
-                right: 2.0,
-                bottom: 3.0,
-                left: 4.0,
-            }),
-            (r#"{"ver": 5.0, "hor": 15.0}"#, Padding::Center { ver: 5.0, hor: 15.0 }),
+            (
+                "[5.0, 15.0]",
+                Padding::Center {
+                    ver: 5.0,
+                    hor: 15.0,
+                },
+            ),
+            (
+                "[1.0, 2.0, 3.0, 4.0]",
+                Padding::Custom {
+                    top: 1.0,
+                    right: 2.0,
+                    bottom: 3.0,
+                    left: 4.0,
+                },
+            ),
+            (
+                r#"{"ver": 5.0, "hor": 15.0}"#,
+                Padding::Center {
+                    ver: 5.0,
+                    hor: 15.0,
+                },
+            ),
             (
                 r#"{"top": 1.0, "right": 2.0, "bottom": 3.0, "left": 4.0}"#,
                 Padding::Custom {
@@ -433,4 +453,3 @@ mod tests {
         }
     }
 }
-

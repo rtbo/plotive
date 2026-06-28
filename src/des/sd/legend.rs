@@ -89,9 +89,18 @@ impl<'de> serde::de::Deserialize<'de> for plot::LegendPos {
             _ => Err(serde::de::Error::unknown_variant(
                 s.as_ref(),
                 &[
-                    "out-top", "out-right", "out-bottom", "out-left",
-                    "in-top-left", "in-top", "in-top-right", "in-right",
-                    "in-bottom-right", "in-bottom", "in-bottom-left", "in-left",
+                    "out-top",
+                    "out-right",
+                    "out-bottom",
+                    "out-left",
+                    "in-top-left",
+                    "in-top",
+                    "in-top-right",
+                    "in-right",
+                    "in-bottom-right",
+                    "in-bottom",
+                    "in-bottom-left",
+                    "in-left",
                 ],
             )),
         }
@@ -212,7 +221,15 @@ where
                 "padding" => todo!("Deserialize geom::Padding"),
                 "margin" => legend = legend.with_margin(map.next_value()?),
                 "spacing" => legend = legend.with_spacing(map.next_value()?),
-                _ => return Err(serde::de::Error::unknown_field(&key, &["pos", "font", "fill", "border", "columns", "padding", "margin", "spacing"])),
+                _ => {
+                    return Err(serde::de::Error::unknown_field(
+                        &key,
+                        &[
+                            "pos", "font", "fill", "border", "columns", "padding", "margin",
+                            "spacing",
+                        ],
+                    ));
+                }
             }
         }
         Ok(legend)

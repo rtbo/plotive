@@ -100,7 +100,9 @@ pub trait TestHarness {
             ));
         }
 
-        let json = serde_json::to_string_pretty(fig).unwrap().replace("  ", "    ");
+        let json = serde_json::to_string_pretty(fig)
+            .unwrap()
+            .replace("  ", "    ");
         let des_fig: des::Figure = match serde_json::from_str(&json) {
             Ok(fig) => fig,
             Err(err) => {
@@ -112,7 +114,7 @@ pub trait TestHarness {
                     ref_name,
                     err,
                     failed_json_file.display()
-                ))
+                ));
             }
         };
         let des_drawn_fig = Self::draw_fig(&des_fig, style);
