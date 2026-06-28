@@ -626,6 +626,21 @@ pub mod ticks {
     }
 
     #[cfg(feature = "time")]
+    impl DateTimeFormatter {
+        /// Returns the format string for this formatter, if any
+        /// None means automatic formatting
+        pub fn fmt_str(&self) -> Option<String> {
+            match self {
+                DateTimeFormatter::Auto => None,
+                DateTimeFormatter::DateTime => Some("%Y-%m-%d %H:%M:%S".to_string()),
+                DateTimeFormatter::Date => Some("%Y-%m-%d".to_string()),
+                DateTimeFormatter::Time => Some("%H:%M:%S".to_string()),
+                DateTimeFormatter::Custom(fmt) => Some(fmt.clone()),
+            }
+        }
+    }
+
+    #[cfg(feature = "time")]
     impl From<DateTimeFormatter> for Formatter {
         fn from(fmt: DateTimeFormatter) -> Self {
             Formatter::DateTime(fmt)
@@ -641,6 +656,18 @@ pub mod ticks {
         Auto,
         /// Format the ticks with a custom TimeDelta format (see [crate::time::TimeDelta::fmt_parse])
         Custom(String),
+    }
+
+    #[cfg(feature = "time")]
+    impl TimeDeltaFormatter {
+        /// Returns the format string for this formatter, if any
+        /// None means automatic formatting
+        pub fn fmt_str(&self) -> Option<String> {
+            match self {
+                TimeDeltaFormatter::Auto => None,
+                TimeDeltaFormatter::Custom(fmt) => Some(fmt.clone()),
+            }
+        }
     }
 
     #[cfg(feature = "time")]

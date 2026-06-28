@@ -729,8 +729,27 @@ impl serde::Serialize for axis::ticks::Formatter {
                     "percent".serialize(serializer)
                 }
             }
+            #[cfg(feature = "time")]
+            axis::ticks::Formatter::DateTime(formatter) => {
+                let mut map = serializer.serialize_struct("DateTimeFormatter", 2)?;
+                map.serialize_field("type", "datetime")?;
+                let fmt_str = formatter.fmt_str();
+                if let Some(fmt_str) = fmt_str {
+                    map.serialize_field("format", &fmt_str)?;
+                }
+                map.end()
+            }
+            #[cfg(feature = "time")]
+            axis::ticks::Formatter::TimeDelta(formatter) => {
+                let mut map = serializer.serialize_struct("TimeDeltaFormatter", 2)?;
+                map.serialize_field("type", "timedelta")?;
+                if let Some(fmt_str) = formatter.fmt_str() {
+                    map.serialize_field("format", &fmt_str)?;
+                }
+                map.end()
+            }
             #[allow(unreachable_patterns)]
-            _ => todo!("Serialize other formatter types"),
+            _ => todo!("Serialize other formatter types: {:?}", self),
         }
     }
 }
@@ -778,9 +797,15 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
                         .map(axis::ticks::Formatter::Prec),
                     "percent" => deserialize_percent_formatter(&mut map, buffered)
                         .map(axis::ticks::Formatter::Percent),
+                    #[cfg(feature = "time")]
+                    "datetime" => deserialize_datetime_formatter(&mut map, buffered)
+                        .map(axis::ticks::Formatter::DateTime),
+                    #[cfg(feature = "time")]
+                    "timedelta" => deserialize_timedelta_formatter(&mut map, buffered)
+                        .map(axis::ticks::Formatter::TimeDelta),
                     _ => Err(serde::de::Error::unknown_variant(
                         &tag,
-                        &["prec", "percent"],
+                        &["prec", "percent", "datetime", "timedelta"],
                     )),
                 };
             }
@@ -824,6 +849,59 @@ where
     Ok(axis::ticks::PercentFormatter {
         decimal_places: decimals,
     })
+}
+
+fn deserialize_datetime_formatter<'de, A>(
+    map: &mut A,
+    buffered: Vec<(String, Value)>,
+) -> Result<axis::ticks::DateTimeFormatter, A::Error>
+where
+    A: serde::de::MapAccess<'de>,
+{
+    deserialize_tagged_map_fields!(
+        'de, map, buffered,
+        "format" => format: Option<String>,
+    );
+    match format {
+        Some(fmt_str) => {
+            if &fmt_str == "%Y-%m-%d %H:%M:%S" {
+                return Ok(axis::ticks::DateTimeFormatter::DateTime);
+            }
+            if &fmt_str == "%Y-%m-%d" {
+                return Ok(axis::ticks::DateTimeFormatter::Date);
+            }
+            if &fmt_str == "%H:%M:%S" {
+                return Ok(axis::ticks::DateTimeFormatter::Time);
+            }
+            if &fmt_str == "auto" {
+                return Ok(axis::ticks::DateTimeFormatter::Auto);
+            }
+            Ok(axis::ticks::DateTimeFormatter::Custom(fmt_str))
+        }
+        None => Ok(axis::ticks::DateTimeFormatter::Auto),
+    }
+}
+
+fn deserialize_timedelta_formatter<'de, A>(
+    map: &mut A,
+    buffered: Vec<(String, Value)>,
+) -> Result<axis::ticks::TimeDeltaFormatter, A::Error>
+where
+    A: serde::de::MapAccess<'de>,
+{
+    deserialize_tagged_map_fields!(
+        'de, map, buffered,
+        "format" => format: Option<String>,
+    );
+    match format {
+        Some(fmt_str) => {
+            if &fmt_str == "auto" {
+                return Ok(axis::ticks::TimeDeltaFormatter::Auto);
+            }
+            Ok(axis::ticks::TimeDeltaFormatter::Custom(fmt_str))
+        }
+        None => Ok(axis::ticks::TimeDeltaFormatter::Auto),
+    }
 }
 
 // MARK: axis::Ticks

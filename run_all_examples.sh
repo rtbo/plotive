@@ -9,7 +9,7 @@ cargo run --example text_line --package plotive-text --features noto-sans
 cargo run --example text_rich --package plotive-text --features noto-sans,noto-serif
 
 # passing all needed feature to each example to avoid unnecessary recompilation
-features="data-csv,dsl,noto-sans,noto-serif-italic,time,utils"
+features="data-csv,dsl,noto-sans,noto-serif-italic,serde,time,utils"
 
 cargo run --example area --features $features -- $@
 cargo run --example bars --features $features -- $@
