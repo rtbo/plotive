@@ -52,6 +52,7 @@ fn main() {
         (100.0, "mag3", "phase3", "R = 100 Ω"),
     ];
 
+    // [&str; 1] converts to Text::Rich
     let title = [concat!(
         "Bode diagram of RLC circuit\n",
         "[size=18;italic;font=serif]L = 0.1 mH / C = 1 µF[/size;italic;font]"
@@ -117,11 +118,11 @@ fn main() {
     let slope_line = des::annot::Line::two_points(cutoff, 0.0, 100.0 * cutoff, mag_2_decades)
         .with_pattern(style::Dash::default().into());
     let cut_off_label =
-        des::annot::Label::new(format!("{:.2} kHz", cutoff / 1000.0), cutoff, -60.0)
+        des::annot::Label::new(format!("{:.2} kHz", cutoff / 1000.0).into(), cutoff, -60.0)
             .with_anchor(des::annot::Anchor::BottomLeft)
             .with_angle(90.0);
     let slope_label = des::annot::Label::new(
-        format!("{:.0} dB/decade", mag_2_decades / 2.0),
+        format!("{:.0} dB/decade", mag_2_decades / 2.0).into(),
         cutoff * 10.0,
         mag_2_decades / 2.0,
     )

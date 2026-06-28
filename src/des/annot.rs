@@ -1,7 +1,6 @@
 //! Annotations to place on the plot area.
-use crate::des::axis;
+use crate::des::{Text, axis};
 use crate::style::{self, theme};
-use crate::text::Font;
 
 /// An arbitrary graphical annotation placed on the plot area.
 /// The placement is made according to the data coordinates.
@@ -497,10 +496,7 @@ pub enum Anchor {
 pub struct Label {
     x: f64,
     y: f64,
-    text: String,
-    font_size: f32,
-    font: Font,
-    color: theme::Color,
+    text: Text,
     anchor: Anchor,
     frame: (Option<theme::Fill>, Option<theme::Stroke>),
     angle: f32,
@@ -512,14 +508,11 @@ pub struct Label {
 
 impl Label {
     /// Create a new label with the given text at data coordinates (x, y)
-    pub fn new(text: String, x: f64, y: f64) -> Self {
+    pub fn new(text: Text, x: f64, y: f64) -> Self {
         Label {
             x,
             y,
             text,
-            font_size: 12.0,
-            font: Font::default(),
-            color: theme::Col::Foreground.into(),
             anchor: Anchor::default(),
             frame: (None, None),
             angle: 0.0,
@@ -527,22 +520,6 @@ impl Label {
             y_axis: Default::default(),
             zpos: ZPos::AboveSeries,
         }
-    }
-
-    /// Set the font size of the label
-    pub fn with_font_size(self, font_size: f32) -> Self {
-        Self { font_size, ..self }
-    }
-
-    /// Set the font of the label
-    pub fn with_font(self, font: Font) -> Self {
-        Self { font, ..self }
-    }
-
-    /// Set the color of the label.
-    /// By default, the foreground theme color is used.
-    pub fn with_color(self, color: theme::Color) -> Self {
-        Self { color, ..self }
     }
 
     /// Set the anchor point of the label.
@@ -595,24 +572,8 @@ impl Label {
     }
 
     /// Get the text of the label.
-    pub fn text(&self) -> &str {
+    pub fn text(&self) -> &Text {
         &self.text
-    }
-
-    /// Get the font size of the label
-    pub fn font_size(&self) -> f32 {
-        self.font_size
-    }
-
-    /// Get the font of the label
-    pub fn font(&self) -> &Font {
-        &self.font
-    }
-
-    /// Get the color of the label.
-    /// By default, the foreground theme color is used.
-    pub fn color(&self) -> &theme::Color {
-        &self.color
     }
 
     /// Get the anchor point of the label.
