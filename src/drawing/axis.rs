@@ -17,7 +17,6 @@ use crate::style::{defaults, theme};
 use crate::text::{self, font};
 use crate::{Style, data, des, geom, missing_params, render};
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Orientation {
     X,
@@ -390,7 +389,11 @@ where
                         height += missing_params::TICK_SIZE;
                     }
                     height += missing_params::TICK_SIZE;
-                    height += missing_params::TICK_LABEL_MARGIN + ticks.font().size;
+                    height += missing_params::TICK_LABEL_MARGIN
+                        + ticks
+                            .font()
+                            .size
+                            .unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
                 }
             }
             let key = AxisCacheKey {
@@ -512,6 +515,17 @@ where
         }
     }
 
+    fn axis_major_ticks_font(&self, major_ticks: &des::axis::Ticks) -> Result<(text::Font, f32, theme::Color), Error> {
+        let font_props = major_ticks.font();
+        let font = super::resolve_line_font(
+            font_props,
+            text::Font::new(text::parse_font_families(defaults::FONT_FAMILY).unwrap()),
+        );
+        let font_size = major_ticks.font().size.unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
+        let color = font_props.color.unwrap_or(major_ticks.color());
+        Ok((font, font_size, color))
+    }
+
     fn setup_num_ticks(
         &self,
         major_ticks: &des::axis::Ticks,
@@ -521,7 +535,7 @@ where
         copy_from: Option<&NumTicks>,
     ) -> Result<NumTicks, Error> {
         let db: &font::Database = self.fontdb();
-        let font = major_ticks.font();
+        let (font, font_size, lbl_color) = self.axis_major_ticks_font(major_ticks)?;
 
         let ticks_align = side.ticks_labels_align();
         let annot_align = side.annot_align();
@@ -534,8 +548,8 @@ where
         let mut ticks = Vec::new();
         for loc in major_locs.into_iter() {
             let text = lbl_formatter.format_label(loc.into());
-            let lbl = text::LineText::new(text, ticks_align, font.size, font.font.clone(), db)?;
-            let lbl = Text::from_line_text(&lbl, db, major_ticks.color())?;
+            let lbl = text::LineText::new(text, ticks_align, font_size, font.clone(), db)?;
+            let lbl = Text::from_line_text(&lbl, db, lbl_color)?;
             ticks.push(NumTick { loc, lbl });
         }
 
@@ -548,13 +562,13 @@ where
                     text::LineText::new(
                         l.to_string(),
                         annot_align,
-                        font.size,
-                        font.font.clone(),
+                        font_size,
+                        font,
                         db,
                     )
                 })
                 .transpose()?
-                .map(|lbl| Text::from_line_text(&lbl, db, major_ticks.color()))
+                .map(|lbl| Text::from_line_text(&lbl, db, lbl_color))
                 .transpose()?
         };
 
@@ -599,7 +613,7 @@ where
         side: Side,
     ) -> Result<NumTicks, Error> {
         let db: &font::Database = self.fontdb();
-        let font = major_ticks.font();
+        let (font, font_size, lbl_color) = self.axis_major_ticks_font(major_ticks)?;
 
         let ticks_align = side.ticks_labels_align();
         let annot_align = side.annot_align();
@@ -617,8 +631,8 @@ where
         let mut ticks = Vec::new();
         for loc in major_locs.into_iter() {
             let text = lbl_formatter.format_label(loc.into());
-            let lbl = text::LineText::new(text, ticks_align, font.size, font.font.clone(), db)?;
-            let lbl = Text::from_line_text(&lbl, db, major_ticks.color())?;
+            let lbl = text::LineText::new(text, ticks_align, font_size, font.clone(), db)?;
+            let lbl = Text::from_line_text(&lbl, db, lbl_color)?;
             ticks.push(NumTick {
                 loc: loc.timestamp(),
                 lbl,
@@ -628,10 +642,10 @@ where
         let annot = lbl_formatter
             .axis_annotation()
             .map(|l| {
-                text::LineText::new(l.to_string(), annot_align, font.size, font.font.clone(), db)
+                text::LineText::new(l.to_string(), annot_align, font_size, font, db)
             })
             .transpose()?
-            .map(|lbl| Text::from_line_text(&lbl, db, major_ticks.color()))
+            .map(|lbl| Text::from_line_text(&lbl, db, lbl_color))
             .transpose()?;
 
         Ok(NumTicks {
@@ -649,7 +663,7 @@ where
         side: Side,
     ) -> Result<CategoryTicks, Error> {
         let db: &font::Database = self.fontdb();
-        let font = des.font();
+        let (font, font_size, lbl_color) = self.axis_major_ticks_font(des)?;
 
         let ticks_align = side.ticks_labels_align();
 
@@ -658,11 +672,11 @@ where
             let lbl = text::LineText::new(
                 cat.to_string(),
                 ticks_align,
-                font.size,
-                font.font.clone(),
+                font_size,
+                font.clone(),
                 db,
             )?;
-            let lbl = Text::from_line_text(&lbl, db, des.color())?;
+            let lbl = Text::from_line_text(&lbl, db, lbl_color)?;
             lbls.push(lbl);
         }
 
@@ -673,7 +687,7 @@ where
         });
 
         Ok(CategoryTicks {
-            font_size: font.size,
+            font_size,
             lbls,
             sep,
         })
@@ -686,7 +700,6 @@ where
         uses_shared: bool,
         spine: Option<des::plot::Border>,
     ) -> Result<DrawOpts, Error> {
-
         let ticks_labels = !uses_shared;
         let marks = des_axis.ticks().map(|ticks| TickMark {
             stroke: ticks.color().into(),

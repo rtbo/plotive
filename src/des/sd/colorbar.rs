@@ -5,6 +5,7 @@ use serde::{Deserializer, Serializer};
 use crate::des::axis::ticks;
 use crate::des::{self, colorbar};
 use crate::style::theme;
+use crate::text;
 
 impl serde::Serialize for colorbar::Pos {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -79,6 +80,9 @@ impl serde::Serialize for colorbar::ColorBar {
         if self.border() != default.border() {
             map.serialize_field("border", &self.border())?;
         }
+        if self.ticks_font() != default.ticks_font() {
+            map.serialize_field("ticksFont", &self.ticks_font())?;
+        }
         if self.ticks_locator() != default.ticks_locator() {
             map.serialize_field("ticks", &self.ticks_locator())?;
         }
@@ -124,6 +128,7 @@ impl<'de> serde::Deserialize<'de> for colorbar::ColorBar {
                     "title" => title: Option<des::Text>,
                     "border" => border: Option<Option<theme::Stroke>>,
                     "ticks" => ticks: Option<ticks::Locator>,
+                    "ticksFont" => ticks_font: Option<text::LineProps>,
                     "margin" => margin: Option<f32>,
                 );
                 let mut colorbar = if let Some(pos) = pos {
@@ -138,13 +143,16 @@ impl<'de> serde::Deserialize<'de> for colorbar::ColorBar {
                     colorbar = colorbar.with_title(title);
                 }
                 if let Some(border) = border {
-                    colorbar = colorbar.with_border(border)
+                    colorbar = colorbar.with_border(border);
                 }
                 if let Some(ticks) = ticks {
-                    colorbar = colorbar.with_ticks_locator(ticks)
+                    colorbar = colorbar.with_ticks_locator(ticks);
+                }
+                if let Some(ticks_font) = ticks_font {
+                    colorbar = colorbar.with_ticks_font(ticks_font);
                 }
                 if let Some(margin) = margin {
-                    colorbar = colorbar.with_margin(margin)
+                    colorbar = colorbar.with_margin(margin);
                 }
                 Ok(colorbar)
             }

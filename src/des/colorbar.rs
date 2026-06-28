@@ -17,27 +17,6 @@ pub enum Pos {
     Left,
 }
 
-/// Font configuration for color bar ticks
-#[derive(Debug, Clone, PartialEq)]
-pub struct TicksFont {
-    /// The font size in figure units
-    pub size: f32,
-    /// The font
-    pub font: text::Font,
-    /// The font color
-    pub color: theme::Color,
-}
-
-impl Default for TicksFont {
-    fn default() -> Self {
-        Self {
-            size: defaults::COLORBAR_TICKS_FONT_SIZE,
-            font: text::Font::default(),
-            color: theme::Col::Foreground.into(),
-        }
-    }
-}
-
 /// ColorBar configuration for a plot
 #[derive(Debug, Clone, PartialEq)]
 pub struct ColorBar {
@@ -45,7 +24,7 @@ pub struct ColorBar {
     pub(crate) pos: Pos,
     width: f32,
     title: Option<Text>,
-    ticks_font: TicksFont,
+    ticks_font: text::LineProps,
     border: Option<theme::Stroke>,
     locator: axis::ticks::Locator,
     margin: f32,
@@ -57,7 +36,7 @@ impl Default for ColorBar {
             pos: Pos::default(),
             width: defaults::COLORBAR_WIDTH,
             title: None,
-            ticks_font: TicksFont::default(),
+            ticks_font: text::LineProps::default(),
             border: Some(theme::Stroke {
                 color: theme::Col::Foreground.into(),
                 width: 1.0,
@@ -92,7 +71,7 @@ impl ColorBar {
     }
 
     /// Set the ticks font properties and return self for chaining
-    pub fn with_ticks_font(mut self, ticks_font: TicksFont) -> Self {
+    pub fn with_ticks_font(mut self, ticks_font: text::LineProps) -> Self {
         self.ticks_font = ticks_font;
         self
     }
@@ -131,7 +110,7 @@ impl ColorBar {
     }
 
     /// Get the ticks font properties
-    pub fn ticks_font(&self) -> &TicksFont {
+    pub fn ticks_font(&self) -> &text::LineProps {
         &self.ticks_font
     }
 

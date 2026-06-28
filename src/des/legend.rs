@@ -7,32 +7,11 @@ use crate::geom::{Padding, Size};
 use crate::style::{defaults, theme};
 use crate::text;
 
-/// The font configuration for legend entries
-#[derive(Debug, Clone, PartialEq)]
-pub struct EntryFont {
-    /// The font size in figure units
-    pub size: f32,
-    /// The font
-    pub font: text::Font,
-    /// The font color
-    pub color: theme::Color,
-}
-
-impl Default for EntryFont {
-    fn default() -> Self {
-        Self {
-            size: defaults::LEGEND_LABEL_FONT_SIZE,
-            font: text::Font::default(),
-            color: theme::Col::Foreground.into(),
-        }
-    }
-}
-
 /// Legend configuration for a plot
 #[derive(Debug, Clone, PartialEq)]
 pub struct Legend<Pos> {
     pos: Pos,
-    font: EntryFont,
+    font: text::LineProps,
     fill: Option<theme::Fill>,
     border: Option<theme::Stroke>,
     columns: Option<NonZeroU32>,
@@ -45,13 +24,13 @@ impl<Pos: Default> Default for Legend<Pos> {
     /// Create a default legend configuration
     /// - Fill color: theme::Col::LegendFill, opacity 0.5
     /// - Border: theme::Col::LegendBorder, 1.0
-    /// - Font: default EntryFont
+    /// - Font: default LineProps
     /// - Default column layout (depdend on the position and number and width of entries)
     /// - Default padding and spacing
     fn default() -> Self {
         Self {
             pos: Pos::default(),
-            font: EntryFont::default(),
+            font: text::LineProps::default(),
             fill: defaults::legend_fill(),
             border: Some(theme::Col::LegendBorder.into()),
             columns: None,
@@ -87,7 +66,7 @@ where
 
 impl<Pos> Legend<Pos> {
     /// Get the font configuration for legend entries
-    pub fn font(&self) -> &EntryFont {
+    pub fn font(&self) -> &text::LineProps {
         &self.font
     }
 
@@ -127,7 +106,7 @@ impl<Pos> Legend<Pos> {
     }
 
     /// Set the font configuration for legend entries and return self for chaining
-    pub fn with_font(self, font: EntryFont) -> Self {
+    pub fn with_font(self, font: text::LineProps) -> Self {
         Self { font, ..self }
     }
 

@@ -871,17 +871,19 @@ impl serde::Serialize for axis::Ticks {
 
         let has_default_locator = self.locator() == default.locator();
         let has_default_formatter = self.formatter() == default.formatter();
+        let has_default_font = self.font() == default.font();
         let has_default_color = self.color() == default.color();
 
         match (
             has_default_locator,
             has_default_formatter,
+            has_default_font,
             has_default_color,
         ) {
-            (true, true, true) => "auto".serialize(serializer),
-            (false, true, true) => self.locator().serialize(serializer),
-            (true, false, true) => self.formatter().serialize(serializer),
-            (true, true, false) => self.color().serialize(serializer),
+            (true, true, true, true) => "auto".serialize(serializer),
+            (false, true, true, true) => self.locator().serialize(serializer),
+            (true, false, true, true) => self.formatter().serialize(serializer),
+            (true, true, true, false) => self.color().serialize(serializer),
             _ => {
                 let len = 3
                     - has_default_locator as usize
@@ -893,6 +895,9 @@ impl serde::Serialize for axis::Ticks {
                 }
                 if !has_default_formatter {
                     state.serialize_field("formatter", &self.formatter())?;
+                }
+                if !has_default_font {
+                    state.serialize_field("font", &self.font())?;
                 }
                 if !has_default_color {
                     state.serialize_field("color", &self.color())?;
@@ -983,6 +988,10 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                     let formatter = map.next_value()?;
                     ticks = ticks.with_formatter(formatter);
                 }
+                "font" => {
+                    let font = map.next_value()?;
+                    ticks = ticks.with_font(font);
+                }
                 "color" => {
                     let color = map.next_value()?;
                     ticks = ticks.with_color(color);
@@ -1023,7 +1032,7 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                 _ => {
                     return Err(serde::de::Error::unknown_field(
                         &key,
-                        &["locator", "formatter", "color", "type"],
+                        &["locator", "formatter", "font", "color", "type"],
                     ));
                 }
             }

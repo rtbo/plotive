@@ -5,7 +5,7 @@
  * They are not tied to a specific orientation (X or Y), that is handled at the plot level.
  */
 
-pub use ticks::{Grid, MinorGrid, MinorTicks, Ticks, TicksFont};
+pub use ticks::{Grid, MinorGrid, MinorTicks, Ticks};
 
 use super::Text;
 
@@ -382,8 +382,8 @@ impl Scale {
 
 /// Describe the ticks of an axis
 pub mod ticks {
-    use crate::style::{self, Dash, defaults, theme};
-    use crate::text::Font;
+    use crate::style::{self, Dash, theme};
+    use crate::text;
 
     /// Describes how to locate the ticks of an axis
     #[derive(Debug, Default, Clone, PartialEq)]
@@ -669,24 +669,6 @@ pub mod ticks {
         }
     }
 
-    /// Describes the font of the ticks labels
-    #[derive(Debug, Clone, PartialEq)]
-    pub struct TicksFont {
-        /// The font of the ticks labels
-        pub font: Font,
-        /// The font size of the ticks labels
-        pub size: f32,
-    }
-
-    impl Default for TicksFont {
-        fn default() -> Self {
-            TicksFont {
-                font: defaults::FONT_FAMILY.parse().unwrap(),
-                size: defaults::TICKS_LABEL_FONT_SIZE,
-            }
-        }
-    }
-
     /// Describes the style of the major grid lines
     #[derive(Debug, Clone, PartialEq)]
     pub struct Grid(pub theme::Stroke);
@@ -725,7 +707,7 @@ pub mod ticks {
     pub struct Ticks {
         locator: Locator,
         formatter: Option<Formatter>,
-        font: TicksFont,
+        font: text::LineProps,
         color: theme::Color,
     }
 
@@ -738,7 +720,7 @@ pub mod ticks {
             Ticks {
                 locator: Locator::default(),
                 formatter: Some(Formatter::default()),
-                font: TicksFont::default(),
+                font: text::LineProps::default(),
                 color: theme::Col::Foreground.into(),
             }
         }
@@ -760,7 +742,7 @@ pub mod ticks {
             Self { formatter, ..self }
         }
         /// Returns a new ticks with the specified font
-        pub fn with_font(self, font: TicksFont) -> Self {
+        pub fn with_font(self, font: text::LineProps) -> Self {
             Self { font, ..self }
         }
         /// Returns a new ticks with the specified color
@@ -777,11 +759,12 @@ pub mod ticks {
         pub fn formatter(&self) -> Option<&Formatter> {
             self.formatter.as_ref()
         }
-        /// Font for the ticks labels
-        pub fn font(&self) -> &TicksFont {
+        /// Font properties for the ticks labels
+        pub fn font(&self) -> &text::LineProps {
             &self.font
         }
-        /// Color for the ticks and the labels
+        /// Color for the ticks.
+        /// Will be used for the labels as well unless a specific color is set in [`font`](Self::font).
         pub fn color(&self) -> theme::Color {
             self.color
         }

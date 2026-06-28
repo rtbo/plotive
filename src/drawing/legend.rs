@@ -54,7 +54,7 @@ impl ShapeRef<'_> {
 #[derive(Debug, Clone)]
 pub struct Entry<'a> {
     pub label: &'a str,
-    pub font: Option<&'a des::legend::EntryFont>,
+    pub font: Option<&'a text::LineProps>,
     pub shape: ShapeRef<'a>,
 }
 
@@ -80,7 +80,7 @@ impl LegendEntry {
 
 #[derive(Debug)]
 pub struct LegendBuilder<'a> {
-    font: des::legend::EntryFont,
+    font: text::LineProps,
     fill: Option<theme::Fill>,
     border: Option<theme::Stroke>,
     columns: Option<u32>,
@@ -128,7 +128,13 @@ impl<'a> LegendBuilder<'a> {
 
     pub fn add_entry(&mut self, index: usize, entry: Entry) -> Result<(), drawing::Error> {
         let shape = entry.shape.to_shape();
-        let font = entry.font.unwrap_or(&self.font);
+        let font_props = entry.font.unwrap_or(&self.font);
+        let font = super::resolve_line_font(font_props, defaults::FONT_FAMILY.parse().unwrap());
+        let font_size = font_props
+            .size
+            .unwrap_or(defaults::LEGEND_LABEL_FONT_SIZE);
+        let color = font_props.color.unwrap_or(theme::Col::Foreground.into());
+
         let align = (
             text::line::Align::Start,
             text::line::VerAlign::Middle.into(),
@@ -136,11 +142,11 @@ impl<'a> LegendBuilder<'a> {
         let text = LineText::new(
             entry.label.to_string(),
             align,
-            font.size,
-            font.font.clone(),
+            font_size,
+            font,
             &self.fontdb,
         )?;
-        let text = Text::from_line_text(&text, &self.fontdb, font.color)?;
+        let text = Text::from_line_text(&text, &self.fontdb, color)?;
         self.entries.push(LegendEntry {
             index,
             shape,
