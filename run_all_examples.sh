@@ -20,6 +20,7 @@ cargo run --example bouncing_ball --features $features -- $@
 cargo run --example gauss --features $features -- $@
 cargo run --example iris --features $features -- $@
 cargo run --example iris_dsl --features $features -- $@
+cargo run --example minimal --features $features -- $@
 cargo run --example multiple_axes --features $features -- $@
 cargo run --example multiple_axes_dsl --features $features -- $@
 cargo run --example sine --features $features -- $@

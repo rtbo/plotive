@@ -81,6 +81,9 @@ name = "iris_dsl"
 required-features = ["data-csv", "dsl"]
 
 [[example]]
+name = "minimal"
+
+[[example]]
 name = "multiple_axes"
 required-features = ["utils"]
 
