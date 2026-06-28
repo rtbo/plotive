@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -12,9 +13,32 @@ pub use side::Side;
 
 use crate::drawing::scale::{self, CoordMap};
 use crate::drawing::{Categories, Ctx, Error, Text, ticks};
-use crate::style::theme;
+use crate::style::{defaults, theme};
 use crate::text::{self, font};
 use crate::{Style, data, des, geom, missing_params, render};
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Orientation {
+    X,
+    Y,
+}
+
+/// Cache for a single axis used during setup
+#[derive(Debug, Clone)]
+pub struct AxisCache {
+    pub side: Side,
+    pub title: Option<Text>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AxisCacheKey {
+    pub plt_idx: usize,
+    pub ax_idx: usize,
+    pub orientation: Orientation,
+}
+
+pub type AxisCacheMap = HashMap<AxisCacheKey, AxisCache>;
 
 #[derive(Debug, Clone)]
 pub struct Axis {
@@ -92,6 +116,13 @@ impl Axis {
                 data::SampleRef::Cat(c) => c.to_string(),
                 _ => "".to_string(),
             },
+        }
+    }
+
+    pub fn into_cache(self) -> AxisCache {
+        AxisCache {
+            side: self.side,
+            title: self.draw_opts.title,
         }
     }
 }
@@ -314,28 +345,61 @@ impl<D> Ctx<'_, D>
 where
     D: data::Source + ?Sized,
 {
+    pub fn setup_axis_cache(&self, side: Side, des_axis: &des::Axis) -> Result<AxisCache, Error> {
+        let title = des_axis
+            .title()
+            .map(|title| {
+                title.to_rich_text(
+                    text::rich::TextProps::new(defaults::AXIS_TITLE_FONT_SIZE)
+                        .with_font(defaults::FONT_FAMILY.parse().unwrap()),
+                    side.title_layout(),
+                    self.fontdb(),
+                )
+            })
+            .transpose()?
+            .map(|rt| Text::from_rich_text(&rt, self.fontdb()))
+            .transpose()?;
+
+        Ok(AxisCache { side, title })
+    }
+
     /// Estimate the height taken by a horizontal axis.
     /// It includes ticks marks, ticks labels and axis title.
-    /// This is the height without any additional margin
-    pub fn estimate_x_axes_height(&self, x_axes: &[des::Axis], side: des::axis::Side) -> f32 {
+    pub fn estimate_x_axes_height(
+        &self,
+        x_axes: &[des::Axis],
+        plt_idx: usize,
+        axis_cache: &AxisCacheMap,
+        side: des::axis::Side,
+    ) -> f32 {
         let mut height = 0.0;
-        for (idx, axis) in x_axes.iter().filter(|a| a.side() == side).enumerate() {
-            if idx != 0 {
+        for (side_idx, (ax_idx, axis)) in x_axes
+            .iter()
+            .enumerate()
+            .filter(|a| a.1.side() == side)
+            .enumerate()
+        {
+            if side_idx != 0 {
                 height += missing_params::AXIS_MARGIN + missing_params::AXIS_SPINE_WIDTH;
             }
             if let Some(ticks) = axis.ticks() {
                 if axis.has_tick_labels() {
                     // ticks is only accounted for when there are labels
                     // this allows to merge ticks of subplots with shared scales and zero inter-space
-                    if idx != 0 {
+                    if side_idx != 0 {
                         height += missing_params::TICK_SIZE;
                     }
                     height += missing_params::TICK_SIZE;
                     height += missing_params::TICK_LABEL_MARGIN + ticks.font().size;
                 }
             }
-            if let Some(title) = axis.title() {
-                height += missing_params::AXIS_TITLE_MARGIN + title.props().font_size();
+            let key = AxisCacheKey {
+                plt_idx,
+                ax_idx,
+                orientation: Orientation::X,
+            };
+            if let Some(title) = axis_cache.get(&key).and_then(|c| c.title.as_ref()) {
+                height += missing_params::AXIS_TITLE_MARGIN + title.height();
             }
         }
         height
@@ -344,18 +408,20 @@ where
     pub fn setup_axis(
         &self,
         des_axis: &des::Axis,
+        cache: AxisCache,
         bounds: &Bounds,
-        side: Side,
         size_along: f32,
         insets: &geom::Padding,
         shared_scale: Option<Rc<RefCell<AxisScale>>>,
         spine: Option<des::plot::Border>,
     ) -> Result<Axis, Error> {
-        let id = des_axis.id().map(|s| s.to_string());
-        let title_text = des_axis.title().map(|t| t.text().to_string());
+        let AxisCache { side, title } = cache;
+        let title_text = title.as_ref().map(|t| t.text.clone());
 
         let uses_shared = shared_scale.is_some();
-        let draw_opts = self.setup_axis_draw_opts(des_axis, side, uses_shared, spine)?;
+        let draw_opts = self.setup_axis_draw_opts(des_axis, title, uses_shared, spine)?;
+
+        let id = des_axis.id().map(|s| s.to_string());
 
         let scale = if let Some(scale) = shared_scale {
             scale
@@ -616,16 +682,10 @@ where
     fn setup_axis_draw_opts(
         &self,
         des_axis: &des::Axis,
-        side: Side,
+        title: Option<Text>,
         uses_shared: bool,
         spine: Option<des::plot::Border>,
     ) -> Result<DrawOpts, Error> {
-        let title = des_axis
-            .title()
-            .map(|title| title.to_rich_text(side.title_layout(), &self.fontdb))
-            .transpose()?
-            .map(|rich| Text::from_rich_text(&rich, &self.fontdb))
-            .transpose()?;
 
         let ticks_labels = !uses_shared;
         let marks = des_axis.ticks().map(|ticks| TickMark {

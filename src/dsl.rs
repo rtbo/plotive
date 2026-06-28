@@ -342,8 +342,7 @@ fn parse_fig(mut val: ast::Struct) -> Result<des::Figure, Error> {
     for prop in val.props {
         match prop.name.name.as_str() {
             "title" => {
-                let (span, fmt) = expect_string_val(prop)?;
-                fig = fig.with_title(parse_rich_text(span, fmt)?.into());
+                todo!("delete this module")
             }
             "legend" => {
                 fig = fig.with_legend(parse_fig_legend(prop.value)?);
@@ -443,7 +442,7 @@ fn parse_plot(mut val: ast::Struct) -> Result<(Option<(u32, u32)>, des::plot::Pl
             }
             "x-axis" => plot = plot.with_x_axis(parse_axis(prop, false)?),
             "y-axis" => plot = plot.with_y_axis(parse_axis(prop, true)?),
-            "title" => plot = plot.with_title(expect_string_val(prop)?.1.into()),
+            "title" => todo!("delete this module"),
             "legend" => plot = plot.with_legend(parse_plot_legend(prop.value)?),
             _ => {
                 return Err(Error::Parse {

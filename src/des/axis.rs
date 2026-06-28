@@ -7,15 +7,7 @@
 
 pub use ticks::{Grid, MinorGrid, MinorTicks, Ticks, TicksFont};
 
-use crate::style::defaults;
-
-super::define_rich_text_structs!(Title, TitleProps, TitleOptProps);
-
-impl Default for TitleProps {
-    fn default() -> Self {
-        TitleProps::new(defaults::AXIS_LABEL_FONT_SIZE)
-    }
-}
+use super::Text;
 
 /// Side of the axis in the plot, applies to both X and Y axes.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -73,7 +65,7 @@ pub fn ref_id(id: impl Into<String>) -> Ref {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Axis {
     id: Option<String>,
-    title: Option<Title>,
+    title: Option<Text>,
     side: Side,
     scale: Scale,
     ticks: Option<Ticks>,
@@ -118,7 +110,7 @@ impl Axis {
     }
 
     /// Set the title of this axis and return self for chaining
-    pub fn with_title(self, title: Title) -> Self {
+    pub fn with_title(self, title: Text) -> Self {
         Self {
             title: Some(title),
             ..self
@@ -182,7 +174,7 @@ impl Axis {
     }
 
     /// Get the title of this axis, if any
-    pub fn title(&self) -> Option<&Title> {
+    pub fn title(&self) -> Option<&Text> {
         self.title.as_ref()
     }
 

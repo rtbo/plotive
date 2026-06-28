@@ -1,15 +1,7 @@
 //! Color bar configuration
-use crate::des::axis;
+use crate::des::{axis, Text};
 use crate::style::{defaults, theme};
 use crate::text;
-
-super::define_rich_text_structs!(Title, TitleProps, TitleOptProps);
-
-impl Default for TitleProps {
-    fn default() -> Self {
-        TitleProps::new(defaults::COLORBAR_TITLE_FONT_SIZE)
-    }
-}
 
 /// Position of a color bar relatively to the plot
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
@@ -52,7 +44,7 @@ pub struct ColorBar {
     // pub(crate) for serde implementation
     pub(crate) pos: Pos,
     width: f32,
-    title: Option<Title>,
+    title: Option<Text>,
     ticks_font: TicksFont,
     border: Option<theme::Stroke>,
     locator: axis::ticks::Locator,
@@ -94,7 +86,7 @@ impl ColorBar {
     }
 
     /// Set the title text and return self for chaining
-    pub fn with_title(mut self, title: Title) -> Self {
+    pub fn with_title(mut self, title: Text) -> Self {
         self.title = Some(title);
         self
     }
@@ -134,7 +126,7 @@ impl ColorBar {
     }
 
     /// Get the title text of the color bar, if it has one
-    pub fn title(&self) -> Option<&Title> {
+    pub fn title(&self) -> Option<&Text> {
         self.title.as_ref()
     }
 

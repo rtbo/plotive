@@ -178,6 +178,8 @@ pub mod geom {
 /// Rexports of [`plotive_text`]` items
 pub mod text {
     pub use plotive_text::*;
+    /// Class properties for rich text, with `plotive` theme colors
+    pub type ClassProps = plotive_text::rich::ClassProps<crate::style::theme::Color>;
 }
 #[cfg(any(
     feature = "noto-sans",

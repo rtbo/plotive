@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use plotive_base::Color;
 
-use crate::rich::{TextOptProps, TextProps};
+use crate::rich::{ClassProps, TextProps};
 use crate::{RichTextBuilder, font};
 
 /// Position into an input stream
@@ -63,10 +63,15 @@ impl fmt::Display for ParseRichTextError {
 
 impl std::error::Error for ParseRichTextError {}
 
+/// A rich text string that has been parsed into a plain text string and a list of spans with properties.
+///
+/// It is produced by the [`parse_rich_text`] or [`parse_rich_text_with_classes`] function,
+/// and can be converted into a [`RichTextBuilder`]
+/// using the [`into_builder`](Self::into_builder) method.
 #[derive(Debug, Clone)]
 pub struct ParsedRichText<C> {
     pub text: String,
-    pub prop_spans: Vec<(Pos, Pos, TextOptProps<C>)>,
+    pub prop_spans: Vec<(Pos, Pos, ClassProps<C>)>,
 }
 
 impl<C> ParsedRichText<C>
@@ -92,7 +97,7 @@ where
 
 pub fn parse_rich_text_with_classes<C>(
     fmt: &str,
-    user_classes: &[(String, TextOptProps<C>)],
+    user_classes: &[(String, ClassProps<C>)],
 ) -> Result<ParsedRichText<C>, ParseRichTextError>
 where
     C: Color + FromStr,
@@ -104,7 +109,7 @@ where
 #[derive(Debug, Clone)]
 struct RichTextParser<'a, C> {
     fmt: &'a str,
-    user_classes: &'a [(String, TextOptProps<C>)],
+    user_classes: &'a [(String, ClassProps<C>)],
 }
 
 impl<'a, C> RichTextParser<'a, C>
@@ -118,7 +123,7 @@ where
         }
     }
 
-    pub fn new_with_classes(fmt: &'a str, user_classes: &'a [(String, TextOptProps<C>)]) -> Self {
+    pub fn new_with_classes(fmt: &'a str, user_classes: &'a [(String, ClassProps<C>)]) -> Self {
         Self { fmt, user_classes }
     }
 
@@ -168,15 +173,15 @@ where
         Ok(ParsedRichText { text, prop_spans })
     }
 
-    fn merge_props(base: TextOptProps<C>, overlay: &TextOptProps<C>) -> TextOptProps<C> {
-        TextOptProps {
+    fn merge_props(base: ClassProps<C>, overlay: &ClassProps<C>) -> ClassProps<C> {
+        ClassProps {
             font_family: overlay.font_family.clone().or_else(|| base.font_family),
             font_weight: overlay.font_weight.or(base.font_weight),
             font_width: overlay.font_width.or(base.font_width),
             font_style: overlay.font_style.or(base.font_style),
             font_size: overlay.font_size.or(base.font_size),
-            fill: overlay.fill.or(base.fill),
-            stroke: overlay.stroke.or(base.stroke),
+            color: overlay.color.or(base.color),
+            outline: overlay.outline.or(base.outline),
             underline: overlay.underline.or(base.underline),
             strikeout: overlay.strikeout.or(base.strikeout),
         }
@@ -186,8 +191,8 @@ where
         &self,
         span: Span,
         tag: &lex::OpeningTag,
-    ) -> Result<TextOptProps<C>, ParseRichTextError> {
-        let mut props = TextOptProps::default();
+    ) -> Result<ClassProps<C>, ParseRichTextError> {
+        let mut props = ClassProps::default();
         for prop in &tag.0 {
             // if no value, it is a class, or boolean prop.
             // we first check for user classes, if no match,
@@ -231,13 +236,13 @@ where
                         let color: C = value.parse().map_err(|_| {
                             ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
                         })?;
-                        props.fill = Some(color);
+                        props.color = Some(color);
                     }
                     "outline" | "stroke" => {
                         let color: C = value.parse().map_err(|_| {
                             ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
                         })?;
-                        props.fill = Some(color);
+                        props.color = Some(color);
                     }
                     _ => {
                         return Err(ParseRichTextError::UnknownClass(span, prop.prop.clone()));
@@ -338,7 +343,7 @@ where
                         let color: C = other.parse().map_err(|_| {
                             ParseRichTextError::UnknownClass(span, other.to_string())
                         })?;
-                        props.fill = Some(color);
+                        props.color = Some(color);
                     }
                 }
             }

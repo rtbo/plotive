@@ -25,7 +25,7 @@ fn main() {
         .into_builder(
             rich::TextProps::new(36.0)
                 .with_font(sans_font)
-                .with_fill(Some(color::BLACK)),
+                .with_color(Some(color::BLACK)),
         )
         .with_layout(rich::Layout::Horizontal(
             rich::Align::Center,

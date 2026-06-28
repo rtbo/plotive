@@ -26,9 +26,7 @@ fn main() {
     let normal = Normal::new(MU, SIGMA).unwrap();
     let pop = (0..N_POP).map(|_| normal.sample(&mut rng)).collect();
 
-    let title: des::figure::Title =
-        format!("Normal distribution (\u{03bc}={}, \u{03c3}={})", MU, SIGMA).into();
-
+    let title = format!("Normal distribution (\u{03bc}={}, \u{03c3}={})", MU, SIGMA);
     let ticks = vec![5.0, 9.0, 11.0, 13.0, 15.0, 17.0, 21.0];
 
     let x_axis = des::Axis::new()
@@ -66,7 +64,7 @@ fn main() {
         .with_y_axis(y_axis)
         .with_legend(des::plot::LegendPos::OutRight.into());
 
-    let fig = des::Figure::new(plot.into()).with_title(title);
+    let fig = des::Figure::new(plot.into()).with_title(title.into());
 
     let data_source = data::TableSource::new().with_f64_column("pop".into(), pop);
 

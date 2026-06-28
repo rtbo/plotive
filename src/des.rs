@@ -23,6 +23,99 @@ pub use legend::Legend;
 pub use plot::{Plot, PlotLegend, Subplots};
 pub use series::{DataCol, Series, data_inline, data_src_ref};
 
+use crate::style::theme;
+use crate::text;
+
+/// Text content for titles, labels, legends, etc.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Text {
+    /// Plain text
+    Plain(String),
+    /// Rich text, the format string is parsed to produce a rich text, using the standard classes
+    Rich(String),
+    /// Rich text, the format string is parsed to produce a rich text,
+    /// and the non-standard classes can be used to define the properties of the spans
+    RichWithClasses {
+        /// The format string for the rich text, with optional classes
+        fmt: String,
+        /// The classes that can be used in the format string
+        classes: Vec<(String, text::ClassProps)>,
+    },
+}
+
+impl Text {
+    pub(crate) fn to_rich_text(
+        &self,
+        base: text::rich::TextProps<theme::Color>,
+        layout: text::rich::Layout,
+        db: &text::fontdb::Database,
+    ) -> std::result::Result<text::RichText<theme::Color>, text::Error> {
+        match self {
+            Text::Plain(text) => {
+                let builder = text::RichTextBuilder::new(text.clone(), base).with_layout(layout);
+                builder.done(db)
+            }
+            Text::Rich(fmt) => {
+                let parsed_text = text::parse_rich_text::<theme::Color>(fmt)?;
+                let builder = parsed_text.into_builder(base).with_layout(layout);
+                builder.done(db)
+            }
+            Text::RichWithClasses { fmt, classes } => {
+                let parsed_text = text::parse_rich_text_with_classes(fmt, &classes)?;
+                let builder = parsed_text.into_builder(base).with_layout(layout);
+                builder.done(db)
+            }
+        }
+    }
+}
+
+impl From<String> for Text {
+    fn from(s: String) -> Self {
+        Text::Plain(s)
+    }
+}
+
+impl From<&str> for Text {
+    fn from(s: &str) -> Self {
+        Text::Plain(s.to_string())
+    }
+}
+
+impl From<[String; 1]> for Text {
+    fn from(arr: [String; 1]) -> Self {
+        let mut arr = arr;
+        let fmt = std::mem::take(&mut arr[0]);
+        Text::Rich(fmt)
+    }
+}
+
+impl From<[&str; 1]> for Text {
+    fn from(arr: [&str; 1]) -> Self {
+        Text::Rich(arr[0].to_string())
+    }
+}
+
+impl From<(String,)> for Text {
+    fn from(tuple: (String,)) -> Self {
+        Text::Rich(tuple.0)
+    }
+}
+
+impl From<(&str,)> for Text {
+    fn from(tuple: (&str,)) -> Self {
+        Text::Rich(tuple.0.to_string())
+    }
+}
+
+impl From<(String, Vec<(String, text::ClassProps)>)> for Text {
+    fn from(tuple: (String, Vec<(String, text::ClassProps)>)) -> Self {
+        Text::RichWithClasses {
+            fmt: tuple.0,
+            classes: tuple.1,
+        }
+    }
+}
+
 /// Index of a plot in a subplot grid
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PlotIdx {
@@ -107,158 +200,3 @@ impl Iterator for PlotIdxIter {
 
 impl std::iter::FusedIterator for PlotIdxIter {}
 
-// Structs defined with this macro use theme::Color for the generic color of rich properties
-// Caller must impl a specific Default for the $props_struct.
-macro_rules! define_rich_text_structs {
-    ($text_struct:ident, $props_struct:ident, $opt_props_struct:ident) => {
-        /// Rich text properties that can apply only some properties on a given text span
-        pub type $opt_props_struct = $crate::text::rich::TextOptProps<$crate::style::theme::Color>;
-
-        /// Rich text base properties with plotive theme colors
-        #[derive(Debug, Clone, PartialEq)]
-        pub struct $props_struct($crate::text::rich::TextProps<$crate::style::theme::Color>);
-
-        impl $props_struct {
-            fn new(font_size: f32) -> Self {
-                Self(
-                    $crate::text::rich::TextProps::new(font_size)
-                        .with_font($crate::style::defaults::FONT_FAMILY.parse().unwrap()),
-                )
-            }
-
-            /// Set the font properties and return self for chaining
-            pub fn with_font(self, font: $crate::text::font::Font) -> Self {
-                Self(self.0.with_font(font))
-            }
-
-            /// Set the text fill color and return self for chaining
-            pub fn with_fill(self, fill: Option<$crate::style::theme::Color>) -> Self {
-                Self(self.0.with_fill(fill))
-            }
-
-            /// Set the outline properties and return self for chaining
-            pub fn with_outline(self, outline: ($crate::style::theme::Color, f32)) -> Self {
-                Self(self.0.with_outline(outline))
-            }
-
-            /// Set underline to true and return self for chaining
-            pub fn with_underline(self) -> Self {
-                Self(self.0.with_underline())
-            }
-
-            /// Set strikeout to true and return self for chaining
-            pub fn with_strikeout(self) -> Self {
-                Self(self.0.with_strikeout())
-            }
-
-            /// Get the font size
-            pub fn font_size(&self) -> f32 {
-                self.0.font_size()
-            }
-
-            /// Get the font
-            pub fn font(&self) -> &$crate::text::font::Font {
-                self.0.font()
-            }
-
-            /// Get the fill color
-            pub fn fill(&self) -> Option<$crate::style::theme::Color> {
-                self.0.fill()
-            }
-
-            /// Get the outline properties
-            pub fn outline(&self) -> Option<($crate::style::theme::Color, f32)> {
-                self.0.outline()
-            }
-
-            /// Check if strikeout is enabled
-            pub fn underline(&self) -> bool {
-                self.0.underline()
-            }
-        }
-
-        /// Rich text structure with plotive theme colors
-        #[derive(Debug, Clone, PartialEq)]
-        pub struct $text_struct {
-            text: String,
-            props: $props_struct,
-            spans: Vec<(usize, usize, $opt_props_struct)>,
-        }
-
-        impl From<String> for $text_struct {
-            fn from(text: String) -> Self {
-                $text_struct {
-                    text,
-                    props: $props_struct::default(),
-                    spans: Vec::new(),
-                }
-            }
-        }
-
-        impl From<&str> for $text_struct {
-            fn from(text: &str) -> Self {
-                $text_struct {
-                    text: text.to_string(),
-                    props: $props_struct::default(),
-                    spans: Vec::new(),
-                }
-            }
-        }
-
-        impl From<$crate::text::ParsedRichText<$crate::style::theme::Color>> for $text_struct {
-            fn from(text: $crate::text::ParsedRichText<$crate::style::theme::Color>) -> Self {
-                $text_struct {
-                    text: text.text,
-                    props: $props_struct::default(),
-                    spans: text.prop_spans,
-                }
-            }
-        }
-
-        impl $text_struct {
-            /// Set the base properties and return self for chaining
-            pub fn with_props(self, props: $props_struct) -> Self {
-                Self { props, ..self }
-            }
-
-            /// Set the spans and return self for chaining
-            pub fn with_spans(self, spans: Vec<(usize, usize, $opt_props_struct)>) -> Self {
-                Self { spans, ..self }
-            }
-
-            /// Get the text content
-            pub fn text(&self) -> &str {
-                &self.text
-            }
-
-            /// Get the base properties
-            pub fn props(&self) -> &$props_struct {
-                &self.props
-            }
-
-            /// Get the spans
-            pub fn spans(&self) -> &[(usize, usize, $opt_props_struct)] {
-                &self.spans
-            }
-
-            pub(crate) fn to_rich_text(
-                &self,
-                layout: $crate::text::rich::Layout,
-                db: &$crate::text::fontdb::Database,
-            ) -> std::result::Result<
-                $crate::text::RichText<$crate::style::theme::Color>,
-                $crate::text::Error,
-            > {
-                let mut builder =
-                    $crate::text::RichTextBuilder::new(self.text.clone(), self.props.0.clone())
-                        .with_layout(layout);
-                for (start, end, props) in &self.spans {
-                    builder.add_span(*start, *end, props.clone());
-                }
-                builder.done(db)
-            }
-        }
-    };
-}
-
-pub(self) use define_rich_text_structs;

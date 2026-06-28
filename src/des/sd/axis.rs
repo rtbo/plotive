@@ -7,58 +7,8 @@ use serde::{Deserializer, Serializer};
 use serde_value::Value;
 
 use crate::des::sd::{deserialize_map_fields, deserialize_tagged_map_fields};
-use crate::des::{axis, sd};
+use crate::des::{self, axis, sd};
 use crate::style::theme;
-
-// MARK: axis::Title
-
-impl serde::Serialize for axis::Title {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        if self.spans().is_empty() && self.props() == &axis::TitleProps::default() {
-            self.text().serialize(serializer)
-        } else {
-            let mut state = serializer.serialize_struct("Title", 2)?;
-            state.serialize_field("text", self.text())?;
-            todo!("Serialize rich props and spans")
-            //state.end()
-        }
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for axis::Title {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct TitleVisitor;
-
-        impl<'de> serde::de::Visitor<'de> for TitleVisitor {
-            type Value = axis::Title;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("an axis title string or rich text")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(axis::Title::from(value.to_string()))
-            }
-
-            fn visit_map<A>(self, _map: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                todo!("Deserialize rich title with props and spans")
-            }
-        }
-        deserializer.deserialize_any(TitleVisitor)
-    }
-}
 
 // MARK: axis::Ref
 
@@ -1420,7 +1370,7 @@ where
         deserialize_map_fields!(
             'de, map,
             "id" => id: Option<String>,
-            "title" => title: Option<axis::Title>,
+            "title" => title: Option<des::Text>,
             "side" => side: Option<String>,
             "scale" => scale: Option<axis::Scale>,
             "ticks" => ticks: Option<axis::Ticks>,

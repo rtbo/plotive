@@ -25,6 +25,8 @@ pub mod font;
 pub mod fontdb;
 pub mod line;
 pub mod rich;
+#[cfg(feature = "serde")]
+pub mod sd;
 
 pub use font::{Font, ScaledMetrics, parse_font_families};
 pub use line::{LineText, render_line_text};
@@ -72,6 +74,7 @@ pub enum Error {
     InvalidSpan(String),
     NoSuchFont(font::Font),
     FaceParsingError(ttf::FaceParsingError),
+    ParseRichText(ParseRichTextError),
 }
 
 impl fmt::Display for Error {
@@ -80,6 +83,7 @@ impl fmt::Display for Error {
             Error::InvalidSpan(s) => write!(f, "Invalid span: {}", s),
             Error::NoSuchFont(font) => write!(f, "Could not find a face for {:?}", font),
             Error::FaceParsingError(err) => err.fmt(f),
+            Error::ParseRichText(err) => err.fmt(f),
         }
     }
 }
@@ -87,6 +91,12 @@ impl fmt::Display for Error {
 impl From<ttf::FaceParsingError> for Error {
     fn from(err: ttf::FaceParsingError) -> Self {
         Error::FaceParsingError(err)
+    }
+}
+
+impl From<ParseRichTextError> for Error {
+    fn from(err: ParseRichTextError) -> Self {
+        Error::ParseRichText(err)
     }
 }
 

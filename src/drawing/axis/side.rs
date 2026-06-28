@@ -1,4 +1,4 @@
-use crate::drawing::plot::Orientation;
+use crate::drawing::axis::Orientation;
 use crate::drawing::scale::CoordMap;
 use crate::{des, geom, missing_params, text};
 

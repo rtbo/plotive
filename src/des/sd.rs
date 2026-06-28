@@ -1,9 +1,9 @@
 //! Serialization and deserialization of figures
 
-use serde::ser::SerializeStruct;
+use serde::ser::{SerializeSeq, SerializeStruct};
 
 use super::Figure;
-use crate::des::{FigLegend, Plot, Subplots, figure};
+use crate::des::{FigLegend, Plot, Subplots, Text, figure};
 use crate::geom;
 use crate::style::{defaults, theme};
 
@@ -17,58 +17,85 @@ mod series;
 mod style;
 #[cfg(feature = "time")]
 mod time;
-// MARK: figure::Title
 
-impl serde::Serialize for figure::Title {
+use crate::text;
+
+// MARK: Text
+
+impl serde::Serialize for Text {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        if self.spans().is_empty() && self.props() == &figure::TitleProps::default() {
-            self.text().serialize(serializer)
-        } else {
-            let mut state = serializer.serialize_struct("Title", 2)?;
-            state.serialize_field("text", self.text())?;
-            todo!("Serialize rich props and spans")
-            //state.end()
+        match self {
+            Text::Plain(text) => serializer.serialize_str(text),
+            Text::Rich(fmt) => {
+                let mut seq = serializer.serialize_seq(Some(1))?;
+                seq.serialize_element(fmt)?;
+                seq.end()
+            }
+            Text::RichWithClasses { fmt, classes } => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element(fmt)?;
+                seq.serialize_element(classes)?;
+                seq.end()
+            }
         }
     }
 }
 
-impl<'de> serde::Deserialize<'de> for figure::Title {
+struct ClassPropsMap(Vec<(String, text::ClassProps)>);
+
+impl<'de> serde::Deserialize<'de> for ClassPropsMap {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        struct TitleVisitor;
+        let map = std::collections::HashMap::<String, text::ClassProps>::deserialize(deserializer)?;
+        Ok(ClassPropsMap(map.into_iter().collect()))
+    }
+}
 
-        impl<'de> serde::de::Visitor<'de> for TitleVisitor {
-            type Value = figure::Title;
+impl<'de> serde::Deserialize<'de> for Text {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct TextVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for TextVisitor {
+            type Value = Text;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a figure title string or rich text")
+                formatter.write_str("a string or a rich text array")
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(figure::Title::from(value.to_string()))
+                Ok(Text::Plain(value.to_string()))
             }
 
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where
-                A: serde::de::MapAccess<'de>,
+                A: serde::de::SeqAccess<'de>,
             {
-                deserialize_map_fields!('de, map,
-                    "text" => text: Option<String>,
-                );
-                Ok(figure::Title::from(
-                    text.ok_or_else(|| serde::de::Error::missing_field("text"))?,
-                ))
+                let fmt: String = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let classes: Option<ClassPropsMap> = seq.next_element()?;
+                if let Some(classes) = classes {
+                    Ok(Text::RichWithClasses {
+                        fmt,
+                        classes: classes.0,
+                    })
+                } else {
+                    Ok(Text::Rich(fmt))
+                }
             }
         }
-        deserializer.deserialize_any(TitleVisitor)
+        deserializer.deserialize_any(TextVisitor)
     }
 }
 
@@ -140,7 +167,7 @@ impl<'de> serde::de::Visitor<'de> for FigureVisitor {
             "plots" => plots: Option<Subplots>,
             "space" => space: Option<f32>,
             "size" => size: Option<geom::Size>,
-            "title" => title: Option<figure::Title>,
+            "title" => title: Option<Text>,
             "fill" => fill: Option<Option<theme::Fill>>,
             "legend" => legend: Option<FigLegend>,
             "padding" => padding: Option<geom::Padding>,

@@ -1,17 +1,10 @@
 //! Figure design structures
 use std::iter::FusedIterator;
 
+use super::Text;
 use crate::des::{Legend, Plot, PlotIdx, Subplots};
 use crate::geom;
 use crate::style::{defaults, theme};
-
-super::define_rich_text_structs!(Title, TitleProps, TitleOptProps);
-
-impl Default for TitleProps {
-    fn default() -> Self {
-        TitleProps::new(defaults::TITLE_FONT_SIZE)
-    }
-}
 
 /// Position of the legend relatively to the figure
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
@@ -48,7 +41,7 @@ impl From<LegendPos> for FigLegend {
 pub struct Figure {
     plots: Plots,
 
-    title: Option<Title>,
+    title: Option<Text>,
     size: geom::Size,
     legend: Option<FigLegend>,
     fill: Option<theme::Fill>,
@@ -70,7 +63,7 @@ impl Figure {
     }
 
     /// Set the title and return self for chaining
-    pub fn with_title(self, title: Title) -> Self {
+    pub fn with_title(self, title: Text) -> Self {
         Figure {
             title: Some(title),
             ..self
@@ -107,7 +100,7 @@ impl Figure {
     }
 
     /// Get the title of the figure
-    pub fn title(&self) -> Option<&Title> {
+    pub fn title(&self) -> Option<&Text> {
         self.title.as_ref()
     }
 

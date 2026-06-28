@@ -18,6 +18,7 @@ ttf-parser.workspace = true
 unicode-bidi = "0.3.18"
 log.workspace = true
 memmap2 = { version = "0.9", optional = true }
+serde = { workspace = true, optional = true }
 slotmap = { version = "1.0.6", default-features = false }
 tinyvec = { version = "1.6.0", features = ["alloc"] }
 
@@ -26,19 +27,21 @@ fontconfig-parser = { version = "0.5", optional = true, default-features = false
 
 [features]
 default = ["std", "fs", "memmap", "fontconfig"]
-std = ["ttf-parser/std"]
+# Enables minimal fontconfig support on Linux.
+# Must be enabled for NixOS, otherwise no fonts will be loaded.
+fontconfig = ["fontconfig-parser", "fs"]
 # Allows local filesystem interactions.
 fs = ["std"]
 # Allows font files memory mapping, greatly improves performance.
 memmap = ["fs", "memmap2"]
-# Enables minimal fontconfig support on Linux.
-# Must be enabled for NixOS, otherwise no fonts will be loaded.
-fontconfig = ["fontconfig-parser", "fs"]
 noto-sans = []
 noto-sans-italic = []
 noto-serif = []
 noto-serif-italic = []
 noto-mono = []
+serde = ["dep:serde"]
+std = ["ttf-parser/std"]
+
 
 [[example]]
 name="text_line"

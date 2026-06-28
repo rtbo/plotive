@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use plotive::{data, des, style, text, utils};
+use plotive::{data, des, style, utils};
 
 mod common;
 
@@ -52,11 +52,10 @@ fn main() {
         (100.0, "mag3", "phase3", "R = 100 Ω"),
     ];
 
-    let title = text::parse_rich_text::<style::theme::Color>(concat!(
+    let title = [concat!(
         "Bode diagram of RLC circuit\n",
         "[size=18;italic;font=serif]L = 0.1 mH / C = 1 µF[/size;italic;font]"
-    ))
-    .unwrap();
+    )];
 
     // magnitude X axis scale is taken from the phase X axis
     // the reference uses the title given to the phase X axis
