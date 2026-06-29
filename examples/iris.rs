@@ -95,7 +95,7 @@ fn main() {
         &virginica_petal_length as &dyn data::Column,
     );
 
-    let title: des::figure::Title = "Iris dataset".into();
+    let title = "Iris dataset";
 
     let x_axis = des::Axis::new()
         .with_title("Sepal Length [cm]".into())
@@ -133,7 +133,7 @@ fn main() {
         .with_y_axis(y_axis)
         .with_legend(des::plot::LegendPos::InBottomRight.into());
 
-    let fig = des::Figure::new(plot.into()).with_title(title);
+    let fig = des::Figure::new(plot.into()).with_title(title.into());
 
     common::save_figure(&fig, &source, None, "iris");
 }
