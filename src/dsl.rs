@@ -629,11 +629,9 @@ fn parse_axis(prop: ast::Prop, is_y: bool) -> Result<des::Axis, Error> {
         return Ok(Default::default());
     };
     match val {
-        ast::Value::Scalar(ast::Scalar {
-            ..
-        }) => {
+        ast::Value::Scalar(ast::Scalar { .. }) => {
             todo!("delete this module")
-        },
+        }
 
         ast::Value::Scalar(ast::Scalar {
             kind: ast::ScalarKind::Enum(ident),
@@ -737,11 +735,9 @@ fn parse_axis_seq(seq: ast::Seq, is_y: bool) -> Result<des::Axis, Error> {
     let mut axis = des::Axis::default();
     for scalar in seq.scalars {
         match scalar {
-            ast::Scalar {
-                ..
-            } => {
+            ast::Scalar { .. } => {
                 todo!("delete this module")
-            },
+            }
             ast::Scalar {
                 kind: ast::ScalarKind::Enum(ident),
                 span,

@@ -3,8 +3,8 @@ use std::borrow::Cow;
 use serde::ser::SerializeStruct;
 
 use crate::des::{Legend, figure, plot};
-use crate::{geom, text};
 use crate::style::{defaults, theme};
+use crate::{geom, text};
 
 // MARK: figure::LegendPos
 

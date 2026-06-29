@@ -390,10 +390,7 @@ where
                     }
                     height += missing_params::TICK_SIZE;
                     height += missing_params::TICK_LABEL_MARGIN
-                        + ticks
-                            .font()
-                            .size
-                            .unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
+                        + ticks.font().size.unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
                 }
             }
             let key = AxisCacheKey {
@@ -515,13 +512,19 @@ where
         }
     }
 
-    fn axis_major_ticks_font(&self, major_ticks: &des::axis::Ticks) -> Result<(text::Font, f32, theme::Color), Error> {
+    fn axis_major_ticks_font(
+        &self,
+        major_ticks: &des::axis::Ticks,
+    ) -> Result<(text::Font, f32, theme::Color), Error> {
         let font_props = major_ticks.font();
         let font = super::resolve_line_font(
             font_props,
             text::Font::new(text::parse_font_families(defaults::FONT_FAMILY).unwrap()),
         );
-        let font_size = major_ticks.font().size.unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
+        let font_size = major_ticks
+            .font()
+            .size
+            .unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
         let color = font_props.color.unwrap_or(major_ticks.color());
         Ok((font, font_size, color))
     }
@@ -558,15 +561,7 @@ where
         } else {
             lbl_formatter
                 .axis_annotation()
-                .map(|l| {
-                    text::LineText::new(
-                        l.to_string(),
-                        annot_align,
-                        font_size,
-                        font,
-                        db,
-                    )
-                })
+                .map(|l| text::LineText::new(l.to_string(), annot_align, font_size, font, db))
                 .transpose()?
                 .map(|lbl| Text::from_line_text(&lbl, db, lbl_color))
                 .transpose()?
@@ -641,9 +636,7 @@ where
 
         let annot = lbl_formatter
             .axis_annotation()
-            .map(|l| {
-                text::LineText::new(l.to_string(), annot_align, font_size, font, db)
-            })
+            .map(|l| text::LineText::new(l.to_string(), annot_align, font_size, font, db))
             .transpose()?
             .map(|lbl| Text::from_line_text(&lbl, db, lbl_color))
             .transpose()?;
@@ -669,13 +662,8 @@ where
 
         let mut lbls = Vec::with_capacity(cb.len());
         for cat in cb.iter() {
-            let lbl = text::LineText::new(
-                cat.to_string(),
-                ticks_align,
-                font_size,
-                font.clone(),
-                db,
-            )?;
+            let lbl =
+                text::LineText::new(cat.to_string(), ticks_align, font_size, font.clone(), db)?;
             let lbl = Text::from_line_text(&lbl, db, lbl_color)?;
             lbls.push(lbl);
         }

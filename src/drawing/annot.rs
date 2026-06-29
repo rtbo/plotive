@@ -53,9 +53,8 @@ where
                     Anchor::Center => (text::rich::Align::Center, text::rich::VerAlign::Center),
                 };
                 let text = label.text().to_rich_text(
-                    text::rich::TextProps::<theme::Color>::new(12.0).with_font(
-                        defaults::FONT_FAMILY.parse().unwrap()
-                    ),
+                    text::rich::TextProps::<theme::Color>::new(12.0)
+                        .with_font(defaults::FONT_FAMILY.parse().unwrap()),
                     text::rich::Layout::Horizontal(align, ver_align, Default::default()),
                     self.fontdb(),
                 )?;

@@ -1,6 +1,6 @@
 //! Serialization and deserialization of figures
 
-use serde::ser::{SerializeSeq, SerializeStruct, SerializeMap};
+use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
 
 use super::Figure;
 use crate::des::{FigLegend, Plot, Subplots, Text, figure};
@@ -82,9 +82,13 @@ impl<'de> serde::Deserialize<'de> for text::LineProps {
                                 return Err(serde::de::Error::duplicate_field("family"));
                             }
                             let family_str: String = map.next_value()?;
-                            family = Some(text::parse_font_families(&family_str).map_err(|err| {
-                                serde::de::Error::custom(format!("failed to parse font families '{}': {}", family_str, err))
-                            })?);
+                            family =
+                                Some(text::parse_font_families(&family_str).map_err(|err| {
+                                    serde::de::Error::custom(format!(
+                                        "failed to parse font families '{}': {}",
+                                        family_str, err
+                                    ))
+                                })?);
                         }
                         "size" => {
                             if size.is_some() {

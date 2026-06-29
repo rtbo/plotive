@@ -1,5 +1,5 @@
 //! Color bar configuration
-use crate::des::{axis, Text};
+use crate::des::{Text, axis};
 use crate::style::{defaults, theme};
 use crate::text;
 

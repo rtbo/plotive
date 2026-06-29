@@ -128,8 +128,7 @@ impl ColorBarBuilder {
             .filter(|t| view_bounds.contains(*t))
             .map(|t| -> Result<_, super::Error> {
                 let text = formatter.format_label(t.into());
-                let lt =
-                    text::LineText::new(text, align, font_size, font.clone(), ctx.fontdb())?;
+                let lt = text::LineText::new(text, align, font_size, font.clone(), ctx.fontdb())?;
                 let text = Text::from_line_text(&lt, ctx.fontdb(), color)?;
                 Ok((data::Sample::Num(t), text))
             })

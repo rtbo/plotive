@@ -130,9 +130,7 @@ impl<'a> LegendBuilder<'a> {
         let shape = entry.shape.to_shape();
         let font_props = entry.font.unwrap_or(&self.font);
         let font = super::resolve_line_font(font_props, defaults::FONT_FAMILY.parse().unwrap());
-        let font_size = font_props
-            .size
-            .unwrap_or(defaults::LEGEND_LABEL_FONT_SIZE);
+        let font_size = font_props.size.unwrap_or(defaults::LEGEND_LABEL_FONT_SIZE);
         let color = font_props.color.unwrap_or(theme::Col::Foreground.into());
 
         let align = (
