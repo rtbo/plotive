@@ -102,6 +102,50 @@ impl From<ParseRichTextError> for Error {
 
 impl std::error::Error for Error {}
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct FontProps {
+    pub font: Font,
+    pub size: f32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Decorations {
+    pub underline: bool,
+    pub strikethrough: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum DashPattern {
+    Dotted,
+    Dashed,
+    Custom(Vec<f32>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Outline<C> {
+    pub color: C,
+    pub width: f32,
+    pub dash: Option<DashPattern>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RenderProps<C> {
+    pub color: C,
+    pub outline: Option<Outline<C>>,
+}
+
+/// A color that has meaning for the foreground
+/// (e.g. a font color)
+pub trait Foreground {
+    fn foreground() -> Self;
+}
+
+impl Foreground for Rgba8 {
+    fn foreground() -> Self {
+        color::BLACK
+    }
+}
+
 /// Script direction
 #[derive(Debug, Clone, Copy)]
 pub enum ScriptDir {
