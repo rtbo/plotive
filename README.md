@@ -24,8 +24,6 @@ More will come. Don't hesitate to open an issue to request a feature!
    - Design of figure is entirely declarative and decoupled from data and drawing primitives
    - Sensible defaults. Most types that populates design implement carefully crafted `Default` trait.
    - Figure units are decorrelated from pixel size for easy scaling
-   - `.plotive` DSL language for concise figure description.
-This DSL is still fairly incomplete, but all examples in the repo are working.
 
  - **Data sources** (`plotive::data`)
    - Flexible, column-friendly data source system
@@ -142,7 +140,6 @@ During execution, the following window shows:
 ## Crate features
 
  - `data-csv`: enables CSV data source support ([`plotive::data::csv`](https://docs.rs/plotive/latest/plotive/data/csv/index.html))
- - `dsl`: enables the support for `.plotive` DSL.
  - `noto-mono`, `noto-sans`, `noto-sans-italic`, `noto-serif`, `noto-serif-italic`: bundles the corresponding fonts from Google in the final executable, and enables `plotive::bundled_font_db()`.<br />
   `noto-sans` is enabled by default
  - `time`: enables support for time series, CSV date-time parsing etc. ([`plotive::time`](https://docs.rs/plotive/latest/plotive/time/index.html))

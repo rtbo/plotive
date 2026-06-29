@@ -15,8 +15,6 @@ all-features = true
 [dependencies]
 plotive-base.workspace = true
 plotive-text.workspace = true
-# feature dsl
-plotive-dsl = { workspace = true, optional = true }
 # feature serde
 serde = { workspace = true, optional = true }
 serde-value = { version = "0.7", optional = true }
@@ -37,7 +35,6 @@ noyalib = "0.0.6"
 default = ["noto-sans"]
 
 data-csv = []
-dsl = ["plotive-dsl/diag"]
 noto-mono = ["plotive-text/noto-mono"]
 noto-sans = ["plotive-text/noto-sans"]
 noto-sans-italic = ["plotive-text/noto-sans-italic"]
@@ -62,10 +59,6 @@ name = "bode_rlc"
 required-features = ["noto-serif-italic", "utils"]
 
 [[example]]
-name = "bode_rlc_dsl"
-required-features = ["dsl", "noto-serif-italic", "utils"]
-
-[[example]]
 name = "bouncing_ball"
 required-features = ["time"]
 
@@ -77,19 +70,11 @@ name = "iris"
 required-features = ["data-csv"]
 
 [[example]]
-name = "iris_dsl"
-required-features = ["data-csv", "dsl"]
-
-[[example]]
 name = "minimal"
 
 [[example]]
 name = "multiple_axes"
 required-features = ["utils"]
-
-[[example]]
-name = "multiple_axes_dsl"
-required-features = ["dsl", "utils"]
 
 [[example]]
 name = "readme"
@@ -105,12 +90,8 @@ required-features = ["data-csv"]
 name = "subplots"
 required-features = ["utils"]
 
-[[example]]
-name = "subplots_dsl"
-required-features = ["dsl", "utils"]
-
 [workspace]
-members = ["base", "dsl", "iced", "pxl", "svg", "text", "tests"]
+members = ["base", "iced", "pxl", "svg", "text", "tests"]
 resolver = "3"
 
 [workspace.package]
@@ -126,7 +107,6 @@ keywords = ["data", "visualization", "plotting"]
 [workspace.dependencies]
 plotive = { version = "0.6.0-dev", path = "." }
 plotive-base = { version = "0.6.0-dev", path = "base" }
-plotive-dsl = { version = "0.6.0-dev", path = "dsl" }
 plotive-pxl = { version = "0.6.0-dev", path = "pxl" }
 plotive-svg = { version = "0.6.0-dev", path = "svg" }
 plotive-text = { version = "0.6.0-dev", path = "text" }
@@ -140,7 +120,6 @@ iced = { version = "0.14.0", features = [
 ] }
 iced_font_awesome = "0.4.0"
 log = "0.4"
-miette = { version = "7.6.0", features = ["fancy"] }
 rand = "0.9.2"
 rand_distr = "0.5.1"
 rand_chacha = "0.9.0"
