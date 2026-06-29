@@ -47,6 +47,7 @@
 //! 17 │         y-axis: "y2", Ticks
 //!    ╰────
 //! ```
+#![allow(unused)]
 use std::{fmt, path};
 
 use plotive_dsl::{self, Span, ast};
@@ -258,12 +259,6 @@ fn check_opt_type(val: &ast::Struct, type_name: &str) -> Result<(), Error> {
         }
     }
     Ok(())
-}
-
-fn parse_rich_text(span: Span, fmt: String) -> Result<ParsedRichText<style::theme::Color>, Error> {
-    let text = text::parse_rich_text::<style::theme::Color>(&fmt)
-        .map_err(|err| Error::ParseRichText(span.0, err))?;
-    Ok(text)
 }
 
 fn parse_fig(mut val: ast::Struct) -> Result<des::Figure, Error> {
@@ -635,9 +630,10 @@ fn parse_axis(prop: ast::Prop, is_y: bool) -> Result<des::Axis, Error> {
     };
     match val {
         ast::Value::Scalar(ast::Scalar {
-            span,
-            kind: ast::ScalarKind::Str(title),
-        }) => Ok(des::Axis::default().with_title(parse_rich_text(span, title)?.into())),
+            ..
+        }) => {
+            todo!("delete this module")
+        },
 
         ast::Value::Scalar(ast::Scalar {
             kind: ast::ScalarKind::Enum(ident),
@@ -742,9 +738,10 @@ fn parse_axis_seq(seq: ast::Seq, is_y: bool) -> Result<des::Axis, Error> {
     for scalar in seq.scalars {
         match scalar {
             ast::Scalar {
-                span,
-                kind: ast::ScalarKind::Str(title),
-            } => axis = axis.with_title(parse_rich_text(span, title)?.into()),
+                ..
+            } => {
+                todo!("delete this module")
+            },
             ast::Scalar {
                 kind: ast::ScalarKind::Enum(ident),
                 span,
@@ -824,8 +821,7 @@ fn parse_axis_struct(val: ast::Struct, is_y: bool) -> Result<des::Axis, Error> {
     for prop in val.props {
         match prop.name.name.as_str() {
             "title" => {
-                let (span, title) = expect_string_val(prop)?;
-                axis = axis.with_title(parse_rich_text(span, title)?.into());
+                todo!("delete this module")
             }
             "ticks" => {
                 axis = axis.with_ticks(parse_ticks(prop)?);
