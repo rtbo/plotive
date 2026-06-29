@@ -3,10 +3,9 @@ use plotive_base::Rgb8;
 use plotive_base::geom::PathSegment;
 use scale::{CoordMap, CoordMapXy};
 
-use crate::drawing::axis::Bounds;
+use crate::drawing::axis::{Bounds, Orientation};
 use crate::drawing::cmap::AsColorMap;
 use crate::drawing::colorbar::ColorScale;
-use crate::drawing::plot::Orientation;
 use crate::drawing::{
     Categories, ColumnExt, Error, F64ColumnExt, axis, colorbar, get_column, legend, marker,
     plot_to_fig, scale,

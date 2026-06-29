@@ -3029,7 +3029,7 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "plotive"
-version = "0.5.0"
+version = "0.6.0-dev"
 dependencies = [
  "noyalib",
  "ode_solvers",
@@ -3049,7 +3049,7 @@ dependencies = [
 
 [[package]]
 name = "plotive-base"
-version = "0.5.0"
+version = "0.6.0-dev"
 dependencies = [
  "serde",
  "serde_json",
@@ -3059,14 +3059,14 @@ dependencies = [
 
 [[package]]
 name = "plotive-dsl"
-version = "0.5.0"
+version = "0.6.0-dev"
 dependencies = [
  "miette",
 ]
 
 [[package]]
 name = "plotive-iced"
-version = "0.5.0"
+version = "0.6.0-dev"
 dependencies = [
  "arboard",
  "bytes",
@@ -3083,7 +3083,7 @@ dependencies = [
 
 [[package]]
 name = "plotive-pxl"
-version = "0.5.0"
+version = "0.6.0-dev"
 dependencies = [
  "plotive",
  "png 0.17.16",
@@ -3095,7 +3095,7 @@ dependencies = [
 
 [[package]]
 name = "plotive-svg"
-version = "0.5.0"
+version = "0.6.0-dev"
 dependencies = [
  "plotive",
  "rustybuzz",
@@ -3104,7 +3104,7 @@ dependencies = [
 
 [[package]]
 name = "plotive-tests"
-version = "0.5.0"
+version = "0.6.0-dev"
 dependencies = [
  "plotive",
  "plotive-pxl",
@@ -3119,13 +3119,14 @@ dependencies = [
 
 [[package]]
 name = "plotive-text"
-version = "0.5.0"
+version = "0.6.0-dev"
 dependencies = [
  "fontconfig-parser",
  "log",
  "memmap2",
  "plotive-base",
  "rustybuzz",
+ "serde",
  "slotmap",
  "tiny-skia",
  "tiny-skia-path",

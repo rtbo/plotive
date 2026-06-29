@@ -1,6 +1,6 @@
 use crate::drawing::legend::{self, LegendBuilder};
 use crate::drawing::{Ctx, Error, plot};
-use crate::style::theme;
+use crate::style::{defaults, theme};
 use crate::{Style, data, des, geom, missing_params, render, text};
 
 /// A figure that has been prepared for drawing. See the [`Prepare`](crate::drawing::Prepare) trait.
@@ -83,7 +83,9 @@ where
                 text::line::VerAlign::Hanging.into(),
                 Default::default(),
             );
-            let rich = fig_title.to_rich_text(layout, self.fontdb())?;
+            let base = text::rich::TextProps::new(defaults::TITLE_FONT_SIZE)
+                .with_font(defaults::FONT_FAMILY.parse().unwrap());
+            let rich = fig_title.to_rich_text(base, layout, self.fontdb())?;
             let paths = super::Text::from_rich_text(&rich, self.fontdb())?;
 
             let anchor_x = rect.center_x();

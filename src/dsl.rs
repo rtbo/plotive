@@ -47,6 +47,7 @@
 //! 17 │         y-axis: "y2", Ticks
 //!    ╰────
 //! ```
+#![allow(unused)]
 use std::{fmt, path};
 
 use plotive_dsl::{self, Span, ast};
@@ -260,12 +261,6 @@ fn check_opt_type(val: &ast::Struct, type_name: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn parse_rich_text(span: Span, fmt: String) -> Result<ParsedRichText<style::theme::Color>, Error> {
-    let text = text::parse_rich_text::<style::theme::Color>(&fmt)
-        .map_err(|err| Error::ParseRichText(span.0, err))?;
-    Ok(text)
-}
-
 fn parse_fig(mut val: ast::Struct) -> Result<des::Figure, Error> {
     check_opt_type(&val, "Figure")?;
 
@@ -342,8 +337,7 @@ fn parse_fig(mut val: ast::Struct) -> Result<des::Figure, Error> {
     for prop in val.props {
         match prop.name.name.as_str() {
             "title" => {
-                let (span, fmt) = expect_string_val(prop)?;
-                fig = fig.with_title(parse_rich_text(span, fmt)?.into());
+                todo!("delete this module")
             }
             "legend" => {
                 fig = fig.with_legend(parse_fig_legend(prop.value)?);
@@ -443,7 +437,7 @@ fn parse_plot(mut val: ast::Struct) -> Result<(Option<(u32, u32)>, des::plot::Pl
             }
             "x-axis" => plot = plot.with_x_axis(parse_axis(prop, false)?),
             "y-axis" => plot = plot.with_y_axis(parse_axis(prop, true)?),
-            "title" => plot = plot.with_title(expect_string_val(prop)?.1.into()),
+            "title" => todo!("delete this module"),
             "legend" => plot = plot.with_legend(parse_plot_legend(prop.value)?),
             _ => {
                 return Err(Error::Parse {
@@ -635,10 +629,9 @@ fn parse_axis(prop: ast::Prop, is_y: bool) -> Result<des::Axis, Error> {
         return Ok(Default::default());
     };
     match val {
-        ast::Value::Scalar(ast::Scalar {
-            span,
-            kind: ast::ScalarKind::Str(title),
-        }) => Ok(des::Axis::default().with_title(parse_rich_text(span, title)?.into())),
+        ast::Value::Scalar(ast::Scalar { .. }) => {
+            todo!("delete this module")
+        }
 
         ast::Value::Scalar(ast::Scalar {
             kind: ast::ScalarKind::Enum(ident),
@@ -742,10 +735,9 @@ fn parse_axis_seq(seq: ast::Seq, is_y: bool) -> Result<des::Axis, Error> {
     let mut axis = des::Axis::default();
     for scalar in seq.scalars {
         match scalar {
-            ast::Scalar {
-                span,
-                kind: ast::ScalarKind::Str(title),
-            } => axis = axis.with_title(parse_rich_text(span, title)?.into()),
+            ast::Scalar { .. } => {
+                todo!("delete this module")
+            }
             ast::Scalar {
                 kind: ast::ScalarKind::Enum(ident),
                 span,
@@ -825,8 +817,7 @@ fn parse_axis_struct(val: ast::Struct, is_y: bool) -> Result<des::Axis, Error> {
     for prop in val.props {
         match prop.name.name.as_str() {
             "title" => {
-                let (span, title) = expect_string_val(prop)?;
-                axis = axis.with_title(parse_rich_text(span, title)?.into());
+                todo!("delete this module")
             }
             "ticks" => {
                 axis = axis.with_ticks(parse_ticks(prop)?);

@@ -2,7 +2,7 @@ use serde::de::{Error, MapAccess};
 use serde::ser::SerializeStruct;
 use serde_value::Value;
 
-use crate::des::{Annotation, annot, axis};
+use crate::des::{Annotation, Text, annot, axis};
 use crate::style::{self, theme};
 
 impl serde::Serialize for annot::ZPos {
@@ -211,9 +211,6 @@ where
     let (fill, stroke) = label.frame();
     if let (Some(fill), Some(stroke)) = (fill, stroke) {
         state.serialize_field("frame", &(fill, stroke))?;
-    }
-    if label.color() != &theme::Color::from(theme::Col::Foreground) {
-        state.serialize_field("color", label.color())?;
     }
     if label.angle() != 0.0 {
         state.serialize_field("angle", &label.angle())?;
@@ -432,10 +429,9 @@ where
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
         "xy" => xy: Option<(f64, f64)>,
-        "text" => text: Option<String>,
+        "text" => text: Option<Text>,
         "anchor" => anchor: Option<annot::Anchor>,
         "frame" => frame: Option<(Option<theme::Fill>, Option<theme::Stroke>)>,
-        "color" => color: Option<theme::Color>,
         "angle" => angle: Option<f32>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
@@ -451,9 +447,6 @@ where
     }
     if let Some((fill, stroke)) = frame {
         annot = annot.with_frame(fill, stroke);
-    }
-    if let Some(color) = color {
-        annot = annot.with_color(color);
     }
     if let Some(angle) = angle {
         annot = annot.with_angle(angle);

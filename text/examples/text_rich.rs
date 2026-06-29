@@ -52,7 +52,7 @@ fn main() {
     builder.add_span(
         start_rlc,
         end_rlc,
-        rich::TextOptProps {
+        rich::ClassProps {
             font_weight: Some(font::Weight::BOLD),
             font_style: Some(font::Style::Italic),
             ..Default::default()
@@ -61,7 +61,7 @@ fn main() {
     builder.add_span(
         start_line2,
         end_line2,
-        rich::TextOptProps {
+        rich::ClassProps {
             font_family: Some(serif_family),
             font_size: Some(FS_MEDIUM),
             font_style: Some(font::Style::Italic),

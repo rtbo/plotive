@@ -3,56 +3,9 @@ use serde::ser::SerializeStruct;
 use serde::{Deserializer, Serializer};
 
 use crate::des::axis::ticks;
-use crate::des::colorbar;
+use crate::des::{self, colorbar};
 use crate::style::theme;
-
-impl serde::Serialize for colorbar::Title {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        if self.spans().is_empty() && self.props() == &colorbar::TitleProps::default() {
-            self.text().serialize(serializer)
-        } else {
-            let mut state = serializer.serialize_struct("Title", 2)?;
-            state.serialize_field("text", self.text())?;
-            todo!("Serialize rich props and spans")
-            //state.end()
-        }
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for colorbar::Title {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct TitleVisitor;
-
-        impl<'de> serde::de::Visitor<'de> for TitleVisitor {
-            type Value = colorbar::Title;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("an axis title string or rich text")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(colorbar::Title::from(value.to_string()))
-            }
-
-            fn visit_map<A>(self, _map: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                todo!("Deserialize rich title with props and spans")
-            }
-        }
-        deserializer.deserialize_any(TitleVisitor)
-    }
-}
+use crate::text;
 
 impl serde::Serialize for colorbar::Pos {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -127,6 +80,9 @@ impl serde::Serialize for colorbar::ColorBar {
         if self.border() != default.border() {
             map.serialize_field("border", &self.border())?;
         }
+        if self.ticks_font() != default.ticks_font() {
+            map.serialize_field("ticksFont", &self.ticks_font())?;
+        }
         if self.ticks_locator() != default.ticks_locator() {
             map.serialize_field("ticks", &self.ticks_locator())?;
         }
@@ -169,9 +125,10 @@ impl<'de> serde::Deserialize<'de> for colorbar::ColorBar {
                     'de, map,
                     "pos" => pos: Option<colorbar::Pos>,
                     "width" => width: Option<f32>,
-                    "title" => title: Option<colorbar::Title>,
+                    "title" => title: Option<des::Text>,
                     "border" => border: Option<Option<theme::Stroke>>,
                     "ticks" => ticks: Option<ticks::Locator>,
+                    "ticksFont" => ticks_font: Option<text::LineProps>,
                     "margin" => margin: Option<f32>,
                 );
                 let mut colorbar = if let Some(pos) = pos {
@@ -186,13 +143,16 @@ impl<'de> serde::Deserialize<'de> for colorbar::ColorBar {
                     colorbar = colorbar.with_title(title);
                 }
                 if let Some(border) = border {
-                    colorbar = colorbar.with_border(border)
+                    colorbar = colorbar.with_border(border);
                 }
                 if let Some(ticks) = ticks {
-                    colorbar = colorbar.with_ticks_locator(ticks)
+                    colorbar = colorbar.with_ticks_locator(ticks);
+                }
+                if let Some(ticks_font) = ticks_font {
+                    colorbar = colorbar.with_ticks_font(ticks_font);
                 }
                 if let Some(margin) = margin {
-                    colorbar = colorbar.with_margin(margin)
+                    colorbar = colorbar.with_margin(margin);
                 }
                 Ok(colorbar)
             }

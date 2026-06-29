@@ -239,6 +239,23 @@ struct TextSpan {
     stroke: Option<theme::Stroke>,
 }
 
+fn resolve_line_font(props: &text::LineProps, default: text::Font) -> text::Font {
+    let mut res = default;
+    if let Some(families) = props.family.as_ref() {
+        res = res.with_families(families.clone());
+    }
+    if let Some(style) = props.style {
+        res = res.with_style(style);
+    }
+    if let Some(weight) = props.weight {
+        res = res.with_weight(weight);
+    }
+    if let Some(width) = props.width {
+        res = res.with_width(width);
+    }
+    res
+}
+
 impl Text {
     fn from_line_text(
         text: &text::LineText,

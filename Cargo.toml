@@ -43,7 +43,7 @@ noto-sans = ["plotive-text/noto-sans"]
 noto-sans-italic = ["plotive-text/noto-sans-italic"]
 noto-serif = ["plotive-text/noto-serif"]
 noto-serif-italic = ["plotive-text/noto-serif-italic"]
-serde = ["plotive-base/serde", "dep:serde", "dep:serde-value"]
+serde = ["plotive-base/serde", "plotive-text/serde", "dep:serde", "dep:serde-value"]
 time = []
 utils = []
 
@@ -114,7 +114,7 @@ members = ["base", "dsl", "iced", "pxl", "svg", "text", "tests"]
 resolver = "3"
 
 [workspace.package]
-version = "0.5.0"
+version = "0.6.0-dev"
 authors = ["Rémi THEBAULT"]
 description = "Simple data plotting library"
 edition = "2024"
@@ -124,12 +124,12 @@ categories = ["science", "graphics"]
 keywords = ["data", "visualization", "plotting"]
 
 [workspace.dependencies]
-plotive = { version = "0.5.0", path = "." }
-plotive-base = { version = "0.5.0", path = "base" }
-plotive-dsl = { version = "0.5.0", path = "dsl" }
-plotive-pxl = { version = "0.5.0", path = "pxl" }
-plotive-svg = { version = "0.5.0", path = "svg" }
-plotive-text = { version = "0.5.0", path = "text" }
+plotive = { version = "0.6.0-dev", path = "." }
+plotive-base = { version = "0.6.0-dev", path = "base" }
+plotive-dsl = { version = "0.6.0-dev", path = "dsl" }
+plotive-pxl = { version = "0.6.0-dev", path = "pxl" }
+plotive-svg = { version = "0.6.0-dev", path = "svg" }
+plotive-text = { version = "0.6.0-dev", path = "text" }
 arboard = "3.6.1"
 bytes = "1.6"
 iced = { version = "0.14.0", features = [

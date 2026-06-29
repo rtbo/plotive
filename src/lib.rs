@@ -178,7 +178,29 @@ pub mod geom {
 /// Rexports of [`plotive_text`]` items
 pub mod text {
     pub use plotive_text::*;
+    /// Class properties for rich text, with `plotive` theme colors
+    pub type RichProps = plotive_text::rich::ClassProps<crate::style::theme::Color>;
+
+    /// Text properties for line text, with `plotive` theme colors
+    /// Use this to provide customization of text properties for line text, such as font size, font family and color.
+    /// All properties are optional, and if not provided, the default values will be used depending on the context.
+    #[derive(Debug, Clone, PartialEq, Default)]
+    pub struct LineProps {
+        /// The font family name
+        pub family: Option<Vec<font::Family>>,
+        /// The font weight
+        pub weight: Option<font::Weight>,
+        /// The font width (or stretch)
+        pub width: Option<font::Width>,
+        /// The font style (normal, italic, oblique)
+        pub style: Option<font::Style>,
+        /// The font size in points
+        pub size: Option<f32>,
+        /// The color of the text
+        pub color: Option<crate::style::theme::Color>,
+    }
 }
+
 #[cfg(any(
     feature = "noto-sans",
     feature = "noto-sans-italic",

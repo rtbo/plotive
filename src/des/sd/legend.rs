@@ -2,9 +2,9 @@ use std::borrow::Cow;
 
 use serde::ser::SerializeStruct;
 
-use crate::des::{Legend, figure, legend, plot};
-use crate::geom;
+use crate::des::{Legend, figure, plot};
 use crate::style::{defaults, theme};
+use crate::{geom, text};
 
 // MARK: figure::LegendPos
 
@@ -117,7 +117,7 @@ where
     where
         S: serde::Serializer,
     {
-        let font_default = self.font() == &legend::EntryFont::default();
+        let font_default = self.font() == &text::LineProps::default();
         let fill_default = self.fill() == defaults::legend_fill().as_ref();
         let border_default = self.border() == Some(&theme::Col::LegendBorder.into());
         let columns_default = self.columns().is_none();
@@ -139,7 +139,7 @@ where
             let mut state = serializer.serialize_struct("Legend", 2)?;
             state.serialize_field("pos", &self.pos())?;
             if !font_default {
-                todo!("Serialize legend::EntryFont")
+                state.serialize_field("font", self.font())?;
             }
             if !fill_default {
                 state.serialize_field("fill", &self.fill())?;
@@ -151,7 +151,7 @@ where
                 state.serialize_field("columns", &self.columns())?;
             }
             if !padding_default {
-                todo!("Serialize geom::Padding")
+                state.serialize_field("padding", &self.padding())?;
             }
             if !margin_default {
                 state.serialize_field("margin", &self.margin())?;
@@ -214,11 +214,11 @@ where
         while let Some(key) = map.next_key::<Cow<'de, str>>()? {
             match &*key {
                 "pos" => legend = legend.with_pos(map.next_value()?),
-                "font" => todo!("Deserialize legend::EntryFont"),
+                "font" => legend = legend.with_font(map.next_value()?),
                 "fill" => legend = legend.with_fill(map.next_value()?),
                 "border" => legend = legend.with_border(map.next_value()?),
                 "columns" => legend = legend.with_columns(map.next_value()?),
-                "padding" => todo!("Deserialize geom::Padding"),
+                "padding" => legend = legend.with_padding(map.next_value()?),
                 "margin" => legend = legend.with_margin(map.next_value()?),
                 "spacing" => legend = legend.with_spacing(map.next_value()?),
                 _ => {

@@ -71,7 +71,7 @@ where
                         }
 
                         if let Some(path) = span_builder.finish() {
-                            if let Some(c) = span.props.fill.as_ref() {
+                            if let Some(c) = span.props.color.as_ref() {
                                 let prim = RichPrimitive::Fill(&path, c.clone());
                                 render_fn(prim);
                             }

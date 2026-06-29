@@ -4,7 +4,7 @@ use serde_value::Value;
 
 use crate::des::sd::axis::{DeXAxis, DeYAxis};
 use crate::des::sd::{self, deserialize_map_fields, deserialize_tagged_map_fields};
-use crate::des::{Annotation, Plot, PlotLegend, Subplots, axis, colorbar, plot, series};
+use crate::des::{Annotation, Plot, PlotLegend, Subplots, Text, axis, colorbar, plot, series};
 use crate::style::theme;
 
 // MARK: Plot
@@ -195,7 +195,7 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
             'de, map,
             "subplot" => subplot: Option<(u32, u32)>,
             "series" => series: Option<DeSeries>,
-            "title" => title: Option<String>,
+            "title" => title: Option<Text>,
             "xAxis" => x_axis: Option<DeXAxis>,
             "yAxis" => y_axis: Option<DeYAxis>,
             "xAxes" => x_axes: Option<Vec<DeXAxis>>,

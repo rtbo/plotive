@@ -3,10 +3,10 @@ use std::f32;
 use super::Ctx;
 use crate::des::annot::{Anchor, LineDir, ZPos};
 use crate::des::{self};
-use crate::drawing::axis::Axis;
-use crate::drawing::plot::{Axes, Orientation};
+use crate::drawing::axis::{Axis, Orientation};
+use crate::drawing::plot::Axes;
 use crate::drawing::{Text, marker};
-use crate::style::{self, theme};
+use crate::style::{self, defaults, theme};
 use crate::{Style, data, geom, render, text};
 
 #[derive(Debug, Clone)]
@@ -40,27 +40,26 @@ where
             des::Annotation::Marker(marker) => Annot::Marker(marker.clone()),
             des::Annotation::Label(label) => {
                 let (align, ver_align) = match label.anchor() {
-                    Anchor::TopLeft => (text::line::Align::Left, text::line::VerAlign::Top),
-                    Anchor::TopCenter => (text::line::Align::Center, text::line::VerAlign::Top),
-                    Anchor::TopRight => (text::line::Align::Right, text::line::VerAlign::Top),
-                    Anchor::CenterRight => (text::line::Align::Right, text::line::VerAlign::Middle),
-                    Anchor::BottomRight => (text::line::Align::Right, text::line::VerAlign::Bottom),
+                    Anchor::TopLeft => (text::rich::Align::Left, text::rich::VerAlign::Top),
+                    Anchor::TopCenter => (text::rich::Align::Center, text::rich::VerAlign::Top),
+                    Anchor::TopRight => (text::rich::Align::Right, text::rich::VerAlign::Top),
+                    Anchor::CenterRight => (text::rich::Align::Right, text::rich::VerAlign::Center),
+                    Anchor::BottomRight => (text::rich::Align::Right, text::rich::VerAlign::Bottom),
                     Anchor::BottomCenter => {
-                        (text::line::Align::Center, text::line::VerAlign::Bottom)
+                        (text::rich::Align::Center, text::rich::VerAlign::Bottom)
                     }
-                    Anchor::BottomLeft => (text::line::Align::Left, text::line::VerAlign::Bottom),
-                    Anchor::CenterLeft => (text::line::Align::Left, text::line::VerAlign::Middle),
-                    Anchor::Center => (text::line::Align::Center, text::line::VerAlign::Middle),
+                    Anchor::BottomLeft => (text::rich::Align::Left, text::rich::VerAlign::Bottom),
+                    Anchor::CenterLeft => (text::rich::Align::Left, text::rich::VerAlign::Center),
+                    Anchor::Center => (text::rich::Align::Center, text::rich::VerAlign::Center),
                 };
-                let line_text = text::LineText::new(
-                    label.text().to_string(),
-                    (align, ver_align),
-                    label.font_size(),
-                    label.font().clone(),
-                    &self.fontdb,
+                let text = label.text().to_rich_text(
+                    text::rich::TextProps::<theme::Color>::new(12.0)
+                        .with_font(defaults::FONT_FAMILY.parse().unwrap()),
+                    text::rich::Layout::Horizontal(align, ver_align, Default::default()),
+                    self.fontdb(),
                 )?;
                 let (x, y) = label.position();
-                let text = Text::from_line_text(&line_text, &self.fontdb, *label.color())?;
+                let text = Text::from_rich_text(&text, self.fontdb())?;
                 let frame = label.frame();
                 let frame = (frame.0.cloned(), frame.1.cloned());
                 Annot::Label(Label {

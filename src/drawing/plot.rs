@@ -1,10 +1,13 @@
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::f32;
 use std::rc::Rc;
 
 use crate::des::{PlotIdx, annot, colorbar};
 use crate::drawing::annot::Annot;
-use crate::drawing::axis::{AsBoundRef, Axis, AxisScale, Bounds, Side};
+use crate::drawing::axis::{
+    AsBoundRef, Axis, AxisCacheKey, AxisCacheMap, AxisScale, Bounds, Orientation, Side,
+};
 use crate::drawing::colorbar::{ColorBar, ColorBarBuilder, ColorScale};
 use crate::drawing::legend::{Legend, LegendBuilder};
 use crate::drawing::scale::CoordMapXy;
@@ -82,12 +85,6 @@ impl Plot {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Orientation {
-    X,
-    Y,
-}
-
 #[derive(Debug, Clone)]
 pub(super) struct Axes {
     x: Vec<Axis>,
@@ -161,6 +158,8 @@ struct PlotData {
     insets: geom::Padding,
 }
 
+pub type AxisTextCacheMap = HashMap<AxisCacheKey, Option<String>>;
+
 trait IrPlotExt {
     fn x_axes(&self) -> &[des::Axis];
     fn y_axes(&self) -> &[des::Axis];
@@ -204,6 +203,7 @@ trait IrPlotsExt {
         or: Orientation,
         ax_ref: &des::axis::Ref,
         plt_idx: usize,
+        axes_text_cache: &AxisTextCacheMap,
     ) -> Option<(usize, &des::Axis)> {
         let mut fig_ax_idx = 0;
         for (pi, plot) in self.plots().enumerate() {
@@ -217,8 +217,19 @@ trait IrPlotsExt {
                         }
                     }
                     des::axis::Ref::Id(id) => {
-                        if axis.id() == Some(id) || axis.title().map(|t| t.text()) == Some(id) {
+                        if axis.id() == Some(id) {
                             return Some((fig_ax_idx, axis));
+                        }
+                        let key = AxisCacheKey {
+                            plt_idx: pi,
+                            ax_idx: ai,
+                            orientation: or,
+                        };
+                        let cache = axes_text_cache.get(&key)?;
+                        if let Some(title) = cache.as_ref() {
+                            if title == id {
+                                return Some((fig_ax_idx, axis));
+                            }
                         }
                     }
                 }
@@ -286,13 +297,27 @@ where
         // PlotData contains all data that is not impacted by the size of axes
         let plot_data = self.setup_plot_data(des_plots, rect)?;
 
+        let mut axes_cache = self.setup_axes_cache(des_plots)?;
+        let mut axes_text_cache: HashMap<AxisCacheKey, Option<String>> = HashMap::new();
+        for (key, cache) in axes_cache.iter() {
+            axes_text_cache.insert(key.clone(), cache.title.as_ref().map(|t| t.text.clone()));
+        }
+
         // Estimate the space taken by all horizontal axes
         // Can be slightly wrong if font metrics height isn't exactly font size.
         // This will be fixed at end of the setup phase.
-        let bottom_heights =
-            self.calc_estimated_x_heights(des_plots, &plot_data, des::axis::Side::Main);
-        let top_heights =
-            self.calc_estimated_x_heights(des_plots, &plot_data, des::axis::Side::Opposite);
+        let bottom_heights = self.calc_estimated_x_heights(
+            des_plots,
+            &axes_cache,
+            &plot_data,
+            des::axis::Side::Main,
+        );
+        let top_heights = self.calc_estimated_x_heights(
+            des_plots,
+            &axes_cache,
+            &plot_data,
+            des::axis::Side::Opposite,
+        );
         let hor_space_height = bottom_heights.iter().sum::<f32>()
             + top_heights.iter().sum::<f32>()
             + des_plots.space() * (des_plots.rows() - 1) as f32;
@@ -303,6 +328,8 @@ where
             Orientation::Y,
             des_plots,
             &plot_data,
+            &mut axes_cache,
+            &axes_text_cache,
             subplot_rect_height,
         )?;
 
@@ -319,10 +346,31 @@ where
         if subplot_rect_width <= 0.0 || subplot_rect_height <= 0.0 {
             return Err(Error::NotEnoughSpace);
         }
-        let x_axes =
-            self.setup_orientation_axes(Orientation::X, des_plots, &plot_data, subplot_rect_width)?;
+        let x_axes = self.setup_orientation_axes(
+            Orientation::X,
+            des_plots,
+            &plot_data,
+            &mut axes_cache,
+            &axes_text_cache,
+            subplot_rect_width,
+        )?;
 
         // bottom heights were estimated, we can now calculate them accurately and rebuild the y-axes
+        // let's take back the axes cache as those didn't change
+        for (plt_idx, y_ax) in y_axes.into_iter().enumerate() {
+            if let Some(y_ax) = y_ax {
+                for (ax_idx, ax) in y_ax.0.into_iter().enumerate() {
+                    if let Some(ax) = ax {
+                        let key = AxisCacheKey {
+                            plt_idx,
+                            ax_idx,
+                            orientation: Orientation::Y,
+                        };
+                        axes_cache.insert(key, ax.into_cache());
+                    }
+                }
+            }
+        }
         let bottom_heights =
             self.calc_x_heights(des_plots, &plot_data, &x_axes, des::axis::Side::Main);
         let top_heights =
@@ -335,6 +383,8 @@ where
             Orientation::Y,
             des_plots,
             &plot_data,
+            &mut axes_cache,
+            &axes_text_cache,
             subplot_rect_height,
         )?;
 
@@ -455,6 +505,7 @@ where
             let legend = self.setup_plot_legend(des_plot, avail_width)?;
             let colorbars = self.setup_plot_colorbars(des_plot)?;
             let insets = plot_insets(des_plot);
+
             plot_data[idx] = Some(PlotData {
                 series,
                 legend,
@@ -463,6 +514,40 @@ where
             });
         }
         Ok(plot_data)
+    }
+
+    fn setup_axes_cache(&self, des_plots: &des::figure::Plots) -> Result<AxisCacheMap, Error> {
+        let mut axis_cache = HashMap::new();
+        for (plt_idx, des_plot) in des_plots.iter().enumerate() {
+            let Some(des_plot) = des_plot else { continue };
+
+            for (ax_idx, des_ax) in des_plot.x_axes().iter().enumerate() {
+                let key = AxisCacheKey {
+                    plt_idx,
+                    ax_idx,
+                    orientation: Orientation::X,
+                };
+                let cache = self.setup_axis_cache(
+                    Side::from_or_des_side(Orientation::X, des_ax.side()),
+                    des_ax,
+                )?;
+                axis_cache.insert(key, cache);
+            }
+
+            for (ax_idx, des_ax) in des_plot.y_axes().iter().enumerate() {
+                let key = AxisCacheKey {
+                    plt_idx,
+                    ax_idx,
+                    orientation: Orientation::Y,
+                };
+                let cache = self.setup_axis_cache(
+                    Side::from_or_des_side(Orientation::Y, des_ax.side()),
+                    des_ax,
+                )?;
+                axis_cache.insert(key, cache);
+            }
+        }
+        Ok(axis_cache)
     }
 
     fn setup_plot_series(&self, plot: &des::Plot) -> Result<Vec<Series>, Error> {
@@ -547,6 +632,7 @@ where
     fn calc_estimated_x_heights(
         &self,
         des_plots: &des::figure::Plots,
+        axis_cache: &AxisCacheMap,
         datas: &[Option<PlotData>],
         side: des::axis::Side,
     ) -> Vec<f32> {
@@ -558,7 +644,8 @@ where
                     let data = datas[plt_idx].as_ref().unwrap();
 
                     let mut height = x_plot_padding(side);
-                    height += self.estimate_x_axes_height(des_plot.x_axes(), side);
+                    height +=
+                        self.estimate_x_axes_height(des_plot.x_axes(), plt_idx, axis_cache, side);
                     if let (Some(des_leg), Some(leg)) = (des_plot.legend(), data.legend.as_ref()) {
                         if x_side_matches_out_legend_pos(side, des_leg.pos()) {
                             height += leg.size().height() + des_leg.margin();
@@ -666,6 +753,8 @@ where
         or: Orientation,
         des_plots: &des::figure::Plots,
         datas: &[Option<PlotData>],
+        axes_cache: &mut AxisCacheMap,
+        axes_text_cache: &AxisTextCacheMap,
         size_along: f32,
     ) -> Result<Vec<Option<PlotAxes>>, Error> {
         let mut plot_axes = vec![None; des_plots.len()];
@@ -683,6 +772,7 @@ where
             let Some(des_plot) = des_plot else { continue };
 
             let des_axes = des_plot.orientation_axes(or);
+
             let mut axes = vec![None; des_axes.len()];
 
             // track whether the main and opposite axes are directly attached to the plot area
@@ -702,12 +792,20 @@ where
                 // We also have to collect data bounds of series that refer to a shared axis
                 // referring explicitly to `des_ax`. This is done in the inner loop with `des_ax2`.
 
+                let key = AxisCacheKey {
+                    plt_idx,
+                    ax_idx,
+                    orientation: or,
+                };
+
+                let title = axes_text_cache.get(&key).and_then(|t| t.as_deref());
                 let matcher = series::AxisMatcher {
                     plt_idx,
                     ax_idx,
                     id: des_ax.id(),
-                    title: des_ax.title().map(|t| t.text()),
+                    title,
                 };
+
                 let mut bounds = None;
 
                 for (plt_idx2, des_plot2) in des_plots.iter().enumerate() {
@@ -719,11 +817,17 @@ where
                     for (ax_idx2, des_ax2) in des_plot2.orientation_axes(or).iter().enumerate() {
                         if let des::axis::Scale::Shared(ax_ref2) = des_ax2.scale() {
                             if matcher.matches_ref(ax_ref2, plt_idx2)? {
+                                let key = AxisCacheKey {
+                                    plt_idx: plt_idx2,
+                                    ax_idx: ax_idx2,
+                                    orientation: or,
+                                };
+                                let title = axes_text_cache.get(&key).and_then(|t| t.as_deref());
                                 let matcher = series::AxisMatcher {
                                     plt_idx: plt_idx2,
                                     ax_idx: ax_idx2,
                                     id: des_ax2.id(),
-                                    title: des_ax2.title().map(|t| t.text()),
+                                    title,
                                 };
                                 bounds =
                                     Series::unite_bounds(or, series, bounds, &matcher, plt_idx2)?;
@@ -753,8 +857,10 @@ where
 
                 let ax = self.setup_axis(
                     des_ax,
+                    axes_cache
+                        .remove(&key)
+                        .expect("AxisCache should have been built for axis owning its scale"),
                     &bounds,
-                    Side::from_or_des_side(or, des_ax.side()),
                     size_along,
                     &datas[plt_idx].as_ref().unwrap().insets,
                     None,
@@ -787,7 +893,7 @@ where
                     continue;
                 };
                 let (fig_ax_idx, _) = des_plots
-                    .orientation_find_axis(or, ax_ref, plt_idx)
+                    .orientation_find_axis(or, ax_ref, plt_idx, axes_text_cache)
                     .ok_or_else(|| Error::UnknownAxisRef(ax_ref.clone()))?;
 
                 let info = ax_infos[fig_ax_idx]
@@ -811,10 +917,19 @@ where
                     (false, None) => None,
                 };
 
+                let key = AxisCacheKey {
+                    plt_idx,
+                    ax_idx,
+                    orientation: or,
+                };
+                let cache = axes_cache
+                    .remove(&key)
+                    .expect("AxisCache should have been built for all axes");
+
                 let axis = self.setup_axis(
                     des_ax,
+                    cache,
                     &info.0,
-                    Side::from_or_des_side(or, des_ax.side()),
                     size_along,
                     &datas[plt_idx].as_ref().unwrap().insets,
                     Some(info.1.clone()),

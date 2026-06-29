@@ -1,6 +1,6 @@
 //! Plot design structures
 
-use crate::des::{Annotation, Axis, ColorBar, Legend, PlotIdx, Series};
+use crate::des::{Annotation, Axis, ColorBar, Legend, PlotIdx, Series, Text};
 use crate::style::{defaults, theme};
 
 /// Border style for the plot area that draws a box all around the plot area
@@ -193,7 +193,7 @@ pub struct Plot {
     y_axes: Vec<Axis>,
     x_axis_set: bool,
     y_axis_set: bool,
-    title: Option<String>,
+    title: Option<Text>,
     fill: Option<theme::Fill>,
     border: Option<Border>,
     insets: Option<Insets>,
@@ -246,7 +246,7 @@ impl Plot {
     }
 
     /// Set the title of the plot and return self for chaining
-    pub fn with_title(self, title: String) -> Self {
+    pub fn with_title(self, title: Text) -> Self {
         Self {
             title: Some(title),
             ..self
@@ -309,8 +309,8 @@ impl Plot {
     }
 
     /// Get the title of the plot
-    pub fn title(&self) -> Option<&str> {
-        self.title.as_deref()
+    pub fn title(&self) -> Option<&Text> {
+        self.title.as_ref()
     }
 
     /// Get the fill of the plot area

@@ -7,58 +7,8 @@ use serde::{Deserializer, Serializer};
 use serde_value::Value;
 
 use crate::des::sd::{deserialize_map_fields, deserialize_tagged_map_fields};
-use crate::des::{axis, sd};
+use crate::des::{self, axis, sd};
 use crate::style::theme;
-
-// MARK: axis::Title
-
-impl serde::Serialize for axis::Title {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        if self.spans().is_empty() && self.props() == &axis::TitleProps::default() {
-            self.text().serialize(serializer)
-        } else {
-            let mut state = serializer.serialize_struct("Title", 2)?;
-            state.serialize_field("text", self.text())?;
-            todo!("Serialize rich props and spans")
-            //state.end()
-        }
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for axis::Title {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct TitleVisitor;
-
-        impl<'de> serde::de::Visitor<'de> for TitleVisitor {
-            type Value = axis::Title;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("an axis title string or rich text")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(axis::Title::from(value.to_string()))
-            }
-
-            fn visit_map<A>(self, _map: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                todo!("Deserialize rich title with props and spans")
-            }
-        }
-        deserializer.deserialize_any(TitleVisitor)
-    }
-}
 
 // MARK: axis::Ref
 
@@ -921,17 +871,19 @@ impl serde::Serialize for axis::Ticks {
 
         let has_default_locator = self.locator() == default.locator();
         let has_default_formatter = self.formatter() == default.formatter();
+        let has_default_font = self.font() == default.font();
         let has_default_color = self.color() == default.color();
 
         match (
             has_default_locator,
             has_default_formatter,
+            has_default_font,
             has_default_color,
         ) {
-            (true, true, true) => "auto".serialize(serializer),
-            (false, true, true) => self.locator().serialize(serializer),
-            (true, false, true) => self.formatter().serialize(serializer),
-            (true, true, false) => self.color().serialize(serializer),
+            (true, true, true, true) => "auto".serialize(serializer),
+            (false, true, true, true) => self.locator().serialize(serializer),
+            (true, false, true, true) => self.formatter().serialize(serializer),
+            (true, true, true, false) => self.color().serialize(serializer),
             _ => {
                 let len = 3
                     - has_default_locator as usize
@@ -943,6 +895,9 @@ impl serde::Serialize for axis::Ticks {
                 }
                 if !has_default_formatter {
                     state.serialize_field("formatter", &self.formatter())?;
+                }
+                if !has_default_font {
+                    state.serialize_field("font", &self.font())?;
                 }
                 if !has_default_color {
                     state.serialize_field("color", &self.color())?;
@@ -1033,6 +988,10 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                     let formatter = map.next_value()?;
                     ticks = ticks.with_formatter(formatter);
                 }
+                "font" => {
+                    let font = map.next_value()?;
+                    ticks = ticks.with_font(font);
+                }
                 "color" => {
                     let color = map.next_value()?;
                     ticks = ticks.with_color(color);
@@ -1073,7 +1032,7 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                 _ => {
                     return Err(serde::de::Error::unknown_field(
                         &key,
-                        &["locator", "formatter", "color", "type"],
+                        &["locator", "formatter", "font", "color", "type"],
                     ));
                 }
             }
@@ -1420,7 +1379,7 @@ where
         deserialize_map_fields!(
             'de, map,
             "id" => id: Option<String>,
-            "title" => title: Option<axis::Title>,
+            "title" => title: Option<des::Text>,
             "side" => side: Option<String>,
             "scale" => scale: Option<axis::Scale>,
             "ticks" => ticks: Option<axis::Ticks>,

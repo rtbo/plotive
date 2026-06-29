@@ -8,7 +8,7 @@ use crate::des::{self, colorbar};
 use crate::drawing::cmap::{AsColorMap, ColorMap};
 use crate::drawing::scale::CoordMap;
 use crate::drawing::{Ctx, Text, axis, ticks};
-use crate::style::theme;
+use crate::style::{defaults, theme};
 use crate::{Style, data, geom, missing_params, render, text};
 
 /// A colorbar entry, used to populate one colorbar
@@ -99,13 +99,26 @@ impl ColorBarBuilder {
 
         let title = des
             .title()
-            .map(|title| title.to_rich_text(side.title_layout(), ctx.fontdb()))
+            .map(|title| {
+                title.to_rich_text(
+                    text::rich::TextProps::new(defaults::COLORBAR_TITLE_FONT_SIZE)
+                        .with_font(defaults::FONT_FAMILY.parse().unwrap()),
+                    side.title_layout(),
+                    ctx.fontdb(),
+                )
+            })
             .transpose()?
             .map(|rt| Text::from_rich_text(&rt, ctx.fontdb()))
             .transpose()?;
 
         let align = side.ticks_labels_align();
-        let font = des.ticks_font().clone();
+        let font_props = des.ticks_font().clone();
+        let font = super::resolve_line_font(&font_props, defaults::FONT_FAMILY.parse().unwrap());
+        let font_size = font_props
+            .size
+            .unwrap_or(defaults::COLORBAR_TICKS_FONT_SIZE);
+        let color = font_props.color.unwrap_or(theme::Col::Foreground.into());
+
         let formatter = des::axis::ticks::Formatter::Auto;
         let ticks = ticks::locate_num(&self.locator, view_bounds, &self.scale)?;
         let formatter =
@@ -115,9 +128,8 @@ impl ColorBarBuilder {
             .filter(|t| view_bounds.contains(*t))
             .map(|t| -> Result<_, super::Error> {
                 let text = formatter.format_label(t.into());
-                let lt =
-                    text::LineText::new(text, align, font.size, font.font.clone(), ctx.fontdb())?;
-                let text = Text::from_line_text(&lt, ctx.fontdb(), font.color)?;
+                let lt = text::LineText::new(text, align, font_size, font.clone(), ctx.fontdb())?;
+                let text = Text::from_line_text(&lt, ctx.fontdb(), color)?;
                 Ok((data::Sample::Num(t), text))
             })
             .collect::<Result<Vec<_>, _>>()?;

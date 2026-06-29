@@ -1,9 +1,9 @@
 //! Serialization and deserialization of figures
 
-use serde::ser::SerializeStruct;
+use serde::ser::{SerializeMap, SerializeSeq, SerializeStruct};
 
 use super::Figure;
-use crate::des::{FigLegend, Plot, Subplots, figure};
+use crate::des::{FigLegend, Plot, Subplots, Text, figure};
 use crate::geom;
 use crate::style::{defaults, theme};
 
@@ -17,58 +17,207 @@ mod series;
 mod style;
 #[cfg(feature = "time")]
 mod time;
-// MARK: figure::Title
 
-impl serde::Serialize for figure::Title {
+use crate::text;
+
+// MARK: Text
+
+impl serde::Serialize for text::LineProps {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        if self.spans().is_empty() && self.props() == &figure::TitleProps::default() {
-            self.text().serialize(serializer)
-        } else {
-            let mut state = serializer.serialize_struct("Title", 2)?;
-            state.serialize_field("text", self.text())?;
-            todo!("Serialize rich props and spans")
-            //state.end()
+        let mut state = serializer.serialize_map(None)?;
+        if let Some(families) = self.family.as_ref() {
+            let family = text::font::font_families_to_string(families);
+            state.serialize_entry("family", &family)?;
         }
+        if let Some(size) = self.size {
+            state.serialize_entry("size", &size)?;
+        }
+        if let Some(weight) = self.weight.as_ref() {
+            state.serialize_entry("weight", &weight)?;
+        }
+        if let Some(width) = self.width.as_ref() {
+            state.serialize_entry("width", &width)?;
+        }
+        if let Some(style) = self.style.as_ref() {
+            state.serialize_entry("style", &style)?;
+        }
+        if let Some(color) = self.color.as_ref() {
+            state.serialize_entry("color", &color)?;
+        }
+        state.end()
     }
 }
 
-impl<'de> serde::Deserialize<'de> for figure::Title {
+impl<'de> serde::Deserialize<'de> for text::LineProps {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        struct TitleVisitor;
-
-        impl<'de> serde::de::Visitor<'de> for TitleVisitor {
-            type Value = figure::Title;
+        struct Visitor;
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = text::LineProps;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a figure title string or rich text")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(figure::Title::from(value.to_string()))
+                formatter.write_str("a map representing LineProps")
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
             where
                 A: serde::de::MapAccess<'de>,
             {
-                deserialize_map_fields!('de, map,
-                    "text" => text: Option<String>,
-                );
-                Ok(figure::Title::from(
-                    text.ok_or_else(|| serde::de::Error::missing_field("text"))?,
-                ))
+                let mut family = None;
+                let mut size = None;
+                let mut weight = None;
+                let mut width = None;
+                let mut style = None;
+                let mut color = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "family" => {
+                            if family.is_some() {
+                                return Err(serde::de::Error::duplicate_field("family"));
+                            }
+                            let family_str: String = map.next_value()?;
+                            family =
+                                Some(text::parse_font_families(&family_str).map_err(|err| {
+                                    serde::de::Error::custom(format!(
+                                        "failed to parse font families '{}': {}",
+                                        family_str, err
+                                    ))
+                                })?);
+                        }
+                        "size" => {
+                            if size.is_some() {
+                                return Err(serde::de::Error::duplicate_field("size"));
+                            }
+                            size = Some(map.next_value()?);
+                        }
+                        "weight" => {
+                            if weight.is_some() {
+                                return Err(serde::de::Error::duplicate_field("weight"));
+                            }
+                            weight = Some(map.next_value()?);
+                        }
+                        "width" => {
+                            if width.is_some() {
+                                return Err(serde::de::Error::duplicate_field("width"));
+                            }
+                            width = Some(map.next_value()?);
+                        }
+                        "style" => {
+                            if style.is_some() {
+                                return Err(serde::de::Error::duplicate_field("style"));
+                            }
+                            style = Some(map.next_value()?);
+                        }
+                        "color" => {
+                            if color.is_some() {
+                                return Err(serde::de::Error::duplicate_field("color"));
+                            }
+                            color = Some(map.next_value()?);
+                        }
+                        _ => {
+                            return Err(serde::de::Error::unknown_field(
+                                &key,
+                                &["family", "size", "weight", "width", "style", "color"],
+                            ));
+                        }
+                    }
+                }
+
+                Ok(text::LineProps {
+                    family,
+                    size,
+                    weight,
+                    width,
+                    style,
+                    color,
+                })
             }
         }
-        deserializer.deserialize_any(TitleVisitor)
+
+        deserializer.deserialize_map(Visitor)
+    }
+}
+
+struct RichPropsMap(Vec<(String, text::RichProps)>);
+
+impl<'de> serde::Deserialize<'de> for RichPropsMap {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let map = std::collections::HashMap::<String, text::RichProps>::deserialize(deserializer)?;
+        Ok(RichPropsMap(map.into_iter().collect()))
+    }
+}
+
+impl serde::Serialize for Text {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Text::Plain(text) => serializer.serialize_str(text),
+            Text::Rich(fmt) => {
+                let mut seq = serializer.serialize_seq(Some(1))?;
+                seq.serialize_element(fmt)?;
+                seq.end()
+            }
+            Text::RichWithClasses { fmt, classes } => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element(fmt)?;
+                seq.serialize_element(classes)?;
+                seq.end()
+            }
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Text {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct TextVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for TextVisitor {
+            type Value = Text;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a string or a rich text array")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Text::Plain(value.to_string()))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let fmt: String = seq
+                    .next_element()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let classes: Option<RichPropsMap> = seq.next_element()?;
+                if let Some(classes) = classes {
+                    Ok(Text::RichWithClasses {
+                        fmt,
+                        classes: classes.0,
+                    })
+                } else {
+                    Ok(Text::Rich(fmt))
+                }
+            }
+        }
+        deserializer.deserialize_any(TextVisitor)
     }
 }
 
@@ -140,7 +289,7 @@ impl<'de> serde::de::Visitor<'de> for FigureVisitor {
             "plots" => plots: Option<Subplots>,
             "space" => space: Option<f32>,
             "size" => size: Option<geom::Size>,
-            "title" => title: Option<figure::Title>,
+            "title" => title: Option<Text>,
             "fill" => fill: Option<Option<theme::Fill>>,
             "legend" => legend: Option<FigLegend>,
             "padding" => padding: Option<geom::Padding>,

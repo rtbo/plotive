@@ -183,7 +183,7 @@ where
     }
 
     /// Add a new text span
-    pub fn add_span(&mut self, start: usize, end: usize, props: TextOptProps<C>) {
+    pub fn add_span(&mut self, start: usize, end: usize, props: ClassProps<C>) {
         assert!(start <= end);
         assert!(
             self.text.is_char_boundary(start) && self.text.is_char_boundary(end),
@@ -307,35 +307,35 @@ where
 /// A set of properties to be applied to a text span.
 /// If a property is `None`, value is inherited from the parent span.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextOptProps<C> {
+pub struct ClassProps<C> {
     pub font_family: Option<Vec<font::Family>>,
     pub font_weight: Option<font::Weight>,
     pub font_width: Option<font::Width>,
     pub font_style: Option<font::Style>,
     pub font_size: Option<f32>,
-    pub fill: Option<C>,
-    pub stroke: Option<(C, f32)>,
+    pub color: Option<C>,
+    pub outline: Option<(C, f32)>,
     pub underline: Option<bool>,
     pub strikeout: Option<bool>,
 }
 
-impl<C> Default for TextOptProps<C> {
+impl<C> Default for ClassProps<C> {
     fn default() -> Self {
-        TextOptProps {
+        ClassProps {
             font_family: None,
             font_weight: None,
             font_width: None,
             font_style: None,
             font_size: None,
-            fill: None,
-            stroke: None,
+            color: None,
+            outline: None,
             underline: None,
             strikeout: None,
         }
     }
 }
 
-impl<C> TextOptProps<C> {
+impl<C> ClassProps<C> {
     fn affect_shape(&self) -> bool {
         self.font_family.is_some()
             || self.font_weight.is_some()
@@ -353,7 +353,7 @@ where
 {
     font_size: f32,
     font: font::Font,
-    fill: Option<C>,
+    color: Option<C>,
     outline: Option<(C, f32)>,
     underline: bool,
     strikeout: bool,
@@ -372,7 +372,7 @@ where
         TextProps {
             font_size: self.font_size,
             font: self.font.clone(),
-            fill: self.fill.as_ref().map(|c| color_map(c)),
+            color: self.color.as_ref().map(|c| color_map(c)),
             outline: self.outline.as_ref().map(|(c, w)| (color_map(c), *w)),
             underline: self.underline,
             strikeout: self.strikeout,
@@ -400,7 +400,7 @@ where
         TextProps {
             font_size,
             font: font::Font::default(),
-            fill: Some(C::foreground()),
+            color: Some(C::foreground()),
             outline: None,
             underline: false,
             strikeout: false,
@@ -417,13 +417,13 @@ where
         self
     }
 
-    pub fn with_fill(mut self, fill: Option<C>) -> Self {
-        self.fill = fill;
+    pub fn with_color(mut self, color: Option<C>) -> Self {
+        self.color = color;
         self
     }
 
-    pub fn with_outline(mut self, stroke: (C, f32)) -> Self {
-        self.outline = Some(stroke);
+    pub fn with_outline(mut self, outline: (C, f32)) -> Self {
+        self.outline = Some(outline);
         self
     }
 
@@ -445,8 +445,8 @@ where
         &self.font
     }
 
-    pub fn fill(&self) -> Option<C> {
-        self.fill.clone()
+    pub fn color(&self) -> Option<C> {
+        self.color.clone()
     }
 
     pub fn outline(&self) -> Option<(C, f32)> {
@@ -461,32 +461,32 @@ where
         self.strikeout
     }
 
-    fn apply_opts(&mut self, opts: &TextOptProps<C>) {
-        if let Some(font_family) = &opts.font_family {
+    fn apply_opts(&mut self, class_props: &ClassProps<C>) {
+        if let Some(font_family) = &class_props.font_family {
             self.font = self.font.clone().with_families(font_family.clone());
         }
-        if let Some(font_weight) = opts.font_weight {
+        if let Some(font_weight) = class_props.font_weight {
             self.font = self.font.clone().with_weight(font_weight);
         }
-        if let Some(font_width) = opts.font_width {
+        if let Some(font_width) = class_props.font_width {
             self.font = self.font.clone().with_width(font_width);
         }
-        if let Some(font_style) = opts.font_style {
+        if let Some(font_style) = class_props.font_style {
             self.font = self.font.clone().with_style(font_style);
         }
-        if let Some(font_size) = opts.font_size {
+        if let Some(font_size) = class_props.font_size {
             self.font_size = font_size;
         }
-        if let Some(fill) = opts.fill.as_ref() {
-            self.fill = Some(fill.clone());
+        if let Some(color) = class_props.color.as_ref() {
+            self.color = Some(color.clone());
         }
-        if let Some(stroke) = opts.stroke.as_ref() {
-            self.outline = Some(stroke.clone());
+        if let Some(outline) = class_props.outline.as_ref() {
+            self.outline = Some(outline.clone());
         }
-        if let Some(underline) = opts.underline {
+        if let Some(underline) = class_props.underline {
             self.underline = underline;
         }
-        if let Some(strikeout) = opts.strikeout {
+        if let Some(strikeout) = class_props.strikeout {
             self.strikeout = strikeout;
         }
     }
@@ -497,7 +497,7 @@ where
 struct TextSpan<C> {
     start: usize,
     end: usize,
-    props: TextOptProps<C>,
+    props: ClassProps<C>,
 }
 
 /// A line of rich text

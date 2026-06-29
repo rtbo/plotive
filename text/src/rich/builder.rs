@@ -2,8 +2,8 @@ use plotive_base::geom;
 use ttf_parser as ttf;
 
 use super::{
-    Align, Boundaries, Direction, Error, Glyph, HorAlign, Layout, LineSpan, PropsSpan, RichText,
-    RichTextBuilder, ShapeSpan, TextOptProps, TextProps, VerAlign, VerDirection, VerProgression,
+    Align, Boundaries, ClassProps, Direction, Error, Glyph, HorAlign, Layout, LineSpan, PropsSpan,
+    RichText, RichTextBuilder, ShapeSpan, TextProps, VerAlign, VerDirection, VerProgression,
 };
 use crate::bidi::BidiAlgo;
 use crate::font::{self, DatabaseExt};
@@ -25,7 +25,7 @@ where
     C: Clone,
 {
     init_props: TextProps<C>,
-    stack: Vec<TextOptProps<C>>,
+    stack: Vec<ClassProps<C>>,
 }
 
 impl<C> PropsResolver<C>
@@ -47,18 +47,18 @@ where
         TextProps {
             font: props.font,
             font_size: props.font_size,
-            fill: props.fill.clone(),
+            color: props.color.clone(),
             outline: props.outline.clone(),
             underline: props.underline,
             strikeout: props.strikeout,
         }
     }
 
-    fn push_opts(&mut self, opts: TextOptProps<C>) {
+    fn push_opts(&mut self, opts: ClassProps<C>) {
         self.stack.push(opts);
     }
 
-    fn pop_opts(&mut self, opts: &TextOptProps<C>) {
+    fn pop_opts(&mut self, opts: &ClassProps<C>) {
         for i in (0..self.stack.len()).rev() {
             if &self.stack[i] == opts {
                 self.stack.remove(i);
@@ -707,7 +707,7 @@ mod tests {
         builder.add_span(
             5,
             9,
-            TextOptProps {
+            ClassProps {
                 underline: Some(true),
                 ..Default::default()
             },
