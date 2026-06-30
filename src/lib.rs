@@ -114,7 +114,6 @@
  * ## Crate features
  *
  *  - `data-csv`: enables CSV data source support (See [`data::csv`])
- *  - `dsl`: enables the support for `.plotive` DSL. (See [`dsl`] and [`plotive-dsl` crate](https://crates.io/crates/plotive-dsl))
  *  - `noto-mono`, `noto-sans`, `noto-sans-italic`, `noto-serif`, `noto-serif-italic`: bundles the corresponding fonts from Google in the final executable, and enables `plotive::bundled_font_db()`.<br />
  *   `noto-sans` is enabled by default
  *  - `time`: enables support for time series, CSV date-time parsing etc. (See [`time`])
@@ -152,9 +151,6 @@ pub mod des;
 pub mod drawing;
 pub mod render;
 pub mod style;
-
-#[cfg(feature = "dsl")]
-pub mod dsl;
 
 #[cfg(feature = "time")]
 pub mod time;
