@@ -58,14 +58,14 @@ where
                         if span.props.decorations.underline {
                             let line = shape.metrics.uline;
                             let path =
-                                line_path(span.bbox(), shape.y_baseline, line, glyph_builder);
+                                crate::line_path(span.bbox(), shape.y_baseline, line, glyph_builder);
                             span_builder.push_path(&path);
                             glyph_builder = path.clear();
                         }
                         if span.props.decorations.strikethrough {
                             let line = shape.metrics.strikeout;
                             let path =
-                                line_path(span.bbox(), shape.y_baseline, line, glyph_builder);
+                                crate::line_path(span.bbox(), shape.y_baseline, line, glyph_builder);
                             span_builder.push_path(&path);
                             glyph_builder = path.clear();
                         }
@@ -136,17 +136,3 @@ pub fn render_rich_text(
     render_rich_text_with(text, fontdb, render_fn)
 }
 
-fn line_path(
-    rect: geom::Rect,
-    y_baseline: f32,
-    line: font::ScaledLineMetrics,
-    mut builder: geom::PathBuilder,
-) -> geom::Path {
-    // there is no y-flip transform on this one
-    builder.move_to(rect.left(), y_baseline - line.position);
-    builder.line_to(rect.right(), y_baseline - line.position);
-    builder.line_to(rect.right(), y_baseline - line.position + line.thickness);
-    builder.line_to(rect.left(), y_baseline - line.position + line.thickness);
-    builder.close();
-    builder.finish().unwrap()
-}

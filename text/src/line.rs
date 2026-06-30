@@ -5,6 +5,7 @@ use ttf_parser as ttf;
 
 use crate::bidi::{self, BidiAlgo};
 use crate::font::{self, DatabaseExt};
+use crate::props::{self, FontProps};
 use crate::{Error, Font, ScriptDir, fontdb};
 
 /// Horizontal alignment
@@ -44,8 +45,7 @@ pub enum VerAlign {
 pub struct LineText {
     text: String,
     align: (Align, VerAlign),
-    font_size: f32,
-    font: Font,
+    font: FontProps,
     bbox: Option<geom::Rect>,
     main_dir: ScriptDir,
     metrics: font::ScaledMetrics,
@@ -61,11 +61,7 @@ impl LineText {
         self.align
     }
 
-    pub fn font_size(&self) -> f32 {
-        self.font_size
-    }
-
-    pub fn font(&self) -> &Font {
+    pub fn font(&self) -> &FontProps {
         &self.font
     }
 
@@ -95,8 +91,7 @@ impl LineText {
         Self {
             text: String::new(),
             align: (Default::default(), Default::default()),
-            font_size: 1.0,
-            font,
+            font: FontProps::new(font, 1.0),
             bbox: None,
             main_dir: ScriptDir::LeftToRight,
             metrics: font::ScaledMetrics::null(),
@@ -113,8 +108,7 @@ impl LineText {
     pub fn new(
         text: String,
         align: (Align, VerAlign),
-        font_size: f32,
-        font: Font,
+        font: FontProps,
         db: &fontdb::Database,
     ) -> Result<Self, Error> {
         let default_lev = match crate::script_is_rtl(&text) {
@@ -125,7 +119,7 @@ impl LineText {
         let mut bidi = BidiAlgo::Yep { default_lev };
         let bidi_runs = bidi.visual_runs(&text, 0);
         if bidi_runs.is_empty() {
-            return Ok(LineText::new_empty(font.clone()));
+            return Ok(LineText::new_empty(font.font.clone()));
         }
         let main_dir = match default_lev {
             Some(lev) if lev.is_ltr() => ScriptDir::LeftToRight,
@@ -140,7 +134,7 @@ impl LineText {
         let mut shapes = Vec::with_capacity(bidi_runs.len());
         let mut ctx = Ctx { buffer: None };
         for run in &bidi_runs {
-            let shape = Shape::shape_run(&text, run, font_size, &font, db, &mut ctx)?;
+            let shape = Shape::shape_run(&text, run, &font, db, &mut ctx)?;
             shapes.push(shape);
         }
 
@@ -190,7 +184,6 @@ impl LineText {
         Ok(LineText {
             text,
             align: (align, ver_align),
-            font_size,
             font: font.clone(),
             bbox: Some(geom::Rect::from_trbl(top, x_cursor, bottom, x_start)),
             main_dir,
@@ -261,15 +254,14 @@ impl Shape {
     fn shape_run(
         text: &str,
         run: &bidi::BidiRun,
-        font_size: f32,
-        font: &font::Font,
+        font: &FontProps,
         db: &fontdb::Database,
         ctx: &mut Ctx,
     ) -> Result<Self, Error> {
         let face_id = db
-            .select_face_for_str(font, text)
-            .or_else(|| db.select_face(&font))
-            .ok_or_else(|| Error::NoSuchFont(font.clone()))?;
+            .select_face_for_str(&font.font, text)
+            .or_else(|| db.select_face(&font.font))
+            .ok_or_else(|| Error::NoSuchFont(font.font.clone()))?;
 
         let mut buffer = ctx
             .buffer
@@ -289,9 +281,9 @@ impl Shape {
         let (shape, metrics) = db
             .with_face_data(face_id, |data, index| -> Result<_, Error> {
                 let face = ttf::Face::parse(data, index)?;
-                let metrics = font::face_metrics(&face).scaled(font_size);
+                let metrics = font::face_metrics(&face).scaled(font.size);
                 let mut hbface = rustybuzz::Face::from_face(face);
-                font::apply_hb_variations(&mut hbface, &font);
+                font::apply_hb_variations(&mut hbface, &font.font);
 
                 Ok((rustybuzz::shape(&hbface, &[], buffer), metrics))
             })
@@ -319,70 +311,127 @@ impl Shape {
     }
 }
 
-pub fn render_line_text_with<R>(line: &LineText, db: &font::Database, mut render_fn: R)
-where
+pub fn render_line_text_with<R>(
+    line: &LineText,
+    db: &font::Database,
+    decorations: props::Decorations,
+    mut render_fn: R,
+) where
     R: FnMut(&geom::Path),
 {
     for shape in line.shapes.iter() {
         db.with_face_data(shape.face_id, |data, index| {
             let mut face = ttf::Face::parse(data, index).unwrap();
-            font::apply_ttf_variations(&mut face, line.font());
+            font::apply_ttf_variations(&mut face, &line.font.font);
 
             // the path builder for the entire string
-            let mut str_pb = geom::PathBuilder::new();
+            let mut shape_builder = geom::PathBuilder::new();
             // the path builder for each glyph
-            let mut gl_pb = geom::PathBuilder::new();
+            let mut glyph_builder = geom::PathBuilder::new();
 
             for gl in &shape.glyphs {
                 {
-                    let mut builder = crate::Outliner(&mut gl_pb);
+                    let mut builder = crate::Outliner(&mut glyph_builder);
                     face.outline_glyph(gl.id, &mut builder);
                 }
 
-                if let Some(path) = gl_pb.finish() {
+                if let Some(path) = glyph_builder.finish() {
                     let path = path.transform(gl.ts).unwrap();
-                    str_pb.push_path(&path);
+                    shape_builder.push_path(&path);
 
-                    gl_pb = path.clear();
+                    glyph_builder = path.clear();
                 } else {
-                    gl_pb = geom::PathBuilder::new();
+                    glyph_builder = geom::PathBuilder::new();
                 }
             }
 
-            if let Some(path) = str_pb.finish() {
+            if let Some(path) = shape_builder.finish() {
                 render_fn(&path);
             }
         });
+    }
+
+    if line.bbox.is_some() && (decorations.underline || decorations.strikethrough) {
+        let bbox = line.bbox.unwrap();
+        let mut span_builder = geom::PathBuilder::new();
+
+        if decorations.underline {
+            let metrics = line.metrics.uline;
+            let path = crate::line_path(bbox, 0.0, metrics, geom::PathBuilder::new());
+            span_builder.push_path(&path);
+        }
+        if decorations.strikethrough {
+            let metrics = line.metrics.strikeout;
+            let path = crate::line_path(bbox, 0.0, metrics, geom::PathBuilder::new());
+            span_builder.push_path(&path);
+        }
+
+        if let Some(path) = span_builder.finish() {
+            render_fn(&path);
+        }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct RenderOptions<'a> {
-    pub fill: Option<tiny_skia::Paint<'a>>,
-    pub outline: Option<(tiny_skia::Paint<'a>, tiny_skia::Stroke)>,
+    pub render: props::RenderProps<plotive_base::Rgba8>,
     pub mask: Option<&'a tiny_skia::Mask>,
     pub transform: geom::Transform,
 }
 
 pub fn render_line_text(
     line: &LineText,
-    opts: &RenderOptions<'_>,
-    db: &font::Database,
     pixmap: &mut tiny_skia::PixmapMut<'_>,
+    mask: Option<&tiny_skia::Mask>,
+    transform: geom::Transform,
+    db: &font::Database,
+    render: &props::RenderProps<plotive_base::Rgba8>,
+    decorations: props::Decorations,
 ) {
     let render_fn = |path: &geom::Path| {
-        if let Some(paint) = opts.fill.as_ref() {
+        if let Some(fill) = render.fill.as_ref() {
+            let plotive_base::style::Fill::Solid {color, opacity } = fill;
+            let skia_color = tiny_skia_color(*color, *opacity);
+
+            let paint = tiny_skia::Paint {
+                shader: tiny_skia::Shader::SolidColor(skia_color),
+                anti_alias: true,
+                ..Default::default()
+            };
             pixmap.fill_path(
                 &path,
                 &paint,
                 tiny_skia::FillRule::Winding,
-                opts.transform,
-                opts.mask,
+                transform,
+                mask,
             );
         }
-        if let Some((paint, stroke)) = opts.outline.as_ref() {
-            pixmap.stroke_path(&path, &paint, &stroke, opts.transform, opts.mask);
+        if let Some(outline) = render.outline.as_ref() {
+            let plotive_base::style::Stroke { color, width, pattern, opacity } = outline;
+            let skia_color = tiny_skia_color(*color, *opacity);
+            let paint = tiny_skia::Paint {
+                shader: tiny_skia::Shader::SolidColor(skia_color),
+                anti_alias: true,
+                ..Default::default()
+            };
+            let dash = pattern.get_dash().map(|d| tiny_skia::StrokeDash::new(d.to_vec(), 0.0)).flatten();
+
+            let stroke = tiny_skia::Stroke {
+                width: *width,
+                dash,
+                ..Default::default()
+            };
+            pixmap.stroke_path(&path, &paint, &stroke, transform, mask);
         }
     };
-    render_line_text_with(line, db, render_fn);
+    render_line_text_with(line, db, decorations, render_fn);
+}
+
+fn tiny_skia_color(col: plotive_base::Rgba8, opacity: Option<f32>) -> tiny_skia::Color {
+    let a = if let Some(op) = opacity {
+        (col.a() as f32 * op).clamp(0.0, 255.0) as u8
+    } else {
+        col.a()
+    };
+    tiny_skia::Color::from_rgba8(col.r(), col.g(), col.b(), a)
 }

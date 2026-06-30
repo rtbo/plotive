@@ -2,6 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use plotive_base::Rgb8;
+use plotive_text::props::FontProps;
 
 use crate::des::axis::ticks::Locator;
 use crate::des::{self, colorbar};
@@ -119,7 +120,11 @@ impl ColorBarBuilder {
         let font_size = font_props
             .size
             .unwrap_or(defaults::COLORBAR_TICKS_FONT_SIZE);
-        let color = font_props.color.unwrap_or(theme::Col::Foreground.into());
+        let color = font_props
+            .color
+            .clone()
+            .flatten()
+            .unwrap_or(theme::Col::Foreground.into());
 
         let formatter = des::axis::ticks::Formatter::Auto;
         let ticks = ticks::locate_num(&self.locator, view_bounds, &self.scale)?;
@@ -130,7 +135,12 @@ impl ColorBarBuilder {
             .filter(|t| view_bounds.contains(*t))
             .map(|t| -> Result<_, super::Error> {
                 let text = formatter.format_label(t.into());
-                let lt = text::LineText::new(text, align, font_size, font.clone(), ctx.fontdb())?;
+                let lt = text::LineText::new(
+                    text,
+                    align,
+                    FontProps::new(font.clone(), font_size),
+                    ctx.fontdb(),
+                )?;
                 let text = Text::from_line_text(&lt, ctx.fontdb(), color)?;
                 Ok((data::Sample::Num(t), text))
             })
