@@ -241,7 +241,10 @@ struct TextSpan {
     stroke: Option<theme::Stroke>,
 }
 
-fn resolve_line_font(modifiers: &text::TextModifiers<theme::Color>, default: text::Font) -> text::Font {
+fn resolve_line_font(
+    modifiers: &text::TextModifiers<theme::Color>,
+    default: text::Font,
+) -> text::Font {
     let mut res = default;
     if let Some(families) = modifiers.families.as_ref() {
         res = res.with_families(families.clone());

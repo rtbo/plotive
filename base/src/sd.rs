@@ -9,7 +9,7 @@ use serde::ser::SerializeStruct;
 
 use crate::color::{css4, xkcd};
 use crate::geom::{Padding, Size};
-use crate::style::{Color, DefaultStroke, DefaultStrokeWidth, Stroke, DefaultColor};
+use crate::style::{Color, DefaultColor, DefaultStroke, DefaultStrokeWidth, Stroke};
 use crate::{Rgb8, Rgba8, geom, style};
 
 macro_rules! deserialize_map_fields {
@@ -219,7 +219,6 @@ where
     }
 }
 
-
 // MARK: LinePattern
 
 impl serde::Serialize for style::LinePattern {
@@ -380,14 +379,12 @@ where
     }
 }
 
-pub struct StrokeVisitor<C>
-{
+pub struct StrokeVisitor<C> {
     name: &'static str,
     default_stroke: Option<Stroke<C>>,
 }
 
-impl<C> StrokeVisitor<C>
-{
+impl<C> StrokeVisitor<C> {
     pub fn new(name: &'static str, default_stroke: Option<Stroke<C>>) -> Self {
         Self {
             name,

@@ -1,9 +1,7 @@
 use crate::drawing::legend::{self, LegendBuilder};
 use crate::drawing::{Ctx, Error, plot};
-use crate::style::{defaults, theme};
+use crate::style::{AsPaint, defaults, theme};
 use crate::{Style, data, des, geom, missing_params, render, text};
-
-use crate::style::AsPaint;
 
 /// A figure that has been prepared for drawing. See the [`Prepare`](crate::drawing::Prepare) trait.
 /// It contains all the necessary data and layout information.

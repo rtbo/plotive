@@ -1,5 +1,4 @@
-use plotive_base::color;
-use plotive_base::style;
+use plotive_base::{color, style};
 
 use crate::font::{self, Font};
 

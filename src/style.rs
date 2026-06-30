@@ -5,11 +5,13 @@ mod dracula;
 pub mod series;
 pub mod theme;
 
+pub use plotive_base::style::{
+    Color, DefaultColor, DefaultStroke, DefaultStrokeWidth, Fill, LinePattern, ResolveColor, Stroke,
+};
+
 pub use crate::style::series::Palette;
 pub use crate::style::theme::Theme;
 use crate::{Rgba8, render};
-
-pub use plotive_base::style::{Color, Fill, LinePattern, ResolveColor, Stroke, DefaultColor, DefaultStroke, DefaultStrokeWidth};
 
 /// Overall style definition for figures
 ///

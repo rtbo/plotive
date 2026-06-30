@@ -1,4 +1,5 @@
-use std::{borrow::Cow, str::FromStr};
+use std::borrow::Cow;
+use std::str::FromStr;
 
 use plotive_base::{Rgba8, style};
 use serde::de::Error;

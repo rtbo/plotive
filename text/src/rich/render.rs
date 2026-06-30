@@ -57,15 +57,23 @@ where
 
                         if span.props.decorations.underline {
                             let line = shape.metrics.uline;
-                            let path =
-                                crate::line_path(span.bbox(), shape.y_baseline, line, glyph_builder);
+                            let path = crate::line_path(
+                                span.bbox(),
+                                shape.y_baseline,
+                                line,
+                                glyph_builder,
+                            );
                             span_builder.push_path(&path);
                             glyph_builder = path.clear();
                         }
                         if span.props.decorations.strikethrough {
                             let line = shape.metrics.strikeout;
-                            let path =
-                                crate::line_path(span.bbox(), shape.y_baseline, line, glyph_builder);
+                            let path = crate::line_path(
+                                span.bbox(),
+                                shape.y_baseline,
+                                line,
+                                glyph_builder,
+                            );
                             span_builder.push_path(&path);
                             glyph_builder = path.clear();
                         }
@@ -135,4 +143,3 @@ pub fn render_rich_text(
     };
     render_rich_text_with(text, fontdb, render_fn)
 }
-

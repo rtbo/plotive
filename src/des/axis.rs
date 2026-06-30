@@ -743,7 +743,10 @@ pub mod ticks {
         }
         /// Returns a new ticks with the specified text modifiers
         pub fn with_font(self, txt_modifiers: text::TextModifiers<theme::Color>) -> Self {
-            Self { txt_modifiers, ..self }
+            Self {
+                txt_modifiers,
+                ..self
+            }
         }
         /// Returns a new ticks with the specified color
         pub fn with_color(self, color: theme::Color) -> Self {

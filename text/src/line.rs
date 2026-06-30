@@ -390,7 +390,7 @@ pub fn render_line_text(
 ) {
     let render_fn = |path: &geom::Path| {
         if let Some(fill) = render.fill.as_ref() {
-            let plotive_base::style::Fill::Solid {color, opacity } = fill;
+            let plotive_base::style::Fill::Solid { color, opacity } = fill;
             let skia_color = tiny_skia_color(*color, *opacity);
 
             let paint = tiny_skia::Paint {
@@ -398,23 +398,25 @@ pub fn render_line_text(
                 anti_alias: true,
                 ..Default::default()
             };
-            pixmap.fill_path(
-                &path,
-                &paint,
-                tiny_skia::FillRule::Winding,
-                transform,
-                mask,
-            );
+            pixmap.fill_path(&path, &paint, tiny_skia::FillRule::Winding, transform, mask);
         }
         if let Some(outline) = render.outline.as_ref() {
-            let plotive_base::style::Stroke { color, width, pattern, opacity } = outline;
+            let plotive_base::style::Stroke {
+                color,
+                width,
+                pattern,
+                opacity,
+            } = outline;
             let skia_color = tiny_skia_color(*color, *opacity);
             let paint = tiny_skia::Paint {
                 shader: tiny_skia::Shader::SolidColor(skia_color),
                 anti_alias: true,
                 ..Default::default()
             };
-            let dash = pattern.get_dash().map(|d| tiny_skia::StrokeDash::new(d.to_vec(), 0.0)).flatten();
+            let dash = pattern
+                .get_dash()
+                .map(|d| tiny_skia::StrokeDash::new(d.to_vec(), 0.0))
+                .flatten();
 
             let stroke = tiny_skia::Stroke {
                 width: *width,
