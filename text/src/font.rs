@@ -373,10 +373,10 @@ impl str::FromStr for Width {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Font {
-    families: Vec<Family>,
-    weight: Weight,
-    width: Width,
-    style: Style,
+    pub(crate) families: Vec<Family>,
+    pub(crate) weight: Weight,
+    pub(crate) width: Width,
+    pub(crate) style: Style,
 }
 
 impl str::FromStr for Font {

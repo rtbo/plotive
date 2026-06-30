@@ -1,11 +1,41 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
+use std::str::FromStr;
 use std::sync::LazyLock;
+
+use serde::Serialize;
+use serde::ser::SerializeStruct;
 
 use crate::color::{css4, xkcd};
 use crate::geom::{Padding, Size};
-use crate::{Rgb8, Rgba8, geom};
+use crate::style::{Color, DefaultStroke, DefaultStrokeWidth, Stroke, DefaultColor};
+use crate::{Rgb8, Rgba8, geom, style};
+
+macro_rules! deserialize_map_fields {
+    ($de:lifetime, $map:expr, $($key:expr => $name:ident: Option<$ty:ty>,)+) => {
+        $(
+            let mut $name = None::<$ty>;
+        )+
+
+        while let Some(key) = $map.next_key::<std::borrow::Cow<$de, str>>()? {
+            match key.as_ref() {
+                $($key => {
+                    if $name.is_some() {
+                        let _: $ty = $map.next_value()?;
+                        return Err(serde::de::Error::duplicate_field($key));
+                    }
+                    $name = Some($map.next_value::<$ty>()?);
+                })+
+                _ => {
+                    return Err(serde::de::Error::unknown_field(key.as_ref(), &[$($key),+]));
+                }
+            }
+        }
+    }
+}
+
+// MARK: Color
 
 static INVERSE_COLOR_MAP: LazyLock<HashMap<Rgba8, &'static str>> = LazyLock::new(|| {
     let mut map = HashMap::with_capacity(xkcd::COLORS.len() + css4::COLORS.len());
@@ -100,6 +130,495 @@ impl<'de> serde::Deserialize<'de> for Rgba8 {
         }
     }
 }
+
+// MARK: style::Fill
+
+impl<C> serde::Serialize for style::Fill<C>
+where
+    C: serde::Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let style::Fill::Solid { color, opacity } = self;
+
+        if let Some(opacity) = opacity {
+            if *opacity == 1.0 {
+                color.serialize(serializer)
+            } else {
+                let mut state = serializer.serialize_struct("Fill", 2)?;
+                state.serialize_field("color", color)?;
+                state.serialize_field("opacity", opacity)?;
+                state.end()
+            }
+        } else {
+            color.serialize(serializer)
+        }
+    }
+}
+
+impl<'de, C> serde::Deserialize<'de> for style::Fill<C>
+where
+    C: serde::Deserialize<'de> + Color + FromStr + DefaultColor,
+    <C as FromStr>::Err: std::fmt::Display,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(FillVisitor {
+            _phantom: std::marker::PhantomData,
+        })
+    }
+}
+
+struct FillVisitor<C> {
+    _phantom: std::marker::PhantomData<C>,
+}
+
+impl<'de, C> serde::de::Visitor<'de> for FillVisitor<C>
+where
+    C: serde::de::Deserialize<'de> + Color + FromStr + DefaultColor,
+    <C as FromStr>::Err: std::fmt::Display,
+{
+    type Value = style::Fill<C>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a fill color or a map with color and opacity")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let color = value.parse::<C>().map_err(E::custom)?;
+        Ok(style::Fill::Solid {
+            color,
+            opacity: None,
+        })
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        deserialize_map_fields!(
+            'de, map,
+            "color" => color: Option<C>,
+            "opacity" => opacity: Option<f32>,
+        );
+
+        let color = match (color, C::default_color()) {
+            (Some(color), _) => color,
+            (None, Some(color)) => color,
+            (None, None) => return Err(serde::de::Error::missing_field("color")),
+        };
+
+        Ok(style::Fill::Solid { color, opacity })
+    }
+}
+
+
+// MARK: LinePattern
+
+impl serde::Serialize for style::LinePattern {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use style::LinePattern;
+        match self {
+            LinePattern::Solid => "solid".serialize(serializer),
+            LinePattern::Dashed => "dashed".serialize(serializer),
+            LinePattern::Dot => "dotted".serialize(serializer),
+            LinePattern::DashDot => "dash-dot".serialize(serializer),
+            LinePattern::Custom(dash) => dash.serialize(serializer),
+        }
+    }
+}
+
+impl<'de> serde::de::Deserialize<'de> for style::LinePattern {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(LinePatternVisitor)
+    }
+}
+
+struct LinePatternVisitor;
+
+fn str_to_line_pattern(value: &str) -> Option<style::LinePattern> {
+    match value {
+        "solid" => Some(style::LinePattern::Solid),
+        "dashed" => Some(style::LinePattern::Dashed),
+        "dotted" => Some(style::LinePattern::Dot),
+        "dash-dot" => Some(style::LinePattern::DashDot),
+        _ => None,
+    }
+}
+
+impl<'de> serde::de::Visitor<'de> for LinePatternVisitor {
+    type Value = style::LinePattern;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a line pattern string or a dash array")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        str_to_line_pattern(value)
+            .ok_or_else(|| E::unknown_variant(value, &["solid", "dashed", "dotted", "dash-dot"]))
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let mut dash: Vec<f32> = if let Some(sz) = seq.size_hint() {
+            Vec::with_capacity(sz)
+        } else {
+            Vec::new()
+        };
+
+        while let Some(value) = seq.next_element()? {
+            dash.push(value);
+        }
+        Ok(style::LinePattern::Custom(dash))
+    }
+}
+
+// MARK: Stroke
+
+impl<C> serde::Serialize for Stroke<C>
+where
+    C: serde::Serialize + DefaultStroke + DefaultStrokeWidth + PartialEq,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serialize_stroke(self, C::default_stroke(), "Stroke", serializer)
+    }
+}
+
+impl<'de, C> serde::de::Deserialize<'de> for Stroke<C>
+where
+    C: serde::de::Deserialize<'de> + DefaultStroke + DefaultStrokeWidth + FromStr,
+    <C as FromStr>::Err: std::fmt::Display,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(StrokeVisitor::new("Stroke", C::default_stroke()))
+    }
+}
+
+pub fn serialize_stroke<C, S>(
+    stroke: &Stroke<C>,
+    default_stroke: Option<Stroke<C>>,
+    name: &'static str,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    C: serde::Serialize + DefaultStrokeWidth + PartialEq,
+    S: serde::Serializer,
+{
+    let default_width = C::default_stroke_width();
+
+    let (has_default_color, has_default_width, has_default_pattern, has_default_opacity) =
+        if let Some(default) = default_stroke {
+            (
+                default.color == stroke.color,
+                default.width == stroke.width,
+                default.pattern == stroke.pattern,
+                default.opacity == stroke.opacity,
+            )
+        } else {
+            (
+                false,
+                stroke.width == default_width,
+                stroke.pattern == Default::default(),
+                stroke.opacity.unwrap_or(1.0) == 1.0,
+            )
+        };
+
+    match (
+        has_default_color,
+        has_default_width,
+        has_default_pattern,
+        has_default_opacity,
+    ) {
+        (true, true, true, true) => "auto".serialize(serializer),
+        (false, true, true, true) => stroke.color.serialize(serializer),
+        (true, false, true, true) => stroke.width.serialize(serializer),
+        (true, true, false, true) => stroke.pattern.serialize(serializer),
+        _ => {
+            let fields = (!has_default_color as usize)
+                + (!has_default_width as usize)
+                + (!has_default_pattern as usize)
+                + (!has_default_opacity as usize);
+            let mut state = serializer.serialize_struct(name, fields)?;
+            if !has_default_color {
+                state.serialize_field("color", &stroke.color)?;
+            }
+            if !has_default_width {
+                state.serialize_field("width", &stroke.width)?;
+            }
+            if !has_default_pattern {
+                state.serialize_field("pattern", &stroke.pattern)?;
+            }
+            if !has_default_opacity {
+                state.serialize_field("opacity", &stroke.opacity.unwrap_or(1.0))?;
+            }
+            state.end()
+        }
+    }
+}
+
+pub struct StrokeVisitor<C>
+{
+    name: &'static str,
+    default_stroke: Option<Stroke<C>>,
+}
+
+impl<C> StrokeVisitor<C>
+{
+    pub fn new(name: &'static str, default_stroke: Option<Stroke<C>>) -> Self {
+        Self {
+            name,
+            default_stroke,
+        }
+    }
+
+    fn accepts_compact_pattern(&self) -> bool {
+        self.default_stroke.is_some()
+    }
+
+    fn accepted_string_forms(&self) -> &'static str {
+        if self.accepts_compact_pattern() {
+            "'auto', a line pattern, or a color string"
+        } else {
+            "a color string"
+        }
+    }
+
+    fn expecting_description(&self) -> &'static str {
+        if self.accepts_compact_pattern() {
+            "a stroke object, 'auto', a stroke width, a line pattern, a dash array, or a color string"
+        } else {
+            "a stroke object or a color string"
+        }
+    }
+
+    fn invalid_string_message(&self) -> String {
+        format!(
+            "Invalid string value for {}: expected {}",
+            self.name,
+            self.accepted_string_forms()
+        )
+    }
+
+    fn no_default_numeric_message(&self) -> String {
+        format!(
+            "Numeric value is not valid for {} because there is no default stroke defined",
+            self.name
+        )
+    }
+
+    fn no_default_dash_array_message(&self) -> String {
+        format!(
+            "Dash array is not valid for {} because there is no default stroke defined",
+            self.name
+        )
+    }
+}
+
+impl<'de, C> serde::de::Visitor<'de> for StrokeVisitor<C>
+where
+    C: serde::de::Deserialize<'de> + DefaultStroke + DefaultStrokeWidth + FromStr,
+    <C as FromStr>::Err: std::fmt::Display,
+{
+    type Value = Stroke<C>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str(self.expecting_description())
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        self.visit_f64(value as f64)
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        self.visit_f64(value as f64)
+    }
+
+    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let Some(default) = self.default_stroke else {
+            return Err(serde::de::Error::custom(self.no_default_numeric_message()));
+        };
+
+        if value <= 0.0 {
+            return Err(serde::de::Error::custom(format!(
+                "Invalid stroke width for {}: width cannot be null or negative",
+                self.name
+            )));
+        }
+
+        let width = value as f32;
+        Ok(Stroke {
+            color: default.color,
+            width,
+            pattern: default.pattern,
+            opacity: default.opacity,
+        })
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let invalid_string_message = self.invalid_string_message();
+
+        if value == "auto" {
+            if let Some(default) = self.default_stroke {
+                Ok(default)
+            } else {
+                Err(serde::de::Error::custom(format!(
+                    "'auto' is not a valid value for {} because there is no default stroke defined",
+                    self.name
+                )))
+            }
+        } else if let Some(default) = self.default_stroke {
+            if let Some(pattern) = str_to_line_pattern(value) {
+                return Ok(Self::Value::from(Stroke {
+                    color: default.color,
+                    width: default.width,
+                    pattern,
+                    opacity: default.opacity,
+                }));
+            }
+
+            let color = value
+                .parse()
+                .map_err(|_| serde::de::Error::custom(invalid_string_message))?;
+
+            Ok(Self::Value::from(Stroke {
+                color,
+                width: default.width,
+                pattern: default.pattern,
+                opacity: default.opacity,
+            }))
+        } else {
+            let color = value
+                .parse()
+                .map_err(|_| serde::de::Error::custom(invalid_string_message))?;
+
+            Ok(Self::Value::from(Stroke {
+                color,
+                width: C::default_stroke_width(),
+                pattern: Default::default(),
+                opacity: None,
+            }))
+        }
+    }
+
+    // TODO: check seq definition for stroke: color or dash pattern ??
+
+    // fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    // where
+    //     A: serde::de::SeqAccess<'de>,
+    // {
+    //     let r = seq
+    //         .next_element()?
+    //         .ok_or_else(|| A::Error::custom("Expected red component"))?;
+    //     let g = seq
+    //         .next_element()?
+    //         .ok_or_else(|| A::Error::custom("Expected green component"))?;
+    //     let b = seq
+    //         .next_element()?
+    //         .ok_or_else(|| A::Error::custom("Expected blue component"))?;
+    //     let a = seq.next_element()?.unwrap_or(255u8);
+
+    //     let color: C = Rgba8::new(r, g, b, a).into();
+    //     Ok(props::Outline {
+    //         color,
+    //         width: 1.0,
+    //         pattern: props::LinePattern::Solid,
+    //     })
+    // }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let no_default_dash_array_message = self.no_default_dash_array_message();
+
+        let Some(default) = self.default_stroke else {
+            return Err(serde::de::Error::custom(no_default_dash_array_message));
+        };
+
+        let mut dash: Vec<f32> = if let Some(sz) = seq.size_hint() {
+            Vec::with_capacity(sz)
+        } else {
+            Vec::new()
+        };
+
+        while let Some(value) = seq.next_element()? {
+            dash.push(value);
+        }
+
+        Ok(Self::Value::from(Stroke {
+            color: default.color,
+            width: default.width,
+            pattern: style::LinePattern::Custom(dash),
+            opacity: default.opacity,
+        }))
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        deserialize_map_fields!(
+            'de, map,
+            "color" => color: Option<C>,
+            "width" => width: Option<f32>,
+            "pattern" => pattern: Option<style::LinePattern>,
+            "opacity" => opacity: Option<f32>,
+        );
+        if let Some(default) = self.default_stroke {
+            Ok(Stroke {
+                color: color.unwrap_or(default.color),
+                width: width.unwrap_or(default.width),
+                pattern: pattern.unwrap_or(default.pattern),
+                opacity: opacity.or(default.opacity),
+            })
+        } else {
+            Ok(Stroke {
+                color: color.ok_or_else(|| serde::de::Error::missing_field("color"))?,
+                width: width.unwrap_or_else(|| C::default_stroke_width()),
+                pattern: pattern.unwrap_or_default(),
+                opacity,
+            })
+        }
+    }
+}
+
+// MARK: Size and Padding
 
 impl serde::Serialize for geom::Size {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

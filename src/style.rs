@@ -7,7 +7,9 @@ pub mod theme;
 
 pub use crate::style::series::Palette;
 pub use crate::style::theme::Theme;
-use crate::{Color, ResolveColor, Rgba8, render};
+use crate::{Rgba8, render};
+
+pub use plotive_base::style::{Color, Fill, LinePattern, ResolveColor, Stroke, DefaultColor, DefaultStroke, DefaultStrokeWidth};
 
 /// Overall style definition for figures
 ///
@@ -140,18 +142,6 @@ impl ResolveColor<theme::Color> for Style {
     }
 }
 
-impl ResolveColor<series::IndexColor> for Style {
-    fn resolve_color(&self, col: &series::IndexColor) -> Rgba8 {
-        self.palette.get(*col)
-    }
-}
-
-impl ResolveColor<series::AutoColor> for (&Style, usize) {
-    fn resolve_color(&self, _col: &series::AutoColor) -> Rgba8 {
-        self.0.palette.get(series::IndexColor(self.1))
-    }
-}
-
 impl ResolveColor<series::Color> for (&Style, usize) {
     fn resolve_color(&self, col: &series::Color) -> Rgba8 {
         match col {
@@ -171,210 +161,19 @@ fn add_opacity(c: Rgba8, opacity: Option<f32>) -> Rgba8 {
     }
 }
 
-/// Dash pattern for dashed lines
-/// A dash pattern is a sequence of lengths that specify the lengths of
-/// alternating dashes and gaps.
-///
-/// The lengths are relative to the line width.
-/// So a pattern will scale with the line width and remain visually consistent.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Dash(pub Vec<f32>);
-
-impl Default for Dash {
-    fn default() -> Self {
-        Dash(vec![5.0, 5.0])
-    }
-}
-
-/// Line pattern defines how the line is drawn
-#[derive(Debug, Clone, PartialEq, Default)]
-pub enum LinePattern {
-    /// Solid line
-    #[default]
-    Solid,
-    /// Dashed line. Equivalent to Dash(vec![5.0, 5.0])
-    Dashed,
-    /// Dotted line. Equivalent to Dash(vec![1.0, 1.0])
-    Dot,
-    /// Dash-dot line. Equivalent to Dash(vec![5.0, 5.0, 1.0, 5.0])
-    DashDot,
-    /// Dashed line. The pattern is relative to the line width.
-    Dash(Dash),
-}
-
-impl From<Dash> for LinePattern {
-    fn from(dash: Dash) -> Self {
-        LinePattern::Dash(dash)
-    }
-}
-
-/// Stroke style definition. Defines how lines are stroked.
-///
-/// The color is a generic parameter to support different color resolution strategies,
-/// such as fixed colors, theme-based colors, or series-based colors.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Stroke<C: Color> {
-    /// Line color
-    pub color: C,
-    /// Line width in figure units
-    pub width: f32,
-    /// Line pattern
-    pub pattern: LinePattern,
-    /// Line opacity (0.0 to 1.0)
-    pub opacity: Option<f32>,
-}
-
-const DASHED_DASH: &[f32] = &[5.0, 5.0];
-const DOT_DASH: &[f32] = &[1.0, 1.0];
-const DASH_DOT_DASH: &[f32] = &[5.0, 5.0, 1.0, 5.0];
-
-/// Trait for types that have a default stroke width for serialization purposes
-/// The trait is implemented for color types, so that the default stroke width
-/// can be associated with the color type used in the stroke.
-pub trait DefaultStrokeWidth {
-    /// Return the default stroke width for this color type.
-    fn default_stroke_width() -> f32;
-}
-
-impl<C: Color> Stroke<C> {
-    /// Set the line width in figure units, returning self for chaining
-    pub fn with_width(self, width: f32) -> Self {
-        Stroke { width, ..self }
-    }
-
-    /// Set the line opacity (0.0 to 1.0), returning self for chaining
-    pub fn with_opacity(self, opacity: f32) -> Self {
-        Stroke {
-            opacity: Some(opacity),
-            ..self
-        }
-    }
-
-    /// Set the line pattern, returning self for chaining
-    pub fn with_pattern(self, pattern: LinePattern) -> Self {
-        Stroke { pattern, ..self }
-    }
-
-    /// Convert to a renderable stroke, resolving colors using the provided resolver
-    pub fn as_stroke<'a, R>(&'a self, rc: &R) -> render::Stroke<'a>
-    where
-        R: ResolveColor<C>,
-    {
-        let color = add_opacity(self.color.resolve(rc), self.opacity);
-
-        let pattern = match &self.pattern {
-            LinePattern::Solid => render::LinePattern::Solid,
-            LinePattern::Dashed => render::LinePattern::Dash(DASHED_DASH),
-            LinePattern::Dot => render::LinePattern::Dash(DOT_DASH),
-            LinePattern::DashDot => render::LinePattern::Dash(DASH_DOT_DASH),
-            LinePattern::Dash(Dash(a)) => render::LinePattern::Dash(a.as_slice()),
-        };
-
-        render::Stroke {
-            color,
-            width: self.width,
-            pattern,
-        }
-    }
-}
-
-impl<C> Default for Stroke<C>
-where
-    C: Color + Default + DefaultStrokeWidth,
-{
-    fn default() -> Self {
-        Stroke {
-            color: C::default(),
-            width: C::default_stroke_width(),
-            pattern: LinePattern::default(),
-            opacity: None,
-        }
-    }
-}
-
-impl<C: Color> From<C> for Stroke<C> {
-    fn from(color: C) -> Self {
-        Stroke {
-            width: 1.0,
-            color,
-            pattern: LinePattern::default(),
-            opacity: None,
-        }
-    }
-}
-
-impl<C: Color> From<(C, f32)> for Stroke<C> {
-    fn from((color, width): (C, f32)) -> Self {
-        Stroke {
-            color,
-            width,
-            pattern: LinePattern::default(),
-            opacity: None,
-        }
-    }
-}
-
-impl<C: Color> From<(C, f32, LinePattern)> for Stroke<C> {
-    fn from((color, width, pattern): (C, f32, LinePattern)) -> Self {
-        Stroke {
-            color,
-            width,
-            pattern,
-            opacity: None,
-        }
-    }
-}
-
-impl<C: Color> From<(C, f32, Dash)> for Stroke<C> {
-    fn from((color, width, dash): (C, f32, Dash)) -> Self {
-        Stroke {
-            color,
-            width,
-            pattern: LinePattern::Dash(dash),
-            opacity: None,
-        }
-    }
-}
-
-/// Fill style definition
-/// The color is a generic parameter to support different color resolution strategies,
-/// such as fixed colors, theme based colors, or series-based colors.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Fill<C: Color> {
-    /// Solid fill
-    Solid {
-        /// Fill color
-        color: C,
-        /// Fill opacity (0.0 to 1.0)
-        opacity: Option<f32>,
-    },
-}
-
-impl<C> Default for Fill<C>
-where
-    C: Color + Default,
-{
-    fn default() -> Self {
-        Fill::Solid {
-            color: C::default(),
-            opacity: None,
-        }
-    }
-}
-
-impl<C: Color> Fill<C> {
-    /// Set the fill opacity (0.0 to 1.0), returning self for chaining
-    pub const fn with_opacity(self, opacity: f32) -> Self {
-        match self {
-            Fill::Solid { color, .. } => Fill::Solid {
-                color,
-                opacity: Some(opacity),
-            },
-        }
-    }
-
+/// Trait for converting a fill style into a renderable paint, resolving colors using a color resolver
+pub trait AsPaint<C> {
     /// Convert to a renderable paint, resolving colors using the provided resolver
-    pub fn as_paint<R>(&self, rc: &R) -> render::Paint<'_>
+    fn as_paint<R>(&self, rc: &R) -> render::Paint<'_>
+    where
+        R: ResolveColor<C>;
+}
+
+impl<C> AsPaint<C> for Fill<C>
+where
+    C: Color,
+{
+    fn as_paint<R>(&self, rc: &R) -> render::Paint<'_>
     where
         R: ResolveColor<C>,
     {
@@ -386,11 +185,34 @@ impl<C: Color> Fill<C> {
     }
 }
 
-impl<C: Color> From<C> for Fill<C> {
-    fn from(color: C) -> Self {
-        Fill::Solid {
+/// Trait for converting a stroke style into a renderable stroke, resolving colors using a color resolver
+pub trait AsStroke<C> {
+    /// Convert to a renderable stroke, resolving colors using the provided resolver
+    fn as_stroke<R>(&self, rc: &R) -> render::Stroke<'_>
+    where
+        R: ResolveColor<C>;
+}
+
+impl<C> AsStroke<C> for Stroke<C>
+where
+    C: Color,
+{
+    /// Convert to a renderable stroke, resolving colors using the provided resolver
+    fn as_stroke<'a, R>(&'a self, rc: &R) -> render::Stroke<'a>
+    where
+        R: ResolveColor<C>,
+    {
+        let color = add_opacity(self.color.resolve(rc), self.opacity);
+
+        let pattern = match self.pattern.get_dash() {
+            Some(dash) => render::LinePattern::Dash(dash),
+            None => render::LinePattern::Solid,
+        };
+
+        render::Stroke {
             color,
-            opacity: None,
+            width: self.width,
+            pattern,
         }
     }
 }
@@ -463,7 +285,7 @@ pub struct Marker<C: Color> {
 
 impl<C> Marker<C>
 where
-    C: Color + DefaultStrokeWidth,
+    C: Color + plotive_base::style::DefaultStrokeWidth,
 {
     /// Create a new marker with both fill and stroke set to the same color
     pub fn new_with_color(color: C) -> Self {
@@ -570,7 +392,7 @@ where
 
 impl<C> Default for Marker<C>
 where
-    C: Color + Default + DefaultStrokeWidth,
+    C: Color + Default + plotive_base::style::DefaultStrokeWidth,
 {
     fn default() -> Self {
         Marker::new_with_color(C::default())
@@ -587,19 +409,22 @@ mod tests {
     fn test_color_resolve() {
         let style = Style::light();
 
-        let theme_line: theme::Stroke = (theme::Color::Theme(theme::Col::LegendBorder), 2.0).into();
-        let stroke = theme_line.as_stroke(&style);
+        let theme_stroke: theme::Stroke =
+            (theme::Color::Theme(theme::Col::LegendBorder), 2.0).into();
+        let stroke = theme_stroke.as_stroke(&style);
         assert_eq!(stroke.color, Rgba8::from_hex(b"#000000"));
 
-        let series_line: Stroke<series::IndexColor> = (series::IndexColor(2), 2.0).into();
-        let stroke = series_line.as_stroke(&style);
+        let series_color: series::Color = series::IndexColor(2).into();
+        let series_stroke: Stroke<series::Color> = series_color.into();
+        let stroke = series_stroke.as_stroke(&(&style, 1));
         assert_eq!(stroke.color, Rgba8::from_hex(b"#2ca02c"));
 
-        let series_line: Stroke<series::AutoColor> = (series::AutoColor, 2.0).into();
-        let stroke = series_line.as_stroke(&(&style, 2));
-        assert_eq!(stroke.color, Rgba8::from_hex(b"#2ca02c"));
+        let series_color: series::Color = series::AutoColor.into();
+        let series_stroke: Stroke<series::Color> = series_color.into();
+        let stroke = series_stroke.as_stroke(&(&style, 1));
+        assert_eq!(stroke.color, Rgba8::from_hex(b"#ff7f0e"));
 
-        let fixed_color: Stroke<Rgba8> = (Rgba8::from_hex(b"#123456"), 2.0).into();
+        let fixed_color: Stroke<Rgba8> = Rgba8::from_hex(b"#123456").into();
         let stroke = fixed_color.as_stroke(&());
         assert_eq!(stroke.color, Rgba8::from_hex(b"#123456"));
     }

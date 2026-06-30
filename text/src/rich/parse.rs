@@ -1,9 +1,9 @@
 use std::fmt;
 use std::str::FromStr;
 
-use plotive_base::Color;
+use plotive_base::style;
 
-use crate::rich::{ClassProps, TextProps};
+use crate::props::{TextModifiers, TextProps};
 use crate::{RichTextBuilder, font};
 
 /// Position into an input stream
@@ -71,12 +71,12 @@ impl std::error::Error for ParseRichTextError {}
 #[derive(Debug, Clone)]
 pub struct ParsedRichText<C> {
     pub text: String,
-    pub prop_spans: Vec<(Pos, Pos, ClassProps<C>)>,
+    pub prop_spans: Vec<(Pos, Pos, TextModifiers<C>)>,
 }
 
 impl<C> ParsedRichText<C>
 where
-    C: Color + PartialEq,
+    C: style::Color + PartialEq,
 {
     pub fn into_builder(self, root_props: TextProps<C>) -> RichTextBuilder<C> {
         let mut builder = RichTextBuilder::new(self.text, root_props);
@@ -89,7 +89,7 @@ where
 
 pub fn parse_rich_text<C>(fmt: &str) -> Result<ParsedRichText<C>, ParseRichTextError>
 where
-    C: Color + FromStr,
+    C: style::Color + FromStr,
 {
     let parser = RichTextParser::new(fmt);
     parser.parse()
@@ -97,10 +97,10 @@ where
 
 pub fn parse_rich_text_with_classes<C>(
     fmt: &str,
-    user_classes: &[(String, ClassProps<C>)],
+    user_classes: &[(String, TextModifiers<C>)],
 ) -> Result<ParsedRichText<C>, ParseRichTextError>
 where
-    C: Color + FromStr,
+    C: style::Color + FromStr,
 {
     let parser = RichTextParser::new_with_classes(fmt, user_classes);
     parser.parse()
@@ -109,12 +109,12 @@ where
 #[derive(Debug, Clone)]
 struct RichTextParser<'a, C> {
     fmt: &'a str,
-    user_classes: &'a [(String, ClassProps<C>)],
+    user_classes: &'a [(String, TextModifiers<C>)],
 }
 
 impl<'a, C> RichTextParser<'a, C>
 where
-    C: Color + FromStr,
+    C: style::Color + FromStr,
 {
     pub fn new(fmt: &'a str) -> Self {
         Self {
@@ -123,7 +123,7 @@ where
         }
     }
 
-    pub fn new_with_classes(fmt: &'a str, user_classes: &'a [(String, ClassProps<C>)]) -> Self {
+    pub fn new_with_classes(fmt: &'a str, user_classes: &'a [(String, TextModifiers<C>)]) -> Self {
         Self { fmt, user_classes }
     }
 
@@ -173,17 +173,17 @@ where
         Ok(ParsedRichText { text, prop_spans })
     }
 
-    fn merge_props(base: ClassProps<C>, overlay: &ClassProps<C>) -> ClassProps<C> {
-        ClassProps {
-            font_family: overlay.font_family.clone().or_else(|| base.font_family),
-            font_weight: overlay.font_weight.or(base.font_weight),
-            font_width: overlay.font_width.or(base.font_width),
-            font_style: overlay.font_style.or(base.font_style),
-            font_size: overlay.font_size.or(base.font_size),
+    fn merge_props(base: TextModifiers<C>, overlay: &TextModifiers<C>) -> TextModifiers<C> {
+        TextModifiers {
+            families: overlay.families.clone().or_else(|| base.families),
+            weight: overlay.weight.or(base.weight),
+            width: overlay.width.or(base.width),
+            style: overlay.style.or(base.style),
+            size: overlay.size.or(base.size),
             color: overlay.color.or(base.color),
-            outline: overlay.outline.or(base.outline),
+            outline: overlay.outline.clone().or(base.outline),
             underline: overlay.underline.or(base.underline),
-            strikeout: overlay.strikeout.or(base.strikeout),
+            strikethrough: overlay.strikethrough.or(base.strikethrough),
         }
     }
 
@@ -191,8 +191,8 @@ where
         &self,
         span: Span,
         tag: &lex::OpeningTag,
-    ) -> Result<ClassProps<C>, ParseRichTextError> {
-        let mut props = ClassProps::default();
+    ) -> Result<TextModifiers<C>, ParseRichTextError> {
+        let mut props = TextModifiers::default();
         for prop in &tag.0 {
             // if no value, it is a class, or boolean prop.
             // we first check for user classes, if no match,
@@ -201,48 +201,48 @@ where
                 match prop.prop.as_str() {
                     "font-size" | "size" | "sz" => {
                         if let Ok(size) = value.parse::<f32>() {
-                            props.font_size = Some(size);
+                            props.size = Some(size);
                         }
                     }
                     "font-family" | "font" | "family" | "ff" => {
-                        props.font_family =
-                            Some(font::parse_font_families(value).map_err(|_| {
-                                ParseRichTextError::BadPropValue(
-                                    span,
-                                    prop.prop.clone(),
-                                    value.clone(),
-                                )
-                            })?);
+                        props.families = Some(font::parse_font_families(value).map_err(|_| {
+                            ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
+                        })?);
                     }
                     "font-weight" | "weight" | "fw" => {
                         let weight: font::Weight = value.parse().map_err(|_| {
                             ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
                         })?;
-                        props.font_weight = Some(weight);
+                        props.weight = Some(weight);
                     }
                     "font-style" | "style" | "fs" => {
                         let style: font::Style = value.parse().map_err(|_| {
                             ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
                         })?;
-                        props.font_style = Some(style);
+                        props.style = Some(style);
                     }
                     "font-width" | "width" | "font-stretch" | "stretch" => {
                         let width: font::Width = value.parse().map_err(|_| {
                             ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
                         })?;
-                        props.font_width = Some(width);
+                        props.width = Some(width);
                     }
                     "color" | "fill" => {
                         let color: C = value.parse().map_err(|_| {
                             ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
                         })?;
-                        props.color = Some(color);
+                        props.color = Some(Some(style::Fill::solid(color)));
                     }
                     "outline" | "stroke" => {
                         let color: C = value.parse().map_err(|_| {
                             ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
                         })?;
-                        props.color = Some(color);
+                        props.outline = Some(Some(style::Stroke {
+                            color,
+                            width: 1.0,
+                            pattern: style::LinePattern::Solid,
+                            opacity: None,
+                        }));
                     }
                     _ => {
                         return Err(ParseRichTextError::UnknownClass(span, prop.prop.clone()));
@@ -266,76 +266,83 @@ where
                 match prop.prop.as_str() {
                     // font weight
                     "thin" => {
-                        props.font_weight = Some(font::Weight::THIN);
+                        props.weight = Some(font::Weight::THIN);
                     }
                     "extra-light" => {
-                        props.font_weight = Some(font::Weight::EXTRA_LIGHT);
+                        props.weight = Some(font::Weight::EXTRA_LIGHT);
                     }
                     "light" => {
-                        props.font_weight = Some(font::Weight::LIGHT);
+                        props.weight = Some(font::Weight::LIGHT);
                     }
                     "medium" => {
-                        props.font_weight = Some(font::Weight::MEDIUM);
+                        props.weight = Some(font::Weight::MEDIUM);
                     }
                     "semi-bold" => {
-                        props.font_weight = Some(font::Weight::SEMIBOLD);
+                        props.weight = Some(font::Weight::SEMIBOLD);
                     }
                     "bold" => {
-                        props.font_weight = Some(font::Weight::BOLD);
+                        props.weight = Some(font::Weight::BOLD);
                     }
                     "extra-bold" | "extrabold" => {
-                        props.font_weight = Some(font::Weight::EXTRA_BOLD);
+                        props.weight = Some(font::Weight::EXTRA_BOLD);
                     }
                     "black" => {
-                        props.font_weight = Some(font::Weight::BLACK);
+                        props.weight = Some(font::Weight::BLACK);
                     }
 
                     // font style
                     "italic" => {
-                        props.font_style = Some(font::Style::Italic);
+                        props.style = Some(font::Style::Italic);
                     }
                     "oblique" => {
-                        props.font_style = Some(font::Style::Oblique);
+                        props.style = Some(font::Style::Oblique);
                     }
 
                     // font width
                     "ultra-condensed" => {
-                        props.font_width = Some(font::Width::UltraCondensed);
+                        props.width = Some(font::Width::UltraCondensed);
                     }
                     "extra-condensed" => {
-                        props.font_width = Some(font::Width::ExtraCondensed);
+                        props.width = Some(font::Width::ExtraCondensed);
                     }
                     "condensed" => {
-                        props.font_width = Some(font::Width::Condensed);
+                        props.width = Some(font::Width::Condensed);
                     }
                     "semi-condensed" => {
-                        props.font_width = Some(font::Width::SemiCondensed);
+                        props.width = Some(font::Width::SemiCondensed);
                     }
                     "semi-expanded" => {
-                        props.font_width = Some(font::Width::SemiExpanded);
+                        props.width = Some(font::Width::SemiExpanded);
                     }
                     "expanded" => {
-                        props.font_width = Some(font::Width::Expanded);
+                        props.width = Some(font::Width::Expanded);
                     }
                     "extra-expanded" => {
-                        props.font_width = Some(font::Width::ExtraExpanded);
+                        props.width = Some(font::Width::ExtraExpanded);
                     }
                     "ultra-expanded" => {
-                        props.font_width = Some(font::Width::UltraExpanded);
+                        props.width = Some(font::Width::UltraExpanded);
                     }
 
                     // for normal, we set them all
                     "normal" => {
-                        props.font_weight = Some(font::Weight::NORMAL);
-                        props.font_style = Some(font::Style::Normal);
-                        props.font_width = Some(font::Width::Normal);
+                        props.weight = Some(font::Weight::NORMAL);
+                        props.style = Some(font::Style::Normal);
+                        props.width = Some(font::Width::Normal);
                     }
 
                     "underline" => {
                         props.underline = Some(true);
                     }
-                    "strikeout" => {
-                        props.strikeout = Some(true);
+                    "strikethrough" | "strikeout" => {
+                        props.strikethrough = Some(true);
+                    }
+
+                    "nofill" => {
+                        props.color = Some(None);
+                    }
+                    "nostroke" => {
+                        props.outline = Some(None);
                     }
 
                     other => {
@@ -343,7 +350,7 @@ where
                         let color: C = other.parse().map_err(|_| {
                             ParseRichTextError::UnknownClass(span, other.to_string())
                         })?;
-                        props.color = Some(color);
+                        props.color = Some(Some(style::Fill::solid(color)));
                     }
                 }
             }

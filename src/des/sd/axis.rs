@@ -1151,7 +1151,7 @@ impl serde::Serialize for axis::Grid {
         S: serde::Serializer,
     {
         let default_stroke = Some(axis::Grid::default().0);
-        sd::style::serialize_stroke(&self.0, default_stroke, "Grid", serializer)
+        plotive_base::sd::serialize_stroke(&self.0, default_stroke, "Grid", serializer)
     }
 }
 
@@ -1161,7 +1161,7 @@ impl<'de> serde::Deserialize<'de> for axis::Grid {
         D: serde::Deserializer<'de>,
     {
         let default_stroke = Some(axis::Grid::default().0);
-        let visitor = sd::style::StrokeVisitor::new("Grid", default_stroke);
+        let visitor = plotive_base::sd::StrokeVisitor::new("Grid", default_stroke);
         let stroke = deserializer.deserialize_any(visitor)?;
         Ok(axis::Grid(stroke))
     }
@@ -1173,7 +1173,7 @@ impl serde::Serialize for axis::MinorGrid {
         S: serde::Serializer,
     {
         let default_stroke = Some(axis::MinorGrid::default().0);
-        sd::style::serialize_stroke(&self.0, default_stroke, "MinorGrid", serializer)
+        plotive_base::sd::serialize_stroke(&self.0, default_stroke, "MinorGrid", serializer)
     }
 }
 
@@ -1183,7 +1183,7 @@ impl<'de> serde::Deserialize<'de> for axis::MinorGrid {
         D: serde::Deserializer<'de>,
     {
         let default_stroke = Some(axis::MinorGrid::default().0);
-        let visitor = sd::style::StrokeVisitor::new("MinorGrid", default_stroke);
+        let visitor = plotive_base::sd::StrokeVisitor::new("MinorGrid", default_stroke);
         let stroke = deserializer.deserialize_any(visitor)?;
         Ok(axis::MinorGrid(stroke))
     }

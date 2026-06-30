@@ -3,8 +3,8 @@
  */
 use plotive_base::color;
 
+use crate::Rgba8;
 use crate::style::{self, catppuccin, defaults, dracula};
-use crate::{ResolveColor, Rgba8};
 
 /// A palette for data series.
 /// It provides ordered colors for series in a figure.
@@ -73,8 +73,6 @@ impl Palette {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IndexColor(pub usize);
 
-impl style::Color for IndexColor {}
-
 /// An error type for parsing an IndexColor from a string
 #[derive(Debug, Clone, Copy)]
 pub enum IndexColorParseError {
@@ -123,8 +121,6 @@ impl std::fmt::Display for IndexColor {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AutoColor;
 
-impl style::Color for AutoColor {}
-
 /// A flexible color for data series
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum Color {
@@ -154,8 +150,6 @@ impl From<Rgba8> for Color {
         Color::Fixed(color)
     }
 }
-
-impl style::Color for Color {}
 
 /// an error type for parsing a Color from a string
 #[derive(Debug)]
@@ -206,19 +200,9 @@ impl std::str::FromStr for Color {
     }
 }
 
-impl ResolveColor<IndexColor> for Palette {
-    fn resolve_color(&self, col: &IndexColor) -> Rgba8 {
-        self.get(*col)
-    }
-}
+impl super::Color for Color {}
 
-impl ResolveColor<AutoColor> for (&Palette, usize) {
-    fn resolve_color(&self, _col: &AutoColor) -> Rgba8 {
-        self.0.get(IndexColor(self.1))
-    }
-}
-
-impl ResolveColor<Color> for (&Palette, usize) {
+impl super::ResolveColor<Color> for (&Palette, usize) {
     fn resolve_color(&self, col: &Color) -> Rgba8 {
         match col {
             Color::Auto => self.0.get(IndexColor(self.1)),
@@ -228,38 +212,29 @@ impl ResolveColor<Color> for (&Palette, usize) {
     }
 }
 
+impl super::DefaultColor for Color {
+    fn default_color() -> Option<Self> {
+        Some(Color::Auto)
+    }
+}
+
+impl super::DefaultStroke for Color {
+    fn default_stroke() -> Option<style::Stroke<Self>> {
+        Some(style::Stroke::default())
+    }
+}
+
 impl super::DefaultStrokeWidth for Color {
     fn default_stroke_width() -> f32 {
         defaults::SERIES_STROKE_WIDTH
     }
 }
+
 /// Stroke style for theme elements
 pub type Stroke = style::Stroke<Color>;
 
-impl From<Rgba8> for Stroke {
-    fn from(color: Rgba8) -> Self {
-        use super::DefaultStrokeWidth;
-
-        Stroke {
-            color: color.into(),
-            width: Color::default_stroke_width(),
-            pattern: style::LinePattern::default(),
-            opacity: None,
-        }
-    }
-}
-
 /// Fill style for theme elements
 pub type Fill = style::Fill<Color>;
-
-impl From<Rgba8> for Fill {
-    fn from(color: Rgba8) -> Self {
-        Fill::Solid {
-            color: color.into(),
-            opacity: None,
-        }
-    }
-}
 
 /// Marker style for theme elements
 pub type Marker = style::Marker<Color>;

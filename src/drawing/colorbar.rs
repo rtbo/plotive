@@ -8,7 +8,7 @@ use crate::des::{self, colorbar};
 use crate::drawing::cmap::{AsColorMap, ColorMap};
 use crate::drawing::scale::CoordMap;
 use crate::drawing::{Ctx, Text, axis, ticks};
-use crate::style::{defaults, theme};
+use crate::style::{AsStroke, defaults, theme};
 use crate::{Style, data, geom, missing_params, render, text};
 
 /// A colorbar entry, used to populate one colorbar
@@ -101,8 +101,10 @@ impl ColorBarBuilder {
             .title()
             .map(|title| {
                 title.to_rich_text(
-                    text::rich::TextProps::new(defaults::COLORBAR_TITLE_FONT_SIZE)
-                        .with_font(defaults::FONT_FAMILY.parse().unwrap()),
+                    text::props::TextProps::new(
+                        defaults::FONT_FAMILY.parse().unwrap(),
+                        defaults::COLORBAR_TITLE_FONT_SIZE,
+                    ),
                     side.title_layout(),
                     ctx.fontdb(),
                 )

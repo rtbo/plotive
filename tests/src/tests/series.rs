@@ -139,8 +139,8 @@ fn series_area_double() {
     let y1 = vec![10.0, 15.0, 8.0, 6.0, 12.0, 10.0];
     let y2 = vec![4.0, 9.0, 2.0, 0.0, 6.0, 4.0];
 
-    let fill = plotive::Rgba8::from_hex(b"#888").into();
-    let stroke: style::series::Stroke = plotive::Rgba8::from_hex(b"#000").into();
+    let fill = style::series::Fill::solid(plotive::Rgba8::from_hex(b"#888").into());
+    let stroke = style::series::Stroke::solid(plotive::Rgba8::from_hex(b"#000").into());
 
     let plot = des::Plot::new(vec![
         des::series::Area::new(
@@ -173,9 +173,9 @@ fn series_area_double_legend() {
     let y1 = vec![10.0, 15.0, 8.0, 6.0, 12.0, 10.0];
     let y2 = vec![4.0, 9.0, 2.0, 0.0, 6.0, 4.0];
 
-    let fill1 = plotive::Rgba8::from_hex(b"#888").into();
-    let fill2 = plotive::Rgba8::from_hex(b"#444").into();
-    let stroke: style::series::Stroke = plotive::Rgba8::from_hex(b"#000").into();
+    let fill1 = style::series::Fill::solid(plotive::Rgba8::from_hex(b"#888").into());
+    let fill2 = style::series::Fill::solid(plotive::Rgba8::from_hex(b"#444").into());
+    let stroke = style::series::Stroke::solid(plotive::Rgba8::from_hex(b"#000").into());
 
     let plot = des::Plot::new(vec![
         des::series::Area::new(

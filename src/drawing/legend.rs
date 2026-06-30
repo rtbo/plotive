@@ -1,6 +1,6 @@
 use crate::drawing::Text;
 use crate::geom::{Padding, Size};
-use crate::style::{defaults, theme};
+use crate::style::{defaults, theme, AsPaint, AsStroke};
 use crate::text::{self, LineText, fontdb};
 use crate::{Style, des, drawing, geom, render, style};
 

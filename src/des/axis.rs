@@ -382,7 +382,7 @@ impl Scale {
 
 /// Describe the ticks of an axis
 pub mod ticks {
-    use crate::style::{self, Dash, theme};
+    use crate::style::{self, theme};
     use crate::text;
 
     /// Describes how to locate the ticks of an axis
@@ -788,7 +788,7 @@ pub mod ticks {
             MinorGrid(theme::Stroke {
                 width: 0.5,
                 color: theme::Col::Grid.into(),
-                pattern: style::LinePattern::Dash(Dash::default()),
+                pattern: style::LinePattern::Dashed,
                 opacity: Some(0.6),
             })
         }

@@ -144,7 +144,7 @@ impl LineMplStyle {
                         match next {
                             '-' => {
                                 chars.next();
-                                style.set_pattern(style::Dash::default().into())?;
+                                style.set_pattern(style::LinePattern::Dashed)?;
                             }
                             '.' => {
                                 chars.next();

@@ -164,7 +164,7 @@ pub mod color {
     pub use plotive_base::color::*;
 }
 
-pub use color::{Color, ResolveColor, Rgb8, Rgba8};
+pub use color::{Rgb8, Rgba8};
 
 /// Rexports of [`plotive_base::geom`]` items
 pub mod geom {
@@ -175,7 +175,7 @@ pub mod geom {
 pub mod text {
     pub use plotive_text::*;
     /// Class properties for rich text, with `plotive` theme colors
-    pub type RichProps = plotive_text::rich::ClassProps<crate::style::theme::Color>;
+    pub type RichProps = plotive_text::props::TextModifiers<crate::style::theme::Color>;
 
     /// Text properties for line text, with `plotive` theme colors
     /// Use this to provide customization of text properties for line text, such as font size, font family and color.

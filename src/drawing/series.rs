@@ -10,6 +10,7 @@ use crate::drawing::{
     Categories, ColumnExt, Error, F64ColumnExt, axis, colorbar, get_column, legend, marker,
     plot_to_fig, scale,
 };
+use crate::style::{AsPaint, AsStroke};
 use crate::{Style, data, des, geom, render, style};
 
 /// trait implemented by series, or any other item that

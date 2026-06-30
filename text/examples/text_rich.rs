@@ -1,4 +1,4 @@
-use plotive_text::{self as text, Font, RichTextBuilder, font, rich};
+use plotive_text::{self as text, Font, RichTextBuilder, font, props, rich};
 use tiny_skia::Transform;
 
 fn main() {
@@ -42,7 +42,7 @@ fn main() {
     let start_line2 = line1.len();
     let end_line2 = line1.len() + line2.len();
 
-    let root_props = rich::TextProps::new(FS_LARGE).with_font(sans_font.clone());
+    let root_props = props::TextProps::new(sans_font.clone(), FS_LARGE);
 
     let mut builder = RichTextBuilder::new(text, root_props).with_layout(rich::Layout::Horizontal(
         rich::Align::Center,
@@ -52,19 +52,19 @@ fn main() {
     builder.add_span(
         start_rlc,
         end_rlc,
-        rich::ClassProps {
-            font_weight: Some(font::Weight::BOLD),
-            font_style: Some(font::Style::Italic),
+        props::TextModifiers {
+            weight: Some(font::Weight::BOLD),
+            style: Some(font::Style::Italic),
             ..Default::default()
         },
     );
     builder.add_span(
         start_line2,
         end_line2,
-        rich::ClassProps {
-            font_family: Some(serif_family),
-            font_size: Some(FS_MEDIUM),
-            font_style: Some(font::Style::Italic),
+        props::TextModifiers {
+            families: Some(serif_family),
+            size: Some(FS_MEDIUM),
+            style: Some(font::Style::Italic),
             ..Default::default()
         },
     );
@@ -90,7 +90,7 @@ fn main() {
         font::Family::Serif,
     ]);
 
-    let root_props = rich::TextProps::new(FS_LARGE).with_font(serif_cjk_font);
+    let root_props = props::TextProps::new(serif_cjk_font, FS_LARGE);
     let builder =
         RichTextBuilder::new(text.to_string(), root_props).with_layout(rich::Layout::Vertical(
             rich::Align::Start,
@@ -114,7 +114,7 @@ fn main() {
     // Vertical french text
     let text = "Axe des ordonnées";
 
-    let root_props = rich::TextProps::new(FS_SMALL).with_font(sans_font);
+    let root_props = props::TextProps::new(sans_font.clone(), FS_SMALL);
     let builder =
         RichTextBuilder::new(text.to_string(), root_props).with_layout(rich::Layout::Vertical(
             rich::Align::End,

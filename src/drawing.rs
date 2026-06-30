@@ -27,6 +27,8 @@ pub mod zoom;
 pub use figure::PreparedFigure;
 pub use hit_test::PlotHit;
 
+use crate::style::{AsPaint, AsStroke};
+
 /// Errors that can occur during figure drawing
 #[derive(Debug)]
 pub enum Error {
@@ -286,20 +288,15 @@ impl Text {
             text::RichPrimitive::Fill(path, color) => {
                 spans.push(TextSpan {
                     path: path.clone(),
-                    fill: Some(color.into()),
+                    fill: Some(color.clone()),
                     stroke: None,
                 });
             }
-            text::RichPrimitive::Stroke(path, color, thickness) => {
+            text::RichPrimitive::Stroke(path, stroke) => {
                 spans.push(TextSpan {
                     path: path.clone(),
                     fill: None,
-                    stroke: Some(theme::Stroke {
-                        color: color.into(),
-                        width: thickness,
-                        opacity: None,
-                        pattern: Default::default(),
-                    }),
+                    stroke: Some(stroke.clone()),
                 });
             }
         })?;

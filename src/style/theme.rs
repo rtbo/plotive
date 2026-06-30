@@ -1,7 +1,9 @@
 //! Theme definitions and implementations
 
+use plotive_base::style::DefaultStrokeWidth;
+
 use crate::color::{self, Rgb8, Rgba8};
-use crate::style::{DefaultStrokeWidth, catppuccin, dracula};
+use crate::style::{catppuccin, dracula};
 use crate::{style, text};
 
 /// A theme, for styling figures
@@ -167,8 +169,6 @@ pub enum Col {
     LegendBorder,
 }
 
-impl super::Color for Col {}
-
 impl std::str::FromStr for Col {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -196,18 +196,6 @@ impl std::fmt::Display for Col {
     }
 }
 
-impl color::ResolveColor<Col> for Theme {
-    fn resolve_color(&self, col: &Col) -> Rgba8 {
-        match col {
-            Col::Background => self.background(),
-            Col::Foreground => self.foreground(),
-            Col::Grid => self.grid(),
-            Col::LegendFill => self.legend_fill(),
-            Col::LegendBorder => self.legend_border(),
-        }
-    }
-}
-
 /// A flexible color for theme elements
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Color {
@@ -228,8 +216,6 @@ impl From<Rgba8> for Color {
         Color::Fixed(color)
     }
 }
-
-impl super::Color for Color {}
 
 impl std::str::FromStr for Color {
     type Err = <Rgba8 as std::str::FromStr>::Err;
@@ -253,16 +239,22 @@ impl std::fmt::Display for Color {
     }
 }
 
-impl text::rich::Foreground for Color {
+impl text::Foreground for Color {
     fn foreground() -> Self {
         Color::Theme(Col::Foreground)
     }
 }
 
-impl color::ResolveColor<Color> for Theme {
+impl super::Color for Color {}
+
+impl super::ResolveColor<Color> for Theme {
     fn resolve_color(&self, col: &Color) -> Rgba8 {
         match col {
-            Color::Theme(col) => self.resolve_color(col),
+            Color::Theme(Col::Background) => self.background(),
+            Color::Theme(Col::Foreground) => self.foreground(),
+            Color::Theme(Col::Grid) => self.grid(),
+            Color::Theme(Col::LegendFill) => self.legend_fill(),
+            Color::Theme(Col::LegendBorder) => self.legend_border(),
             Color::Fixed(c) => *c,
         }
     }
@@ -273,11 +265,22 @@ impl super::DefaultStrokeWidth for Color {
         1.0
     }
 }
+impl super::DefaultColor for Color {
+    fn default_color() -> Option<Self> {
+        None
+    }
+}
+
+impl super::DefaultStroke for Color {
+    fn default_stroke() -> Option<style::Stroke<Self>> {
+        None
+    }
+}
 
 /// Stroke style for theme elements
 pub type Stroke = style::Stroke<Color>;
 
-// From<Color> for Stroke is already defined in style.rs, using generics.
+// From<Color> for Stroke is already defined using generics.
 // We just add From<Col> for Stroke here.
 impl From<Col> for Stroke {
     fn from(col: Col) -> Self {

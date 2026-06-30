@@ -26,7 +26,7 @@ tinyvec = { version = "1.6.0", features = ["alloc"] }
 fontconfig-parser = { version = "0.5", optional = true, default-features = false }
 
 [features]
-default = ["std", "fs", "memmap", "fontconfig"]
+default = ["std", "fs", "memmap", "fontconfig", "noto-sans"]
 # Enables minimal fontconfig support on Linux.
 # Must be enabled for NixOS, otherwise no fonts will be loaded.
 fontconfig = ["fontconfig-parser", "fs"]
@@ -39,7 +39,7 @@ noto-sans-italic = []
 noto-serif = []
 noto-serif-italic = []
 noto-mono = []
-serde = ["dep:serde"]
+serde = ["plotive-base/serde", "dep:serde"]
 std = ["ttf-parser/std"]
 
 

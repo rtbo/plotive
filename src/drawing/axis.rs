@@ -13,7 +13,7 @@ pub use side::Side;
 
 use crate::drawing::scale::{self, CoordMap};
 use crate::drawing::{Categories, Ctx, Error, Text, ticks};
-use crate::style::{defaults, theme};
+use crate::style::{AsStroke, defaults, theme};
 use crate::text::{self, font};
 use crate::{Style, data, des, geom, missing_params, render};
 
@@ -349,8 +349,10 @@ where
             .title()
             .map(|title| {
                 title.to_rich_text(
-                    text::rich::TextProps::new(defaults::AXIS_TITLE_FONT_SIZE)
-                        .with_font(defaults::FONT_FAMILY.parse().unwrap()),
+                    text::props::TextProps::new(
+                        defaults::FONT_FAMILY.parse().unwrap(),
+                        defaults::AXIS_TITLE_FONT_SIZE,
+                    ),
                     side.title_layout(),
                     self.fontdb(),
                 )

@@ -2,11 +2,12 @@ use plotive_base::geom;
 use ttf_parser as ttf;
 
 use super::{
-    Align, Boundaries, ClassProps, Direction, Error, Glyph, HorAlign, Layout, LineSpan, PropsSpan,
-    RichText, RichTextBuilder, ShapeSpan, TextProps, VerAlign, VerDirection, VerProgression,
+    Align, Boundaries, Direction, Error, Glyph, HorAlign, Layout, LineSpan, PropsSpan, RichText,
+    RichTextBuilder, ShapeSpan, VerAlign, VerDirection, VerProgression,
 };
 use crate::bidi::BidiAlgo;
 use crate::font::{self, DatabaseExt};
+use crate::props::{TextModifiers, TextProps};
 use crate::{fontdb, line};
 
 #[derive(Debug)]
@@ -25,7 +26,7 @@ where
     C: Clone,
 {
     init_props: TextProps<C>,
-    stack: Vec<ClassProps<C>>,
+    stack: Vec<TextModifiers<C>>,
 }
 
 impl<C> PropsResolver<C>
@@ -41,26 +42,19 @@ where
 
     fn resolved(&self) -> TextProps<C> {
         let mut props = self.init_props.clone();
-        for opts in self.stack.iter() {
-            props.apply_opts(opts);
+        for modifiers in self.stack.iter() {
+            props.apply_modifiers(modifiers);
         }
-        TextProps {
-            font: props.font,
-            font_size: props.font_size,
-            color: props.color.clone(),
-            outline: props.outline.clone(),
-            underline: props.underline,
-            strikeout: props.strikeout,
-        }
+        props
     }
 
-    fn push_opts(&mut self, opts: ClassProps<C>) {
-        self.stack.push(opts);
+    fn push_modifiers(&mut self, modifiers: TextModifiers<C>) {
+        self.stack.push(modifiers);
     }
 
-    fn pop_opts(&mut self, opts: &ClassProps<C>) {
+    fn pop_modifiers(&mut self, modifiers: &TextModifiers<C>) {
         for i in (0..self.stack.len()).rev() {
-            if &self.stack[i] == opts {
+            if &self.stack[i] == modifiers {
                 self.stack.remove(i);
                 break;
             }
@@ -278,7 +272,7 @@ where
             boundaries.check_in(run.start);
             boundaries.check_in(run.end);
         }
-        for span in self.spans.iter().filter(|s| s.props.affect_shape()) {
+        for span in self.spans.iter().filter(|s| s.modifiers.affect_shape()) {
             boundaries.check_in(span.start);
             boundaries.check_in(span.end);
         }
@@ -327,7 +321,7 @@ where
         for (span_start, span_end) in boundaries {
             for span in self.spans.iter() {
                 if span.start == span_start {
-                    ctx.resolver.push_opts(span.props.clone());
+                    ctx.resolver.push_modifiers(span.modifiers.clone());
                 }
             }
             props_spans.push(PropsSpan {
@@ -338,7 +332,7 @@ where
             });
             for span in self.spans.iter() {
                 if span.end == span_end {
-                    ctx.resolver.pop_opts(&span.props);
+                    ctx.resolver.pop_modifiers(&span.modifiers);
                 }
             }
         }
@@ -347,9 +341,9 @@ where
         // which are all the same for the subspans within the shape
         let shape_props = &props_spans.first().unwrap().props;
         let face_id = fontdb
-            .select_face_for_str(&shape_props.font, txt)
-            .or_else(|| fontdb.select_face(&shape_props.font))
-            .ok_or_else(|| Error::NoSuchFont(shape_props.font.clone()))?;
+            .select_face_for_str(&shape_props.font.font, txt)
+            .or_else(|| fontdb.select_face(&shape_props.font.font))
+            .ok_or_else(|| Error::NoSuchFont(shape_props.font.font.clone()))?;
 
         let mut buffer = ctx
             .buffer
@@ -368,9 +362,9 @@ where
         let (glyphs, metrics, buffer) = fontdb
             .with_face_data(face_id, |data, index| -> Result<_, Error> {
                 let face = ttf::Face::parse(data, index)?;
-                let metrics = font::face_metrics(&face).scaled(shape_props.font_size);
+                let metrics = font::face_metrics(&face).scaled(shape_props.font.size);
                 let mut hbface = rustybuzz::Face::from_face(face);
-                font::apply_hb_variations(&mut hbface, &shape_props.font);
+                font::apply_hb_variations(&mut hbface, &shape_props.font.font);
 
                 let buffer = rustybuzz::shape(&hbface, &[], buffer);
 
@@ -702,12 +696,14 @@ mod tests {
     #[test]
     fn underline_span() {
         let db = bundled_font_db();
-        let mut builder: RichTextBuilder<Rgba8> =
-            RichTextBuilder::new("Some RICH\ntext string".to_string(), TextProps::new(12.0));
+        let mut builder: RichTextBuilder<Rgba8> = RichTextBuilder::new(
+            "Some RICH\ntext string".to_string(),
+            TextProps::new(Default::default(), 12.0),
+        );
         builder.add_span(
             5,
             9,
-            ClassProps {
+            TextModifiers {
                 underline: Some(true),
                 ..Default::default()
             },
@@ -718,8 +714,17 @@ mod tests {
         assert_eq!(text.lines[1].shapes.len(), 1);
         assert_eq!(text.lines[0].shapes[0].spans.len(), 2);
         assert_eq!(text.lines[1].shapes[0].spans.len(), 1);
-        assert_eq!(text.lines[0].shapes[0].spans[0].props.underline, false);
-        assert_eq!(text.lines[0].shapes[0].spans[1].props.underline, true);
-        assert_eq!(text.lines[1].shapes[0].spans[0].props.underline, false);
+        assert_eq!(
+            text.lines[0].shapes[0].spans[0].props.decorations.underline,
+            false
+        );
+        assert_eq!(
+            text.lines[0].shapes[0].spans[1].props.decorations.underline,
+            true
+        );
+        assert_eq!(
+            text.lines[1].shapes[0].spans[0].props.decorations.underline,
+            false
+        );
     }
 }

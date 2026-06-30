@@ -46,7 +46,7 @@ pub enum Text {
 impl Text {
     pub(crate) fn to_rich_text(
         &self,
-        base: text::rich::TextProps<theme::Color>,
+        base: text::props::TextProps<theme::Color>,
         layout: text::rich::Layout,
         db: &text::fontdb::Database,
     ) -> std::result::Result<text::RichText<theme::Color>, text::Error> {

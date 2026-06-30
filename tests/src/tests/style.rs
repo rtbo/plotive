@@ -139,7 +139,7 @@ fn style_line_markers_triup_color() {
             plotive::style::series::Marker::new_with_color(
                 plotive::Rgba8::from_hex(b"#000").into(),
             )
-            .with_stroke(Rgba8::from_hex(b"#080").into())
+            .with_stroke(plotive::style::series::Color::Fixed(Rgba8::from_hex(b"#080")).into())
             .with_shape(plotive::style::MarkerShape::TriangleUp),
         )
         .into_plot();
