@@ -39,14 +39,14 @@ pub enum Text {
         /// The format string for the rich text, with optional classes
         fmt: String,
         /// The classes that can be used in the format string
-        classes: Vec<(String, text::TextModifiers<theme::Color>)>,
+        classes: Vec<(String, text::TextProps<theme::Color>)>,
     },
 }
 
 impl Text {
     pub(crate) fn to_rich_text(
         &self,
-        base: text::props::TextProps<theme::Color>,
+        base: text::props::TextBaseProps<theme::Color>,
         layout: text::rich::Layout,
         db: &text::fontdb::Database,
     ) -> std::result::Result<text::RichText<theme::Color>, text::Error> {
@@ -81,17 +81,31 @@ impl From<&str> for Text {
     }
 }
 
-impl From<[String; 1]> for Text {
-    fn from(arr: [String; 1]) -> Self {
-        let mut arr = arr;
-        let fmt = std::mem::take(&mut arr[0]);
+impl From<&[String]> for Text {
+    fn from(arr: &[String]) -> Self {
+        let fmt = arr.join("\n");
         Text::Rich(fmt)
     }
 }
 
-impl From<[&str; 1]> for Text {
-    fn from(arr: [&str; 1]) -> Self {
-        Text::Rich(arr[0].to_string())
+impl From<&[&str]> for Text {
+    fn from(arr: &[&str]) -> Self {
+        let fmt = arr.join("\n");
+        Text::Rich(fmt)
+    }
+}
+
+impl<const N: usize> From<&[String; N]> for Text {
+    fn from(arr: &[String; N]) -> Self {
+        let fmt = arr.join("\n");
+        Text::Rich(fmt)
+    }
+}
+
+impl<const N: usize> From<&[&str; N]> for Text {
+    fn from(arr: &[&str; N]) -> Self {
+        let fmt = arr.join("\n");
+        Text::Rich(fmt)
     }
 }
 
@@ -107,8 +121,32 @@ impl From<(&str,)> for Text {
     }
 }
 
-impl From<(String, Vec<(String, text::TextModifiers<theme::Color>)>)> for Text {
-    fn from(tuple: (String, Vec<(String, text::TextModifiers<theme::Color>)>)) -> Self {
+impl From<(String, String)> for Text {
+    fn from(tuple: (String, String)) -> Self {
+        Text::Rich(tuple.0 + "\n" + &tuple.1)
+    }
+}
+
+impl From<(&str, &str)> for Text {
+    fn from(tuple: (&str, &str)) -> Self {
+        Text::Rich(tuple.0.to_string() + "\n" + tuple.1)
+    }
+}
+
+impl From<(String, String, String)> for Text {
+    fn from(tuple: (String, String, String)) -> Self {
+        Text::Rich(tuple.0 + "\n" + &tuple.1 + "\n" + &tuple.2)
+    }
+}
+
+impl From<(&str, &str, &str)> for Text {
+    fn from(tuple: (&str, &str, &str)) -> Self {
+        Text::Rich(tuple.0.to_string() + "\n" + tuple.1 + "\n" + tuple.2)
+    }
+}
+
+impl From<(String, Vec<(String, text::TextProps<theme::Color>)>)> for Text {
+    fn from(tuple: (String, Vec<(String, text::TextProps<theme::Color>)>)) -> Self {
         Text::RichWithClasses {
             fmt: tuple.0,
             classes: tuple.1,

@@ -55,7 +55,7 @@ where
                             }
                         }
 
-                        if span.props.decorations.underline {
+                        if span.props.decorations().underline {
                             let line = shape.metrics.uline;
                             let path = crate::line_path(
                                 span.bbox(),
@@ -66,7 +66,7 @@ where
                             span_builder.push_path(&path);
                             glyph_builder = path.clear();
                         }
-                        if span.props.decorations.strikethrough {
+                        if span.props.decorations().strikethrough {
                             let line = shape.metrics.strikeout;
                             let path = crate::line_path(
                                 span.bbox(),
@@ -79,11 +79,11 @@ where
                         }
 
                         if let Some(path) = span_builder.finish() {
-                            if let Some(fill) = span.props.render.fill.as_ref() {
+                            if let Some(fill) = span.props.render().fill.as_ref() {
                                 let prim = RichPrimitive::Fill(&path, fill);
                                 render_fn(prim);
                             }
-                            if let Some(outline) = span.props.render.outline.as_ref() {
+                            if let Some(outline) = span.props.render().outline.as_ref() {
                                 let prim = RichPrimitive::Stroke(&path, outline);
                                 render_fn(prim);
                             }

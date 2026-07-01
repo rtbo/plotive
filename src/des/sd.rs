@@ -30,8 +30,10 @@ impl serde::Serialize for Text {
         match self {
             Text::Plain(text) => serializer.serialize_str(text),
             Text::Rich(fmt) => {
-                let mut seq = serializer.serialize_seq(Some(1))?;
-                seq.serialize_element(fmt)?;
+                let mut seq = serializer.serialize_seq(None)?;
+                for l in fmt.lines() {
+                    seq.serialize_element(l)?;
+                }
                 seq.end()
             }
             Text::RichWithClasses { fmt, classes } => {
@@ -44,18 +46,48 @@ impl serde::Serialize for Text {
     }
 }
 
-struct RichPropsMap(Vec<(String, text::TextModifiers<theme::Color>)>);
+enum TextPropsMapOrString {
+    Props(Vec<(String, text::TextProps<theme::Color>)>),
+    String(String),
+}
 
-impl<'de> serde::Deserialize<'de> for RichPropsMap {
+impl<'de> serde::Deserialize<'de> for TextPropsMapOrString {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let map =
-            std::collections::HashMap::<String, text::TextModifiers<theme::Color>>::deserialize(
-                deserializer,
-            )?;
-        Ok(RichPropsMap(map.into_iter().collect()))
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = TextPropsMapOrString;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a string or a text properties object")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(TextPropsMapOrString::String(value.to_string()))
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut result = Vec::new();
+
+                while let Some((key, value)) =
+                    map.next_entry::<String, text::TextProps<theme::Color>>()?
+                {
+                    result.push((key, value));
+                }
+                Ok(TextPropsMapOrString::Props(result))
+            }
+        }
+
+        deserializer.deserialize_any(Visitor)
     }
 }
 
@@ -87,15 +119,71 @@ impl<'de> serde::Deserialize<'de> for Text {
                 let fmt: String = seq
                     .next_element()?
                     .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                let classes: Option<RichPropsMap> = seq.next_element()?;
-                if let Some(classes) = classes {
-                    Ok(Text::RichWithClasses {
+                let next = seq.next_element::<TextPropsMapOrString>()?;
+                match next {
+                    Some(TextPropsMapOrString::Props(props)) => Ok(Text::RichWithClasses {
                         fmt,
-                        classes: classes.0,
-                    })
-                } else {
-                    Ok(Text::Rich(fmt))
+                        classes: props,
+                    }),
+                    Some(TextPropsMapOrString::String(s2)) => {
+                        let mut fmt = fmt + "\n" + &s2;
+                        while let Some(s) = seq.next_element::<String>()? {
+                            fmt.push('\n');
+                            fmt.push_str(&s);
+                        }
+                        Ok(Text::Rich(fmt))
+                    }
+                    None => Ok(Text::Rich(fmt)),
                 }
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut fmt = Option::<String>::None;
+                let mut classes = Vec::new();
+                while let Some((key, value)) = map.next_entry::<String, TextPropsMapOrString>()? {
+                    match key.as_str() {
+                        "fmt" => {
+                            if fmt.is_some() {
+                                return Err(serde::de::Error::duplicate_field("fmt"));
+                            }
+                            match value {
+                                TextPropsMapOrString::String(s) => fmt = Some(s),
+                                TextPropsMapOrString::Props(_) => {
+                                    return Err(serde::de::Error::custom(
+                                        "The 'fmt' field must be a string, not an object",
+                                    ));
+                                }
+                            }
+                        }
+                        "classes" => {
+                            if !classes.is_empty() {
+                                return Err(serde::de::Error::duplicate_field("classes"));
+                            }
+                            match value {
+                                TextPropsMapOrString::Props(props) => classes = props,
+                                TextPropsMapOrString::String(_) => {
+                                    return Err(serde::de::Error::custom(
+                                        "The 'classes' field must be an object, not a string",
+                                    ));
+                                }
+                            }
+                        }
+                        _ => {
+                            return Err(serde::de::Error::unknown_field(
+                                key.as_str(),
+                                &["fmt", "classes"],
+                            ));
+                        }
+                    }
+                }
+
+                let Some(fmt) = fmt else {
+                    return Err(serde::de::Error::missing_field("fmt"));
+                };
+                Ok(Text::RichWithClasses { fmt, classes })
             }
         }
         deserializer.deserialize_any(TextVisitor)

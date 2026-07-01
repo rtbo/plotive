@@ -26,7 +26,7 @@ impl SeriesExt for des::series::Line {
     fn legend_entry(&self) -> Option<legend::Entry<'_>> {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
-            txt_modifiers: None,
+            txt_props: None,
             shape: legend::ShapeRef::Line(self.stroke()),
         })
     }
@@ -36,7 +36,7 @@ impl SeriesExt for des::series::Scatter {
     fn legend_entry(&self) -> Option<legend::Entry<'_>> {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
-            txt_modifiers: None,
+            txt_props: None,
             shape: legend::ShapeRef::Marker(self.marker()),
         })
     }
@@ -51,7 +51,7 @@ impl SeriesExt for des::series::Area {
     fn legend_entry(&self) -> Option<legend::Entry<'_>> {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
-            txt_modifiers: None,
+            txt_props: None,
             shape: legend::ShapeRef::AreaRect {
                 fill: Some(self.fill()),
                 y1_stroke: self.y1_stroke(),
@@ -65,7 +65,7 @@ impl SeriesExt for des::series::Histogram {
     fn legend_entry(&self) -> Option<legend::Entry<'_>> {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
-            txt_modifiers: None,
+            txt_props: None,
             shape: legend::ShapeRef::Rect(Some(self.fill()), self.stroke()),
         })
     }
@@ -75,7 +75,7 @@ impl SeriesExt for des::series::Bars {
     fn legend_entry(&self) -> Option<legend::Entry<'_>> {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
-            txt_modifiers: None,
+            txt_props: None,
             shape: legend::ShapeRef::Rect(Some(self.fill()), self.stroke()),
         })
     }
@@ -85,7 +85,7 @@ impl SeriesExt for des::series::BarSeries {
     fn legend_entry(&self) -> Option<legend::Entry<'_>> {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
-            txt_modifiers: None,
+            txt_props: None,
             shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
         })
     }

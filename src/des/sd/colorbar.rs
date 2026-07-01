@@ -128,7 +128,7 @@ impl<'de> serde::Deserialize<'de> for colorbar::ColorBar {
                     "title" => title: Option<des::Text>,
                     "border" => border: Option<Option<theme::Stroke>>,
                     "ticks" => ticks: Option<ticks::Locator>,
-                    "ticksFont" => ticks_font: Option<text::TextModifiers<theme::Color>>,
+                    "ticksFont" => ticks_font: Option<text::TextProps<theme::Color>>,
                     "margin" => margin: Option<f32>,
                 );
                 let mut colorbar = if let Some(pos) = pos {

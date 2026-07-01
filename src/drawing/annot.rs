@@ -6,7 +6,7 @@ use crate::des::{self};
 use crate::drawing::axis::{Axis, Orientation};
 use crate::drawing::plot::Axes;
 use crate::drawing::{Text, marker};
-use crate::style::{self, AsPaint, AsStroke, defaults, theme};
+use crate::style::{self, AsPaint, AsStroke, theme};
 use crate::{Style, data, geom, render, text};
 
 #[derive(Debug, Clone)]
@@ -53,10 +53,7 @@ where
                     Anchor::Center => (text::rich::Align::Center, text::rich::VerAlign::Center),
                 };
                 let text = label.text().to_rich_text(
-                    text::props::TextProps::<theme::Color>::new(
-                        defaults::FONT_FAMILY.parse().unwrap(),
-                        12.0,
-                    ),
+                    text::props::TextBaseProps::<theme::Color>::new(12.0),
                     text::rich::Layout::Horizontal(align, ver_align, Default::default()),
                     self.fontdb(),
                 )?;

@@ -22,7 +22,11 @@ fn main() {
     );
     let rich_text = text::parse_rich_text(fmt)
         .unwrap()
-        .into_builder(props::TextProps::new(sans_font, 36.0).with_render(color::BLACK.into()))
+        .into_builder(
+            props::TextBaseProps::new(36.0)
+                .with_font(sans_font)
+                .with_render(color::BLACK.into()),
+        )
         .with_layout(rich::Layout::Horizontal(
             rich::Align::Center,
             rich::VerAlign::Center,

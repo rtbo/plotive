@@ -52,11 +52,11 @@ fn main() {
         (100.0, "mag3", "phase3", "R = 100 Ω"),
     ];
 
-    // [&str; 1] converts to Text::Rich
-    let title = [concat!(
-        "Bode diagram of RLC circuit\n",
-        "[size=18;italic;font=serif]L = 0.1 mH / C = 1 µF[/size;italic;font]"
-    )];
+    // &[&str] converts to Text::Rich with one line per element
+    let title = &[
+        "Bode diagram of RLC circuit",
+        "[size=18;italic;font=serif]L = 0.1 mH / C = 1 µF[/size;italic;font]",
+    ];
 
     // magnitude X axis scale is taken from the phase X axis
     // the reference uses the title given to the phase X axis
