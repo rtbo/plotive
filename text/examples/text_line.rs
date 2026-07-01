@@ -1,6 +1,6 @@
 use line::LineText;
 use plotive_base::geom;
-use plotive_text::{bundled_font_db, font, line};
+use plotive_text::{bundled_font_db, font, line, props};
 
 fn main() {
     let mut db = bundled_font_db();
@@ -36,14 +36,22 @@ fn main() {
 
     for (text, align, (x, y)) in texts {
         let (tx, ty) = (*x, *y);
-        let render_opts = line::RenderOptions {
-            fill: Some(tiny_skia::Paint::default()),
-            outline: None,
-            transform: tiny_skia::Transform::from_translate(tx, ty),
-            mask: None,
-        };
-        let line = LineText::new(text.to_string(), *align, 32.0, font.clone(), &db).unwrap();
-        line::render_line_text(&line, &render_opts, &db, &mut pm_mut);
+        let line = LineText::new(
+            text.to_string(),
+            *align,
+            props::FontProps::new(font.clone(), 32.0),
+            &db,
+        )
+        .unwrap();
+        line::render_line_text(
+            &line,
+            &mut pm_mut,
+            None,
+            tiny_skia::Transform::from_translate(tx, ty),
+            &db,
+            &Default::default(),
+            Default::default(),
+        );
         draw_line_bbox(&line, (tx, ty), &mut pm_mut);
     }
 

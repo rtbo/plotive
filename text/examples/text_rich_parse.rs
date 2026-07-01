@@ -1,5 +1,5 @@
 use plotive_base::color;
-use plotive_text::{self as text, Font, bundled_font_db, font, rich};
+use plotive_text::{self as text, Font, bundled_font_db, font, props, rich};
 use tiny_skia::Transform;
 fn main() {
     let db = bundled_font_db();
@@ -22,11 +22,7 @@ fn main() {
     );
     let rich_text = text::parse_rich_text(fmt)
         .unwrap()
-        .into_builder(
-            rich::TextProps::new(36.0)
-                .with_font(sans_font)
-                .with_color(Some(color::BLACK)),
-        )
+        .into_builder(props::TextProps::new(sans_font, 36.0).with_render(color::BLACK.into()))
         .with_layout(rich::Layout::Horizontal(
             rich::Align::Center,
             rich::VerAlign::Center,

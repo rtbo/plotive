@@ -13,7 +13,7 @@ use crate::drawing::legend::{Legend, LegendBuilder};
 use crate::drawing::scale::CoordMapXy;
 use crate::drawing::series::{self, Series, SeriesExt};
 use crate::drawing::{ColumnExt, Ctx, Error, get_column};
-use crate::style::{defaults, theme};
+use crate::style::{AsPaint, AsStroke, defaults, theme};
 use crate::{Style, data, des, geom, missing_params, render};
 
 #[derive(Debug, Clone)]

@@ -39,14 +39,14 @@ pub enum Text {
         /// The format string for the rich text, with optional classes
         fmt: String,
         /// The classes that can be used in the format string
-        classes: Vec<(String, text::RichProps)>,
+        classes: Vec<(String, text::TextModifiers<theme::Color>)>,
     },
 }
 
 impl Text {
     pub(crate) fn to_rich_text(
         &self,
-        base: text::rich::TextProps<theme::Color>,
+        base: text::props::TextProps<theme::Color>,
         layout: text::rich::Layout,
         db: &text::fontdb::Database,
     ) -> std::result::Result<text::RichText<theme::Color>, text::Error> {
@@ -107,8 +107,8 @@ impl From<(&str,)> for Text {
     }
 }
 
-impl From<(String, Vec<(String, text::RichProps)>)> for Text {
-    fn from(tuple: (String, Vec<(String, text::RichProps)>)) -> Self {
+impl From<(String, Vec<(String, text::TextModifiers<theme::Color>)>)> for Text {
+    fn from(tuple: (String, Vec<(String, text::TextModifiers<theme::Color>)>)) -> Self {
         Text::RichWithClasses {
             fmt: tuple.0,
             classes: tuple.1,

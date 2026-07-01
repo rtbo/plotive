@@ -1,6 +1,8 @@
+use plotive_text::props::FontProps;
+
 use crate::drawing::Text;
 use crate::geom::{Padding, Size};
-use crate::style::{defaults, theme};
+use crate::style::{AsPaint, AsStroke, defaults, theme};
 use crate::text::{self, LineText, fontdb};
 use crate::{Style, des, drawing, geom, render, style};
 
@@ -54,7 +56,7 @@ impl ShapeRef<'_> {
 #[derive(Debug, Clone)]
 pub struct Entry<'a> {
     pub label: &'a str,
-    pub font: Option<&'a text::LineProps>,
+    pub txt_modifiers: Option<&'a text::TextModifiers<theme::Color>>,
     pub shape: ShapeRef<'a>,
 }
 
@@ -80,7 +82,7 @@ impl LegendEntry {
 
 #[derive(Debug)]
 pub struct LegendBuilder<'a> {
-    font: text::LineProps,
+    txt_modifiers: text::TextModifiers<theme::Color>,
     fill: Option<theme::Fill>,
     border: Option<theme::Stroke>,
     columns: Option<u32>,
@@ -113,7 +115,7 @@ impl<'a> LegendBuilder<'a> {
             columns.replace(1);
         }
         LegendBuilder {
-            font: legend.font().clone(),
+            txt_modifiers: legend.font().clone(),
             fill: legend.fill().cloned(),
             border: legend.border().cloned(),
             columns,
@@ -128,10 +130,14 @@ impl<'a> LegendBuilder<'a> {
 
     pub fn add_entry(&mut self, index: usize, entry: Entry) -> Result<(), drawing::Error> {
         let shape = entry.shape.to_shape();
-        let font_props = entry.font.unwrap_or(&self.font);
+        let font_props = entry.txt_modifiers.unwrap_or(&self.txt_modifiers);
         let font = super::resolve_line_font(font_props, defaults::FONT_FAMILY.parse().unwrap());
         let font_size = font_props.size.unwrap_or(defaults::LEGEND_LABEL_FONT_SIZE);
-        let color = font_props.color.unwrap_or(theme::Col::Foreground.into());
+        let fill = font_props
+            .color
+            .clone()
+            .flatten()
+            .unwrap_or(theme::Fill::solid(theme::Col::Foreground.into()));
 
         let align = (
             text::line::Align::Start,
@@ -140,11 +146,10 @@ impl<'a> LegendBuilder<'a> {
         let text = LineText::new(
             entry.label.to_string(),
             align,
-            font_size,
-            font,
+            FontProps::new(font, font_size),
             &self.fontdb,
         )?;
-        let text = Text::from_line_text(&text, &self.fontdb, color)?;
+        let text = Text::from_line_text(&text, &self.fontdb, fill)?;
         self.entries.push(LegendEntry {
             index,
             shape,

@@ -1,4 +1,4 @@
-use plotive_base::{Color, Rgba8, color, geom};
+use plotive_base::{Rgba8, geom};
 use ttf_parser as ttf;
 
 use crate::{Error, font, fontdb, line};
@@ -13,6 +13,8 @@ pub use parse::{
     ParseRichTextError, ParsedRichText, parse_rich_text, parse_rich_text_with_classes,
 };
 pub use render::{RichPrimitive, render_rich_text, render_rich_text_with};
+
+use crate::props::{TextModifiers, TextProps};
 
 /// Typographic alignment, possibly depending on the script direction.
 #[derive(Debug, Clone, Copy, Default)]
@@ -183,13 +185,17 @@ where
     }
 
     /// Add a new text span
-    pub fn add_span(&mut self, start: usize, end: usize, props: ClassProps<C>) {
+    pub fn add_span(&mut self, start: usize, end: usize, modifiers: TextModifiers<C>) {
         assert!(start <= end);
         assert!(
             self.text.is_char_boundary(start) && self.text.is_char_boundary(end),
             "start and end must be on char boundaries"
         );
-        self.spans.push(TextSpan { start, end, props });
+        self.spans.push(TextSpan {
+            start,
+            end,
+            modifiers,
+        });
     }
 
     /// Create a RichText from this builder
@@ -304,200 +310,12 @@ where
     }
 }
 
-/// A set of properties to be applied to a text span.
-/// If a property is `None`, value is inherited from the parent span.
-#[derive(Debug, Clone, PartialEq)]
-pub struct ClassProps<C> {
-    pub font_family: Option<Vec<font::Family>>,
-    pub font_weight: Option<font::Weight>,
-    pub font_width: Option<font::Width>,
-    pub font_style: Option<font::Style>,
-    pub font_size: Option<f32>,
-    pub color: Option<C>,
-    pub outline: Option<(C, f32)>,
-    pub underline: Option<bool>,
-    pub strikeout: Option<bool>,
-}
-
-impl<C> Default for ClassProps<C> {
-    fn default() -> Self {
-        ClassProps {
-            font_family: None,
-            font_weight: None,
-            font_width: None,
-            font_style: None,
-            font_size: None,
-            color: None,
-            outline: None,
-            underline: None,
-            strikeout: None,
-        }
-    }
-}
-
-impl<C> ClassProps<C> {
-    fn affect_shape(&self) -> bool {
-        self.font_family.is_some()
-            || self.font_weight.is_some()
-            || self.font_width.is_some()
-            || self.font_style.is_some()
-            || self.font_size.is_some()
-    }
-}
-
-/// A set of resolved properties for a text span
-#[derive(Debug, Clone, PartialEq)]
-pub struct TextProps<C>
-where
-    C: Clone,
-{
-    font_size: f32,
-    font: font::Font,
-    color: Option<C>,
-    outline: Option<(C, f32)>,
-    underline: bool,
-    strikeout: bool,
-}
-
-impl<C> TextProps<C>
-where
-    C: Clone,
-{
-    /// Convert this TextProps to another color type using the provided mapping function
-    pub fn to_other_color<D, M>(&self, color_map: M) -> TextProps<D>
-    where
-        D: Clone,
-        M: Fn(&C) -> D,
-    {
-        TextProps {
-            font_size: self.font_size,
-            font: self.font.clone(),
-            color: self.color.as_ref().map(|c| color_map(c)),
-            outline: self.outline.as_ref().map(|(c, w)| (color_map(c), *w)),
-            underline: self.underline,
-            strikeout: self.strikeout,
-        }
-    }
-}
-
-/// A color that has meaning for the foreground
-/// (e.g. a font color)
-pub trait Foreground {
-    fn foreground() -> Self;
-}
-
-impl Foreground for Rgba8 {
-    fn foreground() -> Self {
-        color::BLACK
-    }
-}
-
-impl<C> TextProps<C>
-where
-    C: Color + Foreground,
-{
-    pub fn new(font_size: f32) -> TextProps<C> {
-        TextProps {
-            font_size,
-            font: font::Font::default(),
-            color: Some(C::foreground()),
-            outline: None,
-            underline: false,
-            strikeout: false,
-        }
-    }
-}
-
-impl<C> TextProps<C>
-where
-    C: Clone,
-{
-    pub fn with_font(mut self, font: font::Font) -> Self {
-        self.font = font;
-        self
-    }
-
-    pub fn with_color(mut self, color: Option<C>) -> Self {
-        self.color = color;
-        self
-    }
-
-    pub fn with_outline(mut self, outline: (C, f32)) -> Self {
-        self.outline = Some(outline);
-        self
-    }
-
-    pub fn with_underline(mut self) -> Self {
-        self.underline = true;
-        self
-    }
-
-    pub fn with_strikeout(mut self) -> Self {
-        self.strikeout = true;
-        self
-    }
-
-    pub fn font_size(&self) -> f32 {
-        self.font_size
-    }
-
-    pub fn font(&self) -> &font::Font {
-        &self.font
-    }
-
-    pub fn color(&self) -> Option<C> {
-        self.color.clone()
-    }
-
-    pub fn outline(&self) -> Option<(C, f32)> {
-        self.outline.clone()
-    }
-
-    pub fn underline(&self) -> bool {
-        self.underline
-    }
-
-    pub fn strikeout(&self) -> bool {
-        self.strikeout
-    }
-
-    fn apply_opts(&mut self, class_props: &ClassProps<C>) {
-        if let Some(font_family) = &class_props.font_family {
-            self.font = self.font.clone().with_families(font_family.clone());
-        }
-        if let Some(font_weight) = class_props.font_weight {
-            self.font = self.font.clone().with_weight(font_weight);
-        }
-        if let Some(font_width) = class_props.font_width {
-            self.font = self.font.clone().with_width(font_width);
-        }
-        if let Some(font_style) = class_props.font_style {
-            self.font = self.font.clone().with_style(font_style);
-        }
-        if let Some(font_size) = class_props.font_size {
-            self.font_size = font_size;
-        }
-        if let Some(color) = class_props.color.as_ref() {
-            self.color = Some(color.clone());
-        }
-        if let Some(outline) = class_props.outline.as_ref() {
-            self.outline = Some(outline.clone());
-        }
-        if let Some(underline) = class_props.underline {
-            self.underline = underline;
-        }
-        if let Some(strikeout) = class_props.strikeout {
-            self.strikeout = strikeout;
-        }
-    }
-}
-
 /// A text span
 #[derive(Debug, Clone)]
 struct TextSpan<C> {
     start: usize,
     end: usize,
-    props: ClassProps<C>,
+    modifiers: TextModifiers<C>,
 }
 
 /// A line of rich text
@@ -702,12 +520,12 @@ where
 
     /// The font of this shape
     pub fn font(&self) -> &font::Font {
-        &self.spans[0].props.font
+        &self.spans[0].props.font.font
     }
 
     /// The font of this shape
     pub fn font_size(&self) -> f32 {
-        self.spans[0].props.font_size
+        self.spans[0].props.font.size
     }
 
     /// The text spans in this shape

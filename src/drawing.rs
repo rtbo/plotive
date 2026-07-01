@@ -27,6 +27,8 @@ pub mod zoom;
 pub use figure::PreparedFigure;
 pub use hit_test::PlotHit;
 
+use crate::style::{AsPaint, AsStroke};
+
 /// Errors that can occur during figure drawing
 #[derive(Debug)]
 pub enum Error {
@@ -239,18 +241,21 @@ struct TextSpan {
     stroke: Option<theme::Stroke>,
 }
 
-fn resolve_line_font(props: &text::LineProps, default: text::Font) -> text::Font {
+fn resolve_line_font(
+    modifiers: &text::TextModifiers<theme::Color>,
+    default: text::Font,
+) -> text::Font {
     let mut res = default;
-    if let Some(families) = props.family.as_ref() {
+    if let Some(families) = modifiers.families.as_ref() {
         res = res.with_families(families.clone());
     }
-    if let Some(style) = props.style {
+    if let Some(style) = modifiers.style {
         res = res.with_style(style);
     }
-    if let Some(weight) = props.weight {
+    if let Some(weight) = modifiers.weight {
         res = res.with_weight(weight);
     }
-    if let Some(width) = props.width {
+    if let Some(width) = modifiers.width {
         res = res.with_width(width);
     }
     res
@@ -260,13 +265,13 @@ impl Text {
     fn from_line_text(
         text: &text::LineText,
         fontdb: &fontdb::Database,
-        color: theme::Color,
+        fill: theme::Fill,
     ) -> Result<Text, Error> {
         let mut spans = Vec::new();
-        text::line::render_line_text_with(text, fontdb, |path| {
+        text::line::render_line_text_with(text, fontdb, Default::default(), |path| {
             spans.push(TextSpan {
                 path: path.clone(),
-                fill: Some(color.into()),
+                fill: Some(fill.clone()),
                 stroke: None,
             });
         });
@@ -286,20 +291,15 @@ impl Text {
             text::RichPrimitive::Fill(path, color) => {
                 spans.push(TextSpan {
                     path: path.clone(),
-                    fill: Some(color.into()),
+                    fill: Some(color.clone()),
                     stroke: None,
                 });
             }
-            text::RichPrimitive::Stroke(path, color, thickness) => {
+            text::RichPrimitive::Stroke(path, stroke) => {
                 spans.push(TextSpan {
                     path: path.clone(),
                     fill: None,
-                    stroke: Some(theme::Stroke {
-                        color: color.into(),
-                        width: thickness,
-                        opacity: None,
-                        pattern: Default::default(),
-                    }),
+                    stroke: Some(stroke.clone()),
                 });
             }
         })?;

@@ -9,11 +9,12 @@ mod side;
 #[cfg(feature = "time")]
 pub use bounds::TimeBounds;
 pub use bounds::{AsBoundRef, Bounds, BoundsRef, NumBounds};
+use plotive_text::props::FontProps;
 pub use side::Side;
 
 use crate::drawing::scale::{self, CoordMap};
 use crate::drawing::{Categories, Ctx, Error, Text, ticks};
-use crate::style::{defaults, theme};
+use crate::style::{AsStroke, defaults, theme};
 use crate::text::{self, font};
 use crate::{Style, data, des, geom, missing_params, render};
 
@@ -349,8 +350,10 @@ where
             .title()
             .map(|title| {
                 title.to_rich_text(
-                    text::rich::TextProps::new(defaults::AXIS_TITLE_FONT_SIZE)
-                        .with_font(defaults::FONT_FAMILY.parse().unwrap()),
+                    text::props::TextProps::new(
+                        defaults::FONT_FAMILY.parse().unwrap(),
+                        defaults::AXIS_TITLE_FONT_SIZE,
+                    ),
                     side.title_layout(),
                     self.fontdb(),
                 )
@@ -525,7 +528,12 @@ where
             .font()
             .size
             .unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
-        let color = font_props.color.unwrap_or(major_ticks.color());
+        let color = font_props
+            .color
+            .clone()
+            .flatten()
+            .unwrap_or(major_ticks.color().into());
+        let theme::Fill::Solid { color, .. } = color;
         Ok((font, font_size, color))
     }
 
@@ -551,8 +559,13 @@ where
         let mut ticks = Vec::new();
         for loc in major_locs.into_iter() {
             let text = lbl_formatter.format_label(loc.into());
-            let lbl = text::LineText::new(text, ticks_align, font_size, font.clone(), db)?;
-            let lbl = Text::from_line_text(&lbl, db, lbl_color)?;
+            let lbl = text::LineText::new(
+                text,
+                ticks_align,
+                FontProps::new(font.clone(), font_size),
+                db,
+            )?;
+            let lbl = Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color))?;
             ticks.push(NumTick { loc, lbl });
         }
 
@@ -561,9 +574,16 @@ where
         } else {
             lbl_formatter
                 .axis_annotation()
-                .map(|l| text::LineText::new(l.to_string(), annot_align, font_size, font, db))
+                .map(|l| {
+                    text::LineText::new(
+                        l.to_string(),
+                        annot_align,
+                        FontProps::new(font, font_size),
+                        db,
+                    )
+                })
                 .transpose()?
-                .map(|lbl| Text::from_line_text(&lbl, db, lbl_color))
+                .map(|lbl| Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color)))
                 .transpose()?
         };
 
@@ -626,8 +646,13 @@ where
         let mut ticks = Vec::new();
         for loc in major_locs.into_iter() {
             let text = lbl_formatter.format_label(loc.into());
-            let lbl = text::LineText::new(text, ticks_align, font_size, font.clone(), db)?;
-            let lbl = Text::from_line_text(&lbl, db, lbl_color)?;
+            let lbl = text::LineText::new(
+                text,
+                ticks_align,
+                FontProps::new(font.clone(), font_size),
+                db,
+            )?;
+            let lbl = Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color))?;
             ticks.push(NumTick {
                 loc: loc.timestamp(),
                 lbl,
@@ -636,9 +661,16 @@ where
 
         let annot = lbl_formatter
             .axis_annotation()
-            .map(|l| text::LineText::new(l.to_string(), annot_align, font_size, font, db))
+            .map(|l| {
+                text::LineText::new(
+                    l.to_string(),
+                    annot_align,
+                    FontProps::new(font, font_size),
+                    db,
+                )
+            })
             .transpose()?
-            .map(|lbl| Text::from_line_text(&lbl, db, lbl_color))
+            .map(|lbl| Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color)))
             .transpose()?;
 
         Ok(NumTicks {
@@ -662,9 +694,13 @@ where
 
         let mut lbls = Vec::with_capacity(cb.len());
         for cat in cb.iter() {
-            let lbl =
-                text::LineText::new(cat.to_string(), ticks_align, font_size, font.clone(), db)?;
-            let lbl = Text::from_line_text(&lbl, db, lbl_color)?;
+            let lbl = text::LineText::new(
+                cat.to_string(),
+                ticks_align,
+                FontProps::new(font.clone(), font_size),
+                db,
+            )?;
+            let lbl = Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color))?;
             lbls.push(lbl);
         }
 

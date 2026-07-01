@@ -1,9 +1,11 @@
 use std::borrow::Cow;
+use std::str::FromStr;
 
+use plotive_base::{Rgba8, style};
 use serde::de::Error;
-use serde::ser::{SerializeMap, SerializeSeq};
+use serde::ser::SerializeMap;
 
-use crate::font;
+use crate::{font, props};
 
 impl serde::Serialize for font::Family {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -222,67 +224,58 @@ impl<'de> serde::de::Deserialize<'de> for font::Width {
     }
 }
 
-struct Outline<C>(C, f32);
-
-impl<C> serde::Serialize for Outline<C>
+impl<C> serde::Serialize for props::TextModifiers<C>
 where
-    C: serde::Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_seq(Some(2))?;
-        state.serialize_element(&self.0)?;
-        state.serialize_element(&self.1)?;
-        state.end()
-    }
-}
-
-impl<C> serde::Serialize for crate::rich::ClassProps<C>
-where
-    C: serde::Serialize + Copy + Clone,
+    C: serde::Serialize + style::DefaultStroke + style::DefaultStrokeWidth + PartialEq,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         let mut state = serializer.serialize_map(None)?;
-        if let Some(families) = &self.font_family {
+        if let Some(families) = &self.families {
             let family_str = crate::font::font_families_to_string(families);
-            state.serialize_entry("fontFamily", &family_str)?;
+            state.serialize_entry("family", &family_str)?;
         }
-        if let Some(weight) = &self.font_weight {
-            state.serialize_entry("fontWeight", weight)?;
+        if let Some(weight) = &self.weight {
+            state.serialize_entry("weight", weight)?;
         }
-        if let Some(width) = &self.font_width {
-            state.serialize_entry("fontWidth", width)?;
+        if let Some(width) = &self.width {
+            state.serialize_entry("width", width)?;
         }
-        if let Some(style) = &self.font_style {
-            state.serialize_entry("fontStyle", style)?;
+        if let Some(style) = &self.style {
+            state.serialize_entry("style", style)?;
         }
-        if let Some(size) = &self.font_size {
-            state.serialize_entry("fontSize", size)?;
+        if let Some(size) = &self.size {
+            state.serialize_entry("size", size)?;
         }
         if let Some(color) = &self.color {
             state.serialize_entry("color", color)?;
         }
-        if let Some((outline, width)) = &self.outline {
-            state.serialize_entry("outline", &Outline(outline, *width))?;
+        if let Some(outline) = &self.outline {
+            state.serialize_entry("outline", outline)?;
         }
         if let Some(underline) = &self.underline {
             state.serialize_entry("underline", underline)?;
         }
-        if let Some(strikeout) = &self.strikeout {
-            state.serialize_entry("strikeout", strikeout)?;
+        if let Some(strikethrough) = &self.strikethrough {
+            state.serialize_entry("strikethrough", strikethrough)?;
         }
         state.end()
     }
 }
 
-impl<'de, C> serde::de::Deserialize<'de> for crate::rich::ClassProps<C>
+impl<'de, C> serde::de::Deserialize<'de> for props::TextModifiers<C>
 where
-    C: serde::de::Deserialize<'de> + Copy + Clone,
+    C: serde::de::Deserialize<'de>
+        + Copy
+        + Clone
+        + style::DefaultColor
+        + style::DefaultStroke
+        + style::DefaultStrokeWidth
+        + FromStr
+        + From<Rgba8>,
+    <C as FromStr>::Err: std::fmt::Display,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -292,12 +285,20 @@ where
 
         impl<'de, C> serde::de::Visitor<'de> for Visitor<C>
         where
-            C: serde::de::Deserialize<'de> + Copy + Clone,
+            C: serde::de::Deserialize<'de>
+                + Copy
+                + Clone
+                + style::DefaultColor
+                + style::DefaultStroke
+                + style::DefaultStrokeWidth
+                + FromStr
+                + From<Rgba8>,
+            <C as FromStr>::Err: std::fmt::Display,
         {
-            type Value = crate::rich::ClassProps<C>;
+            type Value = props::TextModifiers<C>;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a map representing ClassProps")
+                formatter.write_str("a map representing TextModifiers")
             }
 
             fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
@@ -305,10 +306,10 @@ where
                 M: serde::de::MapAccess<'de>,
                 M::Error: serde::de::Error,
             {
-                let mut props = crate::rich::ClassProps::<C>::default();
+                let mut props = props::TextModifiers::<C>::default();
                 while let Some(key) = map.next_key::<String>()? {
                     match key.as_str() {
-                        "fontFamily" => {
+                        "family" => {
                             let family_str: String = map.next_value()?;
                             let value = font::parse_font_families(&family_str).map_err(|err| {
                                 M::Error::custom(format!(
@@ -316,53 +317,53 @@ where
                                     family_str, err
                                 ))
                             })?;
-                            props.font_family = Some(value);
+                            props.families = Some(value);
                         }
-                        "fontWeight" => {
+                        "weight" => {
                             let value: font::Weight = map.next_value()?;
-                            props.font_weight = Some(value);
+                            props.weight = Some(value);
                         }
-                        "fontWidth" => {
+                        "width" => {
                             let value: font::Width = map.next_value()?;
-                            props.font_width = Some(value);
+                            props.width = Some(value);
                         }
-                        "fontStyle" => {
+                        "style" => {
                             let value: font::Style = map.next_value()?;
-                            props.font_style = Some(value);
+                            props.style = Some(value);
                         }
-                        "fontSize" => {
+                        "size" => {
                             let value: f32 = map.next_value()?;
-                            props.font_size = Some(value);
+                            props.size = Some(value);
                         }
                         "color" => {
-                            let value: C = map.next_value()?;
+                            let value: Option<style::Fill<C>> = map.next_value()?;
                             props.color = Some(value);
                         }
                         "outline" => {
-                            let (outline, width): (C, f32) = map.next_value()?;
-                            props.outline = Some((outline, width));
+                            let value: Option<style::Stroke<C>> = map.next_value()?;
+                            props.outline = Some(value);
                         }
                         "underline" => {
                             let value: bool = map.next_value()?;
                             props.underline = Some(value);
                         }
-                        "strikeout" => {
+                        "strikethrough" | "strikeout" => {
                             let value: bool = map.next_value()?;
-                            props.strikeout = Some(value);
+                            props.strikethrough = Some(value);
                         }
                         other => {
                             return Err(M::Error::unknown_field(
                                 other,
                                 &[
-                                    "fontFamily",
-                                    "fontWeight",
-                                    "fontWidth",
-                                    "fontStyle",
-                                    "fontSize",
+                                    "family",
+                                    "weight",
+                                    "width",
+                                    "style",
+                                    "size",
                                     "color",
                                     "outline",
                                     "underline",
-                                    "strikeout",
+                                    "strikethrough",
                                 ],
                             ));
                         }

@@ -382,7 +382,7 @@ impl Scale {
 
 /// Describe the ticks of an axis
 pub mod ticks {
-    use crate::style::{self, Dash, theme};
+    use crate::style::{self, theme};
     use crate::text;
 
     /// Describes how to locate the ticks of an axis
@@ -707,7 +707,7 @@ pub mod ticks {
     pub struct Ticks {
         locator: Locator,
         formatter: Option<Formatter>,
-        font: text::LineProps,
+        txt_modifiers: text::TextModifiers<theme::Color>,
         color: theme::Color,
     }
 
@@ -720,7 +720,7 @@ pub mod ticks {
             Ticks {
                 locator: Locator::default(),
                 formatter: Some(Formatter::default()),
-                font: text::LineProps::default(),
+                txt_modifiers: text::TextModifiers::default(),
                 color: theme::Col::Foreground.into(),
             }
         }
@@ -741,9 +741,12 @@ pub mod ticks {
         pub fn with_formatter(self, formatter: Option<Formatter>) -> Self {
             Self { formatter, ..self }
         }
-        /// Returns a new ticks with the specified font
-        pub fn with_font(self, font: text::LineProps) -> Self {
-            Self { font, ..self }
+        /// Returns a new ticks with the specified text modifiers
+        pub fn with_font(self, txt_modifiers: text::TextModifiers<theme::Color>) -> Self {
+            Self {
+                txt_modifiers,
+                ..self
+            }
         }
         /// Returns a new ticks with the specified color
         pub fn with_color(self, color: theme::Color) -> Self {
@@ -759,9 +762,9 @@ pub mod ticks {
         pub fn formatter(&self) -> Option<&Formatter> {
             self.formatter.as_ref()
         }
-        /// Font properties for the ticks labels
-        pub fn font(&self) -> &text::LineProps {
-            &self.font
+        /// Text properties for the ticks labels
+        pub fn font(&self) -> &text::TextModifiers<theme::Color> {
+            &self.txt_modifiers
         }
         /// Color for the ticks.
         /// Will be used for the labels as well unless a specific color is set in [`font`](Self::font).
@@ -788,7 +791,7 @@ pub mod ticks {
             MinorGrid(theme::Stroke {
                 width: 0.5,
                 color: theme::Col::Grid.into(),
-                pattern: style::LinePattern::Dash(Dash::default()),
+                pattern: style::LinePattern::Dashed,
                 opacity: Some(0.6),
             })
         }

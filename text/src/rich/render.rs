@@ -1,4 +1,4 @@
-use plotive_base::{Rgba8, geom};
+use plotive_base::{Rgba8, geom, style};
 use ttf_parser as ttf;
 
 use super::RichText;
@@ -9,8 +9,8 @@ pub enum RichPrimitive<'a, C = Rgba8>
 where
     C: Clone,
 {
-    Fill(&'a geom::Path, C),
-    Stroke(&'a geom::Path, C, f32),
+    Fill(&'a geom::Path, &'a style::Fill<C>),
+    Stroke(&'a geom::Path, &'a style::Stroke<C>),
 }
 
 pub fn render_rich_text_with<C, RenderFn>(
@@ -55,28 +55,36 @@ where
                             }
                         }
 
-                        if span.props.underline {
+                        if span.props.decorations.underline {
                             let line = shape.metrics.uline;
-                            let path =
-                                line_path(span.bbox(), shape.y_baseline, line, glyph_builder);
+                            let path = crate::line_path(
+                                span.bbox(),
+                                shape.y_baseline,
+                                line,
+                                glyph_builder,
+                            );
                             span_builder.push_path(&path);
                             glyph_builder = path.clear();
                         }
-                        if span.props.strikeout {
+                        if span.props.decorations.strikethrough {
                             let line = shape.metrics.strikeout;
-                            let path =
-                                line_path(span.bbox(), shape.y_baseline, line, glyph_builder);
+                            let path = crate::line_path(
+                                span.bbox(),
+                                shape.y_baseline,
+                                line,
+                                glyph_builder,
+                            );
                             span_builder.push_path(&path);
                             glyph_builder = path.clear();
                         }
 
                         if let Some(path) = span_builder.finish() {
-                            if let Some(c) = span.props.color.as_ref() {
-                                let prim = RichPrimitive::Fill(&path, c.clone());
+                            if let Some(fill) = span.props.render.fill.as_ref() {
+                                let prim = RichPrimitive::Fill(&path, fill);
                                 render_fn(prim);
                             }
-                            if let Some((c, thickness)) = span.props.outline.as_ref() {
-                                let prim = RichPrimitive::Stroke(&path, c.clone(), *thickness);
+                            if let Some(outline) = span.props.render.outline.as_ref() {
+                                let prim = RichPrimitive::Stroke(&path, outline);
                                 render_fn(prim);
                             }
                             span_builder = path.clear();
@@ -102,33 +110,36 @@ pub fn render_rich_text(
     pixmap: &mut tiny_skia::PixmapMut<'_>,
 ) -> Result<(), crate::Error> {
     let render_fn = |primitive: RichPrimitive| match primitive {
-        RichPrimitive::Fill(path, color) => {
+        RichPrimitive::Fill(path, fill) => {
             let mut paint = tiny_skia::Paint::default();
-            paint.set_color_rgba8(color.r(), color.g(), color.b(), color.a());
+            match fill {
+                style::Fill::Solid { color, opacity } => {
+                    let a = if let Some(opacity) = opacity {
+                        (color.a() as f32 * opacity).round() as u8
+                    } else {
+                        color.a()
+                    };
+                    paint.set_color_rgba8(color.r(), color.g(), color.b(), a);
+                }
+            }
             pixmap.fill_path(path, &paint, tiny_skia::FillRule::Winding, transform, mask);
         }
-        RichPrimitive::Stroke(path, color, width) => {
+        RichPrimitive::Stroke(path, outline) => {
             let mut paint = tiny_skia::Paint::default();
-            paint.set_color_rgba8(color.r(), color.g(), color.b(), color.a());
+            paint.set_color_rgba8(
+                outline.color.r(),
+                outline.color.g(),
+                outline.color.b(),
+                outline.color.a(),
+            );
             let mut stroke = tiny_skia::Stroke::default();
-            stroke.width = width;
+            stroke.width = outline.width;
+            if let Some(pattern) = outline.pattern.get_dash() {
+                let array = pattern.iter().map(|d| d * stroke.width).collect();
+                stroke.dash = tiny_skia::StrokeDash::new(array, 0.0);
+            }
             pixmap.stroke_path(path, &paint, &stroke, transform, mask);
         }
     };
     render_rich_text_with(text, fontdb, render_fn)
-}
-
-fn line_path(
-    rect: geom::Rect,
-    y_baseline: f32,
-    line: font::ScaledLineMetrics,
-    mut builder: geom::PathBuilder,
-) -> geom::Path {
-    // there is no y-flip transform on this one
-    builder.move_to(rect.left(), y_baseline - line.position);
-    builder.line_to(rect.right(), y_baseline - line.position);
-    builder.line_to(rect.right(), y_baseline - line.position + line.thickness);
-    builder.line_to(rect.left(), y_baseline - line.position + line.thickness);
-    builder.close();
-    builder.finish().unwrap()
 }

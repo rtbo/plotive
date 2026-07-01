@@ -24,12 +24,14 @@ mod bidi;
 pub mod font;
 pub mod fontdb;
 pub mod line;
+pub mod props;
 pub mod rich;
 #[cfg(feature = "serde")]
 pub mod sd;
 
 pub use font::{Font, ScaledMetrics, parse_font_families};
 pub use line::{LineText, render_line_text};
+pub use props::{Foreground, TextModifiers, TextProps};
 pub use rich::{
     ParseRichTextError, ParsedRichText, RichPrimitive, RichText, RichTextBuilder, parse_rich_text,
     parse_rich_text_with_classes, render_rich_text, render_rich_text_with,
@@ -164,4 +166,21 @@ impl ttf::OutlineBuilder for Outliner<'_> {
     fn close(&mut self) {
         self.0.close();
     }
+}
+
+// Create a path for a line decoration (underline, strikethrough, etc.) given the rectangle of the text, the baseline y position, and the line metrics.
+// Placed here because it is used in both line and rich text rendering.
+fn line_path(
+    rect: geom::Rect,
+    y_baseline: f32,
+    line: font::ScaledLineMetrics,
+    mut builder: geom::PathBuilder,
+) -> geom::Path {
+    // there is no y-flip transform on this one
+    builder.move_to(rect.left(), y_baseline - line.position);
+    builder.line_to(rect.right(), y_baseline - line.position);
+    builder.line_to(rect.right(), y_baseline - line.position + line.thickness);
+    builder.line_to(rect.left(), y_baseline - line.position + line.thickness);
+    builder.close();
+    builder.finish().unwrap()
 }

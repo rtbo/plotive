@@ -7,29 +7,6 @@ pub(crate) mod xkcd;
 
 pub use css4::*;
 
-pub trait ResolveColor<Color> {
-    fn resolve_color(&self, color: &Color) -> Rgba8;
-}
-
-pub trait Color: Clone + Copy {
-    #[inline]
-    fn resolve<R>(&self, rc: &R) -> Rgba8
-    where
-        R: ResolveColor<Self>,
-        Self: Sized,
-    {
-        rc.resolve_color(self)
-    }
-}
-
-impl Color for Rgba8 {}
-
-impl ResolveColor<Rgba8> for () {
-    fn resolve_color(&self, color: &Rgba8) -> Rgba8 {
-        *color
-    }
-}
-
 /// A simple color type with 8-bit RGB components, including an alpha channel.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Rgba8(u8, u8, u8, u8);

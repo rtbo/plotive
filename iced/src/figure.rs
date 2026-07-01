@@ -3,7 +3,7 @@ use iced::advanced::widget::tree;
 use iced::advanced::{Layout, Widget, layout, mouse, renderer, widget};
 use iced::{Element, Length, Rectangle, Size};
 use plotive::render::Surface;
-use plotive::style::theme;
+use plotive::style::{AsStroke, theme};
 use plotive::{drawing, geom, style};
 
 use crate::surface;
@@ -323,7 +323,7 @@ where
         if let Some((start, end)) = self.zoom_rect {
             let rect = geom::Rect::from_corners(start, end);
             let stroke = theme::Stroke::from(theme::Col::Foreground)
-                .with_pattern(style::Dash::default().into());
+                .with_pattern(style::LinePattern::Dashed);
             let stroke = stroke.as_stroke(&style);
             let _ = surface.draw_rect(&plotive::render::Rect {
                 rect,
