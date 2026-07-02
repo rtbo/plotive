@@ -1,6 +1,6 @@
 use line::LineText;
 use plotive_base::geom;
-use plotive_text::{bundled_font_db, font, line, props};
+use plotive_text::{bundled_font_db, font, line};
 
 fn main() {
     let mut db = bundled_font_db();
@@ -36,13 +36,7 @@ fn main() {
 
     for (text, align, (x, y)) in texts {
         let (tx, ty) = (*x, *y);
-        let line = LineText::new(
-            text.to_string(),
-            *align,
-            props::FontProps::new(font.clone(), 32.0),
-            &db,
-        )
-        .unwrap();
+        let line = LineText::new(text.to_string(), *align, 32.0, font.clone(), &db).unwrap();
         line::render_line_text(
             &line,
             &mut pm_mut,

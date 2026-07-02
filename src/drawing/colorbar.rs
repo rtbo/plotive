@@ -2,7 +2,6 @@ use std::fmt;
 use std::sync::Arc;
 
 use plotive_base::Rgb8;
-use plotive_text::props::FontProps;
 
 use crate::des::axis::ticks::Locator;
 use crate::des::{self, colorbar};
@@ -102,10 +101,7 @@ impl ColorBarBuilder {
             .title()
             .map(|title| {
                 title.to_rich_text(
-                    text::props::TextProps::new(
-                        defaults::FONT_FAMILY.parse().unwrap(),
-                        defaults::COLORBAR_TITLE_FONT_SIZE,
-                    ),
+                    text::props::TextBaseProps::new(defaults::COLORBAR_TITLE_FONT_SIZE),
                     side.title_layout(),
                     ctx.fontdb(),
                 )
@@ -116,7 +112,7 @@ impl ColorBarBuilder {
 
         let align = side.ticks_labels_align();
         let font_props = des.ticks_font().clone();
-        let font = super::resolve_line_font(&font_props, defaults::FONT_FAMILY.parse().unwrap());
+        let font = super::resolve_line_font(&font_props, Default::default());
         let font_size = font_props
             .size
             .unwrap_or(defaults::COLORBAR_TICKS_FONT_SIZE);
@@ -135,12 +131,7 @@ impl ColorBarBuilder {
             .filter(|t| view_bounds.contains(*t))
             .map(|t| -> Result<_, super::Error> {
                 let text = formatter.format_label(t.into());
-                let lt = text::LineText::new(
-                    text,
-                    align,
-                    FontProps::new(font.clone(), font_size),
-                    ctx.fontdb(),
-                )?;
+                let lt = text::LineText::new(text, align, font_size, font.clone(), ctx.fontdb())?;
                 let text = Text::from_line_text(&lt, ctx.fontdb(), color)?;
                 Ok((data::Sample::Num(t), text))
             })

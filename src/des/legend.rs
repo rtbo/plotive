@@ -11,7 +11,7 @@ use crate::text;
 #[derive(Debug, Clone, PartialEq)]
 pub struct Legend<Pos> {
     pos: Pos,
-    font: text::TextModifiers<theme::Color>,
+    font: text::TextProps<theme::Color>,
     fill: Option<theme::Fill>,
     border: Option<theme::Stroke>,
     columns: Option<NonZeroU32>,
@@ -30,7 +30,7 @@ impl<Pos: Default> Default for Legend<Pos> {
     fn default() -> Self {
         Self {
             pos: Pos::default(),
-            font: text::TextModifiers::default(),
+            font: text::TextProps::default(),
             fill: defaults::legend_fill(),
             border: Some(theme::Col::LegendBorder.into()),
             columns: None,
@@ -66,7 +66,7 @@ where
 
 impl<Pos> Legend<Pos> {
     /// Get the font configuration for legend entries
-    pub fn font(&self) -> &text::TextModifiers<theme::Color> {
+    pub fn font(&self) -> &text::TextProps<theme::Color> {
         &self.font
     }
 
@@ -106,7 +106,7 @@ impl<Pos> Legend<Pos> {
     }
 
     /// Set the font configuration for legend entries and return self for chaining
-    pub fn with_font(self, font: text::TextModifiers<theme::Color>) -> Self {
+    pub fn with_font(self, font: text::TextProps<theme::Color>) -> Self {
         Self { font, ..self }
     }
 

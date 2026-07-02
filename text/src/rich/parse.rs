@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use plotive_base::style;
 
-use crate::props::{TextModifiers, TextProps};
+use crate::props::{TextBaseProps, TextProps};
 use crate::{RichTextBuilder, font};
 
 /// Position into an input stream
@@ -71,14 +71,14 @@ impl std::error::Error for ParseRichTextError {}
 #[derive(Debug, Clone)]
 pub struct ParsedRichText<C> {
     pub text: String,
-    pub prop_spans: Vec<(Pos, Pos, TextModifiers<C>)>,
+    pub prop_spans: Vec<(Pos, Pos, TextProps<C>)>,
 }
 
 impl<C> ParsedRichText<C>
 where
     C: style::Color + PartialEq,
 {
-    pub fn into_builder(self, root_props: TextProps<C>) -> RichTextBuilder<C> {
+    pub fn into_builder(self, root_props: TextBaseProps<C>) -> RichTextBuilder<C> {
         let mut builder = RichTextBuilder::new(self.text, root_props);
         for (start, end, props) in self.prop_spans {
             builder.add_span(start, end, props);
@@ -97,7 +97,7 @@ where
 
 pub fn parse_rich_text_with_classes<C>(
     fmt: &str,
-    user_classes: &[(String, TextModifiers<C>)],
+    user_classes: &[(String, TextProps<C>)],
 ) -> Result<ParsedRichText<C>, ParseRichTextError>
 where
     C: style::Color + FromStr,
@@ -109,7 +109,7 @@ where
 #[derive(Debug, Clone)]
 struct RichTextParser<'a, C> {
     fmt: &'a str,
-    user_classes: &'a [(String, TextModifiers<C>)],
+    user_classes: &'a [(String, TextProps<C>)],
 }
 
 impl<'a, C> RichTextParser<'a, C>
@@ -123,7 +123,7 @@ where
         }
     }
 
-    pub fn new_with_classes(fmt: &'a str, user_classes: &'a [(String, TextModifiers<C>)]) -> Self {
+    pub fn new_with_classes(fmt: &'a str, user_classes: &'a [(String, TextProps<C>)]) -> Self {
         Self { fmt, user_classes }
     }
 
@@ -173,9 +173,9 @@ where
         Ok(ParsedRichText { text, prop_spans })
     }
 
-    fn merge_props(base: TextModifiers<C>, overlay: &TextModifiers<C>) -> TextModifiers<C> {
-        TextModifiers {
-            families: overlay.families.clone().or_else(|| base.families),
+    fn merge_props(base: TextProps<C>, overlay: &TextProps<C>) -> TextProps<C> {
+        TextProps {
+            family: overlay.family.clone().or_else(|| base.family),
             weight: overlay.weight.or(base.weight),
             width: overlay.width.or(base.width),
             style: overlay.style.or(base.style),
@@ -191,8 +191,8 @@ where
         &self,
         span: Span,
         tag: &lex::OpeningTag,
-    ) -> Result<TextModifiers<C>, ParseRichTextError> {
-        let mut props = TextModifiers::default();
+    ) -> Result<TextProps<C>, ParseRichTextError> {
+        let mut props = TextProps::default();
         for prop in &tag.0 {
             // if no value, it is a class, or boolean prop.
             // we first check for user classes, if no match,
@@ -205,7 +205,7 @@ where
                         }
                     }
                     "font-family" | "font" | "family" | "ff" => {
-                        props.families = Some(font::parse_font_families(value).map_err(|_| {
+                        props.family = Some(font::parse_font_families(value).map_err(|_| {
                             ParseRichTextError::BadPropValue(span, prop.prop.clone(), value.clone())
                         })?);
                     }

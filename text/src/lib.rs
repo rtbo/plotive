@@ -31,7 +31,7 @@ pub mod sd;
 
 pub use font::{Font, ScaledMetrics, parse_font_families};
 pub use line::{LineText, render_line_text};
-pub use props::{Foreground, TextModifiers, TextProps};
+pub use props::{Foreground, TextBaseProps, TextProps};
 pub use rich::{
     ParseRichTextError, ParsedRichText, RichPrimitive, RichText, RichTextBuilder, parse_rich_text,
     parse_rich_text_with_classes, render_rich_text, render_rich_text_with,

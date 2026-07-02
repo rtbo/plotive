@@ -42,7 +42,7 @@ fn main() {
     let start_line2 = line1.len();
     let end_line2 = line1.len() + line2.len();
 
-    let root_props = props::TextProps::new(sans_font.clone(), FS_LARGE);
+    let root_props = props::TextBaseProps::new(FS_LARGE).with_font(sans_font.clone());
 
     let mut builder = RichTextBuilder::new(text, root_props).with_layout(rich::Layout::Horizontal(
         rich::Align::Center,
@@ -52,7 +52,7 @@ fn main() {
     builder.add_span(
         start_rlc,
         end_rlc,
-        props::TextModifiers {
+        props::TextProps {
             weight: Some(font::Weight::BOLD),
             style: Some(font::Style::Italic),
             ..Default::default()
@@ -61,8 +61,8 @@ fn main() {
     builder.add_span(
         start_line2,
         end_line2,
-        props::TextModifiers {
-            families: Some(serif_family),
+        props::TextProps {
+            family: Some(serif_family),
             size: Some(FS_MEDIUM),
             style: Some(font::Style::Italic),
             ..Default::default()
@@ -90,7 +90,7 @@ fn main() {
         font::Family::Serif,
     ]);
 
-    let root_props = props::TextProps::new(serif_cjk_font, FS_LARGE);
+    let root_props = props::TextBaseProps::new(FS_LARGE).with_font(serif_cjk_font);
     let builder =
         RichTextBuilder::new(text.to_string(), root_props).with_layout(rich::Layout::Vertical(
             rich::Align::Start,
@@ -114,7 +114,7 @@ fn main() {
     // Vertical french text
     let text = "Axe des ordonnées";
 
-    let root_props = props::TextProps::new(sans_font.clone(), FS_SMALL);
+    let root_props = props::TextBaseProps::new(FS_SMALL).with_font(sans_font.clone());
     let builder =
         RichTextBuilder::new(text.to_string(), root_props).with_layout(rich::Layout::Vertical(
             rich::Align::End,

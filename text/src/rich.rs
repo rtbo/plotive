@@ -14,7 +14,7 @@ pub use parse::{
 };
 pub use render::{RichPrimitive, render_rich_text, render_rich_text_with};
 
-use crate::props::{TextModifiers, TextProps};
+use crate::props::{TextBaseProps, TextProps};
 
 /// Typographic alignment, possibly depending on the script direction.
 #[derive(Debug, Clone, Copy, Default)]
@@ -160,7 +160,7 @@ where
     C: Clone + PartialEq,
 {
     text: String,
-    root_props: TextProps<C>,
+    root_props: TextBaseProps<C>,
     layout: Layout,
     spans: Vec<TextSpan<C>>,
 }
@@ -170,7 +170,7 @@ where
     C: Clone + PartialEq,
 {
     /// Create a new RichTextBuilder
-    pub fn new(text: String, root_props: TextProps<C>) -> RichTextBuilder<C> {
+    pub fn new(text: String, root_props: TextBaseProps<C>) -> RichTextBuilder<C> {
         RichTextBuilder {
             text,
             root_props,
@@ -185,17 +185,13 @@ where
     }
 
     /// Add a new text span
-    pub fn add_span(&mut self, start: usize, end: usize, modifiers: TextModifiers<C>) {
+    pub fn add_span(&mut self, start: usize, end: usize, props: TextProps<C>) {
         assert!(start <= end);
         assert!(
             self.text.is_char_boundary(start) && self.text.is_char_boundary(end),
             "start and end must be on char boundaries"
         );
-        self.spans.push(TextSpan {
-            start,
-            end,
-            modifiers,
-        });
+        self.spans.push(TextSpan { start, end, props });
     }
 
     /// Create a RichText from this builder
@@ -315,7 +311,7 @@ where
 struct TextSpan<C> {
     start: usize,
     end: usize,
-    modifiers: TextModifiers<C>,
+    props: TextProps<C>,
 }
 
 /// A line of rich text
@@ -520,12 +516,12 @@ where
 
     /// The font of this shape
     pub fn font(&self) -> &font::Font {
-        &self.spans[0].props.font.font
+        self.spans[0].props.font()
     }
 
     /// The font of this shape
     pub fn font_size(&self) -> f32 {
-        self.spans[0].props.font.size
+        self.spans[0].props.size()
     }
 
     /// The text spans in this shape
@@ -582,7 +578,7 @@ where
 {
     start: usize,
     end: usize,
-    props: TextProps<C>,
+    props: TextBaseProps<C>,
     bbox: Option<geom::Rect>,
 }
 
@@ -615,7 +611,7 @@ where
     }
 
     /// The properties of this span
-    pub fn props(&self) -> &TextProps<C> {
+    pub fn props(&self) -> &TextBaseProps<C> {
         &self.props
     }
 

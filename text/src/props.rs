@@ -2,18 +2,6 @@ use plotive_base::{color, style};
 
 use crate::font::{self, Font};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct FontProps {
-    pub font: Font,
-    pub size: f32,
-}
-
-impl FontProps {
-    pub fn new(font: Font, size: f32) -> Self {
-        FontProps { font, size }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Decorations {
     pub underline: bool,
@@ -32,7 +20,7 @@ impl Foreground for color::Rgba8 {
     }
 }
 
-/// Properties for rendering text, including color and outline.
+/// Properties for rendering text, including c            font: FontProps::new(font, size),olor and outline.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RenderProps<C> {
     /// The color of the text. This is the fill color for the text glyphs.
@@ -63,30 +51,32 @@ impl<C: Foreground> Default for RenderProps<C> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextProps<C> {
-    pub font: FontProps,
-    pub decorations: Decorations,
-    pub render: RenderProps<C>,
+pub struct TextBaseProps<C> {
+    size: f32,
+    font: Font,
+    decorations: Decorations,
+    render: RenderProps<C>,
 }
 
-impl<C> TextProps<C>
+impl<C> TextBaseProps<C>
 where
     C: Foreground,
 {
-    pub fn new(font: Font, size: f32) -> TextProps<C> {
-        TextProps {
-            font: FontProps::new(font, size),
+    pub fn new(size: f32) -> TextBaseProps<C> {
+        TextBaseProps {
+            size,
+            font: Font::default(),
             decorations: Decorations::default(),
             render: RenderProps::default(),
         }
     }
 }
 
-impl<C> TextProps<C>
+impl<C> TextBaseProps<C>
 where
     C: Clone,
 {
-    pub fn with_font(mut self, font: FontProps) -> Self {
+    pub fn with_font(mut self, font: Font) -> Self {
         self.font = font;
         self
     }
@@ -101,32 +91,48 @@ where
         self
     }
 
-    pub fn apply_modifiers(&mut self, modifiers: &TextModifiers<C>) {
-        if let Some(families) = &modifiers.families {
-            self.font.font.families = families.clone();
+    pub fn size(&self) -> f32 {
+        self.size
+    }
+
+    pub fn font(&self) -> &Font {
+        &self.font
+    }
+
+    pub fn decorations(&self) -> &Decorations {
+        &self.decorations
+    }
+
+    pub fn render(&self) -> &RenderProps<C> {
+        &self.render
+    }
+
+    pub fn apply_props(&mut self, props: &TextProps<C>) {
+        if let Some(family) = &props.family {
+            self.font.families = family.clone();
         }
-        if let Some(weight) = modifiers.weight {
-            self.font.font.weight = weight;
+        if let Some(weight) = props.weight {
+            self.font.weight = weight;
         }
-        if let Some(width) = modifiers.width {
-            self.font.font.width = width;
+        if let Some(width) = props.width {
+            self.font.width = width;
         }
-        if let Some(style) = modifiers.style {
-            self.font.font.style = style;
+        if let Some(style) = props.style {
+            self.font.style = style;
         }
-        if let Some(size) = modifiers.size {
-            self.font.size = size;
+        if let Some(size) = props.size {
+            self.size = size;
         }
-        if let Some(fill) = modifiers.color.as_ref() {
+        if let Some(fill) = props.color.as_ref() {
             self.render.fill = fill.clone();
         }
-        if let Some(outline) = modifiers.outline.as_ref() {
+        if let Some(outline) = props.outline.as_ref() {
             self.render.outline = outline.clone();
         }
-        if let Some(underline) = modifiers.underline {
+        if let Some(underline) = props.underline {
             self.decorations.underline = underline;
         }
-        if let Some(strikethrough) = modifiers.strikethrough {
+        if let Some(strikethrough) = props.strikethrough {
             self.decorations.strikethrough = strikethrough;
         }
     }
@@ -156,17 +162,18 @@ impl<C> RenderProps<C> {
     }
 }
 
-impl<C> TextProps<C>
+impl<C> TextBaseProps<C>
 where
     C: Clone,
 {
-    /// Convert this TextProps to another color type using the provided mapping function
-    pub fn to_other_color<D, M>(&self, color_map: M) -> TextProps<D>
+    /// Convert this TextBaseProps to another color type using the provided mapping function
+    pub fn to_other_color<D, M>(&self, color_map: M) -> TextBaseProps<D>
     where
         D: Clone,
         M: Fn(&C) -> D,
     {
-        TextProps {
+        TextBaseProps {
+            size: self.size,
             font: self.font.clone(),
             decorations: self.decorations,
             render: self.render.to_other_color(color_map),
@@ -174,11 +181,11 @@ where
     }
 }
 
-/// A set of modifiers that can be applied on top of [`TextProps`] to alter the text appearance.
+/// A set of text properties that can be applied on top of [`TextBaseProps`] to alter the text appearance.
 /// This is especially used for rich text rendering, where different parts of the text can have different styles.
 #[derive(Debug, Clone, PartialEq)]
-pub struct TextModifiers<C> {
-    pub families: Option<Vec<font::Family>>,
+pub struct TextProps<C> {
+    pub family: Option<Vec<font::Family>>,
     pub weight: Option<font::Weight>,
     pub width: Option<font::Width>,
     pub style: Option<font::Style>,
@@ -189,10 +196,10 @@ pub struct TextModifiers<C> {
     pub strikethrough: Option<bool>,
 }
 
-impl<C> Default for TextModifiers<C> {
+impl<C> Default for TextProps<C> {
     fn default() -> Self {
-        TextModifiers {
-            families: None,
+        TextProps {
+            family: None,
             weight: None,
             width: None,
             style: None,
@@ -205,9 +212,9 @@ impl<C> Default for TextModifiers<C> {
     }
 }
 
-impl<C> TextModifiers<C> {
+impl<C> TextProps<C> {
     pub(crate) fn affect_shape(&self) -> bool {
-        self.families.is_some()
+        self.family.is_some()
             || self.weight.is_some()
             || self.width.is_some()
             || self.style.is_some()

@@ -24,7 +24,7 @@ pub struct ColorBar {
     pub(crate) pos: Pos,
     width: f32,
     title: Option<Text>,
-    ticks_font: text::TextModifiers<theme::Color>,
+    ticks_font: text::TextProps<theme::Color>,
     border: Option<theme::Stroke>,
     locator: axis::ticks::Locator,
     margin: f32,
@@ -36,7 +36,7 @@ impl Default for ColorBar {
             pos: Pos::default(),
             width: defaults::COLORBAR_WIDTH,
             title: None,
-            ticks_font: text::TextModifiers::default(),
+            ticks_font: text::TextProps::default(),
             border: Some(theme::Stroke {
                 color: theme::Col::Foreground.into(),
                 width: 1.0,
@@ -71,7 +71,7 @@ impl ColorBar {
     }
 
     /// Set the ticks font properties and return self for chaining
-    pub fn with_ticks_font(mut self, ticks_font: text::TextModifiers<theme::Color>) -> Self {
+    pub fn with_ticks_font(mut self, ticks_font: text::TextProps<theme::Color>) -> Self {
         self.ticks_font = ticks_font;
         self
     }
@@ -110,7 +110,7 @@ impl ColorBar {
     }
 
     /// Get the ticks font properties
-    pub fn ticks_font(&self) -> &text::TextModifiers<theme::Color> {
+    pub fn ticks_font(&self) -> &text::TextProps<theme::Color> {
         &self.ticks_font
     }
 

@@ -241,21 +241,18 @@ struct TextSpan {
     stroke: Option<theme::Stroke>,
 }
 
-fn resolve_line_font(
-    modifiers: &text::TextModifiers<theme::Color>,
-    default: text::Font,
-) -> text::Font {
+fn resolve_line_font(props: &text::TextProps<theme::Color>, default: text::Font) -> text::Font {
     let mut res = default;
-    if let Some(families) = modifiers.families.as_ref() {
+    if let Some(families) = props.family.as_ref() {
         res = res.with_families(families.clone());
     }
-    if let Some(style) = modifiers.style {
+    if let Some(style) = props.style {
         res = res.with_style(style);
     }
-    if let Some(weight) = modifiers.weight {
+    if let Some(weight) = props.weight {
         res = res.with_weight(weight);
     }
-    if let Some(width) = modifiers.width {
+    if let Some(width) = props.width {
         res = res.with_width(width);
     }
     res

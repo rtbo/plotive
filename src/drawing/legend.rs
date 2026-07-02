@@ -1,5 +1,3 @@
-use plotive_text::props::FontProps;
-
 use crate::drawing::Text;
 use crate::geom::{Padding, Size};
 use crate::style::{AsPaint, AsStroke, defaults, theme};
@@ -56,7 +54,7 @@ impl ShapeRef<'_> {
 #[derive(Debug, Clone)]
 pub struct Entry<'a> {
     pub label: &'a str,
-    pub txt_modifiers: Option<&'a text::TextModifiers<theme::Color>>,
+    pub txt_props: Option<&'a text::TextProps<theme::Color>>,
     pub shape: ShapeRef<'a>,
 }
 
@@ -82,7 +80,7 @@ impl LegendEntry {
 
 #[derive(Debug)]
 pub struct LegendBuilder<'a> {
-    txt_modifiers: text::TextModifiers<theme::Color>,
+    txt_props: text::TextProps<theme::Color>,
     fill: Option<theme::Fill>,
     border: Option<theme::Stroke>,
     columns: Option<u32>,
@@ -115,7 +113,7 @@ impl<'a> LegendBuilder<'a> {
             columns.replace(1);
         }
         LegendBuilder {
-            txt_modifiers: legend.font().clone(),
+            txt_props: legend.font().clone(),
             fill: legend.fill().cloned(),
             border: legend.border().cloned(),
             columns,
@@ -130,10 +128,10 @@ impl<'a> LegendBuilder<'a> {
 
     pub fn add_entry(&mut self, index: usize, entry: Entry) -> Result<(), drawing::Error> {
         let shape = entry.shape.to_shape();
-        let font_props = entry.txt_modifiers.unwrap_or(&self.txt_modifiers);
-        let font = super::resolve_line_font(font_props, defaults::FONT_FAMILY.parse().unwrap());
-        let font_size = font_props.size.unwrap_or(defaults::LEGEND_LABEL_FONT_SIZE);
-        let fill = font_props
+        let txt_props = entry.txt_props.unwrap_or(&self.txt_props);
+        let font = super::resolve_line_font(txt_props, Default::default());
+        let font_size = txt_props.size.unwrap_or(defaults::LEGEND_LABEL_FONT_SIZE);
+        let fill = txt_props
             .color
             .clone()
             .flatten()
@@ -146,7 +144,8 @@ impl<'a> LegendBuilder<'a> {
         let text = LineText::new(
             entry.label.to_string(),
             align,
-            FontProps::new(font, font_size),
+            font_size,
+            font,
             &self.fontdb,
         )?;
         let text = Text::from_line_text(&text, &self.fontdb, fill)?;

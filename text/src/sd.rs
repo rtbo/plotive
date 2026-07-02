@@ -224,7 +224,7 @@ impl<'de> serde::de::Deserialize<'de> for font::Width {
     }
 }
 
-impl<C> serde::Serialize for props::TextModifiers<C>
+impl<C> serde::Serialize for props::TextProps<C>
 where
     C: serde::Serialize + style::DefaultStroke + style::DefaultStrokeWidth + PartialEq,
 {
@@ -233,7 +233,7 @@ where
         S: serde::Serializer,
     {
         let mut state = serializer.serialize_map(None)?;
-        if let Some(families) = &self.families {
+        if let Some(families) = &self.family {
             let family_str = crate::font::font_families_to_string(families);
             state.serialize_entry("family", &family_str)?;
         }
@@ -265,7 +265,7 @@ where
     }
 }
 
-impl<'de, C> serde::de::Deserialize<'de> for props::TextModifiers<C>
+impl<'de, C> serde::de::Deserialize<'de> for props::TextProps<C>
 where
     C: serde::de::Deserialize<'de>
         + Copy
@@ -281,98 +281,104 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        struct Visitor<C>(std::marker::PhantomData<C>);
+        deserializer.deserialize_map(TextPropsVisitor::<C>::new())
+    }
+}
 
-        impl<'de, C> serde::de::Visitor<'de> for Visitor<C>
-        where
-            C: serde::de::Deserialize<'de>
-                + Copy
-                + Clone
-                + style::DefaultColor
-                + style::DefaultStroke
-                + style::DefaultStrokeWidth
-                + FromStr
-                + From<Rgba8>,
-            <C as FromStr>::Err: std::fmt::Display,
-        {
-            type Value = props::TextModifiers<C>;
+pub struct TextPropsVisitor<C>(std::marker::PhantomData<C>);
 
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("a map representing TextModifiers")
-            }
+impl<C> TextPropsVisitor<C> {
+    pub fn new() -> Self {
+        TextPropsVisitor(std::marker::PhantomData)
+    }
+}
 
-            fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
-            where
-                M: serde::de::MapAccess<'de>,
-                M::Error: serde::de::Error,
-            {
-                let mut props = props::TextModifiers::<C>::default();
-                while let Some(key) = map.next_key::<String>()? {
-                    match key.as_str() {
-                        "family" => {
-                            let family_str: String = map.next_value()?;
-                            let value = font::parse_font_families(&family_str).map_err(|err| {
-                                M::Error::custom(format!(
-                                    "Invalid font family string: {}. Error: {}",
-                                    family_str, err
-                                ))
-                            })?;
-                            props.families = Some(value);
-                        }
-                        "weight" => {
-                            let value: font::Weight = map.next_value()?;
-                            props.weight = Some(value);
-                        }
-                        "width" => {
-                            let value: font::Width = map.next_value()?;
-                            props.width = Some(value);
-                        }
-                        "style" => {
-                            let value: font::Style = map.next_value()?;
-                            props.style = Some(value);
-                        }
-                        "size" => {
-                            let value: f32 = map.next_value()?;
-                            props.size = Some(value);
-                        }
-                        "color" => {
-                            let value: Option<style::Fill<C>> = map.next_value()?;
-                            props.color = Some(value);
-                        }
-                        "outline" => {
-                            let value: Option<style::Stroke<C>> = map.next_value()?;
-                            props.outline = Some(value);
-                        }
-                        "underline" => {
-                            let value: bool = map.next_value()?;
-                            props.underline = Some(value);
-                        }
-                        "strikethrough" | "strikeout" => {
-                            let value: bool = map.next_value()?;
-                            props.strikethrough = Some(value);
-                        }
-                        other => {
-                            return Err(M::Error::unknown_field(
-                                other,
-                                &[
-                                    "family",
-                                    "weight",
-                                    "width",
-                                    "style",
-                                    "size",
-                                    "color",
-                                    "outline",
-                                    "underline",
-                                    "strikethrough",
-                                ],
-                            ));
-                        }
-                    }
+impl<'de, C> serde::de::Visitor<'de> for TextPropsVisitor<C>
+where
+    C: serde::de::Deserialize<'de>
+        + Copy
+        + Clone
+        + style::DefaultColor
+        + style::DefaultStroke
+        + style::DefaultStrokeWidth
+        + FromStr
+        + From<Rgba8>,
+    <C as FromStr>::Err: std::fmt::Display,
+{
+    type Value = props::TextProps<C>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("a map representing TextProps")
+    }
+
+    fn visit_map<M>(self, mut map: M) -> Result<Self::Value, M::Error>
+    where
+        M: serde::de::MapAccess<'de>,
+        M::Error: serde::de::Error,
+    {
+        let mut props = props::TextProps::<C>::default();
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
+                "family" => {
+                    let family_str: String = map.next_value()?;
+                    let value = font::parse_font_families(&family_str).map_err(|err| {
+                        M::Error::custom(format!(
+                            "Invalid font family string: {}. Error: {}",
+                            family_str, err
+                        ))
+                    })?;
+                    props.family = Some(value);
                 }
-                Ok(props)
+                "weight" => {
+                    let value: font::Weight = map.next_value()?;
+                    props.weight = Some(value);
+                }
+                "width" => {
+                    let value: font::Width = map.next_value()?;
+                    props.width = Some(value);
+                }
+                "style" => {
+                    let value: font::Style = map.next_value()?;
+                    props.style = Some(value);
+                }
+                "size" => {
+                    let value: f32 = map.next_value()?;
+                    props.size = Some(value);
+                }
+                "color" => {
+                    let value: Option<style::Fill<C>> = map.next_value()?;
+                    props.color = Some(value);
+                }
+                "outline" => {
+                    let value: Option<style::Stroke<C>> = map.next_value()?;
+                    props.outline = Some(value);
+                }
+                "underline" => {
+                    let value: bool = map.next_value()?;
+                    props.underline = Some(value);
+                }
+                "strikethrough" | "strikeout" => {
+                    let value: bool = map.next_value()?;
+                    props.strikethrough = Some(value);
+                }
+                other => {
+                    return Err(M::Error::unknown_field(
+                        other,
+                        &[
+                            "family",
+                            "weight",
+                            "width",
+                            "style",
+                            "size",
+                            "color",
+                            "outline",
+                            "underline",
+                            "strikethrough",
+                        ],
+                    ));
+                }
             }
         }
-
-        deserializer.deserialize_map(Visitor::<C>(std::marker::PhantomData))
+        Ok(props)
     }
 }

@@ -117,7 +117,7 @@ where
     where
         S: serde::Serializer,
     {
-        let font_default = self.font() == &text::TextModifiers::default();
+        let font_default = self.font() == &text::TextProps::default();
         let fill_default = self.fill() == defaults::legend_fill().as_ref();
         let border_default = self.border() == Some(&theme::Col::LegendBorder.into());
         let columns_default = self.columns().is_none();

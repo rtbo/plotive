@@ -5,8 +5,7 @@ use ttf_parser as ttf;
 
 use crate::bidi::{self, BidiAlgo};
 use crate::font::{self, DatabaseExt};
-use crate::props::{self, FontProps};
-use crate::{Error, Font, ScriptDir, fontdb};
+use crate::{Error, Font, ScriptDir, fontdb, props};
 
 /// Horizontal alignment
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -45,7 +44,8 @@ pub enum VerAlign {
 pub struct LineText {
     text: String,
     align: (Align, VerAlign),
-    font: FontProps,
+    font_size: f32,
+    font: Font,
     bbox: Option<geom::Rect>,
     main_dir: ScriptDir,
     metrics: font::ScaledMetrics,
@@ -61,7 +61,11 @@ impl LineText {
         self.align
     }
 
-    pub fn font(&self) -> &FontProps {
+    pub fn font_size(&self) -> f32 {
+        self.font_size
+    }
+
+    pub fn font(&self) -> &Font {
         &self.font
     }
 
@@ -91,7 +95,8 @@ impl LineText {
         Self {
             text: String::new(),
             align: (Default::default(), Default::default()),
-            font: FontProps::new(font, 1.0),
+            font_size: 1.0,
+            font,
             bbox: None,
             main_dir: ScriptDir::LeftToRight,
             metrics: font::ScaledMetrics::null(),
@@ -108,7 +113,8 @@ impl LineText {
     pub fn new(
         text: String,
         align: (Align, VerAlign),
-        font: FontProps,
+        font_size: f32,
+        font: Font,
         db: &fontdb::Database,
     ) -> Result<Self, Error> {
         let default_lev = match crate::script_is_rtl(&text) {
@@ -119,7 +125,7 @@ impl LineText {
         let mut bidi = BidiAlgo::Yep { default_lev };
         let bidi_runs = bidi.visual_runs(&text, 0);
         if bidi_runs.is_empty() {
-            return Ok(LineText::new_empty(font.font.clone()));
+            return Ok(LineText::new_empty(font.clone()));
         }
         let main_dir = match default_lev {
             Some(lev) if lev.is_ltr() => ScriptDir::LeftToRight,
@@ -134,7 +140,7 @@ impl LineText {
         let mut shapes = Vec::with_capacity(bidi_runs.len());
         let mut ctx = Ctx { buffer: None };
         for run in &bidi_runs {
-            let shape = Shape::shape_run(&text, run, &font, db, &mut ctx)?;
+            let shape = Shape::shape_run(&text, run, font_size, &font, db, &mut ctx)?;
             shapes.push(shape);
         }
 
@@ -184,6 +190,7 @@ impl LineText {
         Ok(LineText {
             text,
             align: (align, ver_align),
+            font_size: font_size,
             font: font.clone(),
             bbox: Some(geom::Rect::from_trbl(top, x_cursor, bottom, x_start)),
             main_dir,
@@ -254,14 +261,15 @@ impl Shape {
     fn shape_run(
         text: &str,
         run: &bidi::BidiRun,
-        font: &FontProps,
+        font_size: f32,
+        font: &Font,
         db: &fontdb::Database,
         ctx: &mut Ctx,
     ) -> Result<Self, Error> {
         let face_id = db
-            .select_face_for_str(&font.font, text)
-            .or_else(|| db.select_face(&font.font))
-            .ok_or_else(|| Error::NoSuchFont(font.font.clone()))?;
+            .select_face_for_str(&font, text)
+            .or_else(|| db.select_face(&font))
+            .ok_or_else(|| Error::NoSuchFont(font.clone()))?;
 
         let mut buffer = ctx
             .buffer
@@ -281,9 +289,9 @@ impl Shape {
         let (shape, metrics) = db
             .with_face_data(face_id, |data, index| -> Result<_, Error> {
                 let face = ttf::Face::parse(data, index)?;
-                let metrics = font::face_metrics(&face).scaled(font.size);
+                let metrics = font::face_metrics(&face).scaled(font_size);
                 let mut hbface = rustybuzz::Face::from_face(face);
-                font::apply_hb_variations(&mut hbface, &font.font);
+                font::apply_hb_variations(&mut hbface, &font);
 
                 Ok((rustybuzz::shape(&hbface, &[], buffer), metrics))
             })
@@ -322,7 +330,7 @@ pub fn render_line_text_with<R>(
     for shape in line.shapes.iter() {
         db.with_face_data(shape.face_id, |data, index| {
             let mut face = ttf::Face::parse(data, index).unwrap();
-            font::apply_ttf_variations(&mut face, &line.font.font);
+            font::apply_ttf_variations(&mut face, &line.font);
 
             // the path builder for the entire string
             let mut shape_builder = geom::PathBuilder::new();

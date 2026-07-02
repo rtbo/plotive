@@ -83,10 +83,7 @@ where
                 text::line::VerAlign::Hanging.into(),
                 Default::default(),
             );
-            let base = text::props::TextProps::new(
-                defaults::FONT_FAMILY.parse().unwrap(),
-                defaults::TITLE_FONT_SIZE,
-            );
+            let base = text::props::TextBaseProps::new(defaults::TITLE_FONT_SIZE);
             let rich = fig_title.to_rich_text(base, layout, self.fontdb())?;
             let paths = super::Text::from_rich_text(&rich, self.fontdb())?;
 

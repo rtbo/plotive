@@ -9,7 +9,6 @@ mod side;
 #[cfg(feature = "time")]
 pub use bounds::TimeBounds;
 pub use bounds::{AsBoundRef, Bounds, BoundsRef, NumBounds};
-use plotive_text::props::FontProps;
 pub use side::Side;
 
 use crate::drawing::scale::{self, CoordMap};
@@ -350,10 +349,7 @@ where
             .title()
             .map(|title| {
                 title.to_rich_text(
-                    text::props::TextProps::new(
-                        defaults::FONT_FAMILY.parse().unwrap(),
-                        defaults::AXIS_TITLE_FONT_SIZE,
-                    ),
+                    text::props::TextBaseProps::new(defaults::AXIS_TITLE_FONT_SIZE),
                     side.title_layout(),
                     self.fontdb(),
                 )
@@ -520,10 +516,7 @@ where
         major_ticks: &des::axis::Ticks,
     ) -> Result<(text::Font, f32, theme::Color), Error> {
         let font_props = major_ticks.font();
-        let font = super::resolve_line_font(
-            font_props,
-            text::Font::new(text::parse_font_families(defaults::FONT_FAMILY).unwrap()),
-        );
+        let font = super::resolve_line_font(font_props, text::Font::default());
         let font_size = major_ticks
             .font()
             .size
@@ -559,12 +552,7 @@ where
         let mut ticks = Vec::new();
         for loc in major_locs.into_iter() {
             let text = lbl_formatter.format_label(loc.into());
-            let lbl = text::LineText::new(
-                text,
-                ticks_align,
-                FontProps::new(font.clone(), font_size),
-                db,
-            )?;
+            let lbl = text::LineText::new(text, ticks_align, font_size, font.clone(), db)?;
             let lbl = Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color))?;
             ticks.push(NumTick { loc, lbl });
         }
@@ -574,14 +562,7 @@ where
         } else {
             lbl_formatter
                 .axis_annotation()
-                .map(|l| {
-                    text::LineText::new(
-                        l.to_string(),
-                        annot_align,
-                        FontProps::new(font, font_size),
-                        db,
-                    )
-                })
+                .map(|l| text::LineText::new(l.to_string(), annot_align, font_size, font, db))
                 .transpose()?
                 .map(|lbl| Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color)))
                 .transpose()?
@@ -646,12 +627,7 @@ where
         let mut ticks = Vec::new();
         for loc in major_locs.into_iter() {
             let text = lbl_formatter.format_label(loc.into());
-            let lbl = text::LineText::new(
-                text,
-                ticks_align,
-                FontProps::new(font.clone(), font_size),
-                db,
-            )?;
+            let lbl = text::LineText::new(text, ticks_align, font_size, font.clone(), db)?;
             let lbl = Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color))?;
             ticks.push(NumTick {
                 loc: loc.timestamp(),
@@ -661,14 +637,7 @@ where
 
         let annot = lbl_formatter
             .axis_annotation()
-            .map(|l| {
-                text::LineText::new(
-                    l.to_string(),
-                    annot_align,
-                    FontProps::new(font, font_size),
-                    db,
-                )
-            })
+            .map(|l| text::LineText::new(l.to_string(), annot_align, font_size, font, db))
             .transpose()?
             .map(|lbl| Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color)))
             .transpose()?;
@@ -694,12 +663,8 @@ where
 
         let mut lbls = Vec::with_capacity(cb.len());
         for cat in cb.iter() {
-            let lbl = text::LineText::new(
-                cat.to_string(),
-                ticks_align,
-                FontProps::new(font.clone(), font_size),
-                db,
-            )?;
+            let lbl =
+                text::LineText::new(cat.to_string(), ticks_align, font_size, font.clone(), db)?;
             let lbl = Text::from_line_text(&lbl, db, theme::Fill::solid(lbl_color))?;
             lbls.push(lbl);
         }

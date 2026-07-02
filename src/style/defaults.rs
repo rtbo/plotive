@@ -1,7 +1,5 @@
 use crate::{geom, style};
 
-pub const FONT_FAMILY: &str = "sans-serif";
-
 pub const FIG_SIZE: geom::Size = geom::Size::new(800.0, 600.0);
 pub const FIG_PADDING: geom::Padding = geom::Padding::Even(20.0);
 
