@@ -9,11 +9,13 @@ use crate::style::theme;
 
 // MARK: Plot
 
+#[derive(Debug)]
 struct SerPlot<'a> {
     plot: &'a Plot,
     subplot: Option<(u32, u32)>,
 }
 
+#[derive(Debug)]
 struct DePlot {
     plot: Plot,
     subplot: Option<(u32, u32)>,
@@ -113,6 +115,7 @@ where
     Ok(())
 }
 
+#[derive(Debug)]
 struct DeSeries(Vec<series::Series>);
 
 impl<'de> serde::Deserialize<'de> for DeSeries {
@@ -193,8 +196,9 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
     {
         deserialize_map_fields!(
             'de, map,
+            "series" => series: DeSeries,
+
             "subplot" => subplot: Option<(u32, u32)>,
-            "series" => series: Option<DeSeries>,
             "title" => title: Option<Text>,
             "xAxis" => x_axis: Option<DeXAxis>,
             "yAxis" => y_axis: Option<DeYAxis>,
@@ -208,14 +212,11 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
             "annotations" => annotations: Option<Vec<Annotation>>,
         );
 
-        let Some(series) = series.map(|s| s.0) else {
-            return Err(serde::de::Error::missing_field("series"));
-        };
-
-        let mut plot = Plot::new(series);
+        let mut plot = Plot::new(series.0);
         if let Some(title) = title {
             plot = plot.with_title(title);
         }
+
         match (x_axis, x_axes) {
             (Some(x_axis), None) => plot = plot.with_x_axis(x_axis.axis),
             (None, Some(x_axes)) => {
@@ -225,7 +226,7 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
             }
             (Some(_), Some(_)) => {
                 return Err(serde::de::Error::custom(
-                    "Both 'x_axis' and 'x_axes' fields cannot be specified at the same time",
+                    "Both 'xAxis' and 'xAxes' fields cannot be specified at the same time",
                 ));
             }
             (None, None) => {}
@@ -239,7 +240,7 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
             }
             (Some(_), Some(_)) => {
                 return Err(serde::de::Error::custom(
-                    "Both 'y_axis' and 'y_axes' fields cannot be specified at the same time",
+                    "Both 'yAxis' and 'yAxes' fields cannot be specified at the same time",
                 ));
             }
             (None, None) => {}
@@ -264,12 +265,17 @@ impl<'de> serde::de::Visitor<'de> for PlotVisitor {
                 plot = plot.with_annotation(annotation);
             }
         }
-        Ok(DePlot { plot, subplot })
+
+        Ok(DePlot {
+            plot,
+            subplot: subplot,
+        })
     }
 }
 
 // MARK: Subplots
 
+#[derive(Debug)]
 struct DePlots(Vec<DePlot>);
 
 impl serde::Serialize for Subplots {

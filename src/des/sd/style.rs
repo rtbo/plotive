@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::style::{self, theme};
 
-// MARK: style::theme::Color
+// MARK: theme::Color
 
 impl Serialize for style::theme::Color {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -32,7 +32,6 @@ impl<'de> Deserialize<'de> for style::theme::Color {
         D: serde::Deserializer<'de>,
     {
         let s: Cow<'de, str> = serde::Deserialize::deserialize(deserializer)?;
-
         match s.as_ref() {
             "background" => Ok(style::theme::Color::Theme(theme::Col::Background)),
             "foreground" => Ok(style::theme::Color::Theme(theme::Col::Foreground)),
@@ -47,7 +46,7 @@ impl<'de> Deserialize<'de> for style::theme::Color {
     }
 }
 
-// MARK: style::series::Color
+// MARK: series::Color
 
 impl Serialize for style::series::Color {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -117,9 +116,7 @@ impl<'de> serde::de::Visitor<'de> for SeriesColorVisitor {
     }
 }
 
-///////////////////////////
-// MARK: style::Marker
-///////////////////////////
+// MARK: Marker
 
 impl<C> Serialize for style::Marker<C>
 where
@@ -286,13 +283,12 @@ where
         if let Some(opacity) = fill_opacity {
             marker = marker.with_fill_opacity(opacity);
         }
+
         Ok(marker)
     }
 }
 
-///////////////////////////
-// MARK: style::MarkerShape
-///////////////////////////
+// MARK: MarkerShape
 
 const SHAPE_STRS: &[&str] = &[
     "circle",
@@ -358,9 +354,7 @@ impl<'de> Deserialize<'de> for style::MarkerShape {
     }
 }
 
-///////////////////////////
-// MARK: style::MarkerSize
-///////////////////////////
+// MARK: MarkerSize
 
 impl serde::Serialize for style::MarkerSize {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

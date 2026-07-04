@@ -389,7 +389,10 @@ where
                     }
                     height += missing_params::TICK_SIZE;
                     height += missing_params::TICK_LABEL_MARGIN
-                        + ticks.font().size.unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
+                        + ticks
+                            .label_props()
+                            .size
+                            .unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
                 }
             }
             let key = AxisCacheKey {
@@ -515,10 +518,10 @@ where
         &self,
         major_ticks: &des::axis::Ticks,
     ) -> Result<(text::Font, f32, theme::Color), Error> {
-        let font_props = major_ticks.font();
+        let font_props = major_ticks.label_props();
         let font = super::resolve_line_font(font_props, text::Font::default());
         let font_size = major_ticks
-            .font()
+            .label_props()
             .size
             .unwrap_or(defaults::TICKS_LABEL_FONT_SIZE);
         let color = font_props

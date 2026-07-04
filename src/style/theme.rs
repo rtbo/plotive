@@ -176,8 +176,8 @@ impl std::str::FromStr for Col {
             "background" => Ok(Col::Background),
             "foreground" => Ok(Col::Foreground),
             "grid" => Ok(Col::Grid),
-            "legend_fill" => Ok(Col::LegendFill),
-            "legend_border" => Ok(Col::LegendBorder),
+            "legend-fill" => Ok(Col::LegendFill),
+            "legend-border" => Ok(Col::LegendBorder),
             _ => Err(()),
         }
     }
@@ -189,8 +189,8 @@ impl std::fmt::Display for Col {
             Col::Background => "background",
             Col::Foreground => "foreground",
             Col::Grid => "grid",
-            Col::LegendFill => "legend_fill",
-            Col::LegendBorder => "legend_border",
+            Col::LegendFill => "legend-fill",
+            Col::LegendBorder => "legend-border",
         };
         write!(f, "{}", s)
     }
@@ -268,6 +268,18 @@ impl super::DefaultStrokeWidth for Color {
 impl super::DefaultColor for Color {
     fn default_color() -> Option<Self> {
         None
+    }
+
+    fn default_fill_color() -> Option<Self> {
+        Some(Color::Theme(Col::Background))
+    }
+
+    fn default_stroke_color() -> Option<Self> {
+        Some(Color::Theme(Col::Foreground))
+    }
+
+    fn default_text_color() -> Option<Self> {
+        Some(Color::Theme(Col::Foreground))
     }
 }
 

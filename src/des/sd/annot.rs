@@ -323,6 +323,7 @@ where
         annot::Line::two_points(x1, y1, x2, y2)
     };
 
+    let mut stroke = stroke;
     if let Some(pattern) = pattern {
         let current = stroke.unwrap_or_else(|| theme::Stroke::from(theme::Col::Foreground));
         stroke = Some(current.with_pattern(pattern));
@@ -352,17 +353,14 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: Option<(f64, f64)>,
-        "dxy" => dxy: Option<(f32, f32)>,
+        "xy" => xy: (f64, f64),
+        "dxy" => dxy: (f32, f32),
         "headSize" => head_size: Option<f32>,
         "stroke" => stroke: Option<theme::Stroke>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
         "zPos" => z_pos: Option<annot::ZPos>,
     }
-
-    let xy = xy.ok_or_else(|| A::Error::missing_field("xy"))?;
-    let dxy = dxy.ok_or_else(|| A::Error::missing_field("dxy"))?;
 
     let mut annot = annot::Arrow::new(xy.0, xy.1, dxy.0, dxy.1);
     if let Some(head_size) = head_size {
@@ -393,14 +391,12 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: Option<(f64, f64)>,
+        "xy" => xy: (f64, f64),
         "marker" => marker: Option<theme::Marker>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
         "zPos" => z_pos: Option<annot::ZPos>,
     }
-
-    let xy = xy.ok_or_else(|| A::Error::missing_field("xy"))?;
 
     let mut annot = annot::Marker::new(xy.0, xy.1);
     if let Some(marker) = marker {
@@ -428,8 +424,8 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: Option<(f64, f64)>,
-        "text" => text: Option<Text>,
+        "xy" => xy: (f64, f64),
+        "text" => text: Text,
         "anchor" => anchor: Option<annot::Anchor>,
         "frame" => frame: Option<(Option<theme::Fill>, Option<theme::Stroke>)>,
         "angle" => angle: Option<f32>,
@@ -437,9 +433,6 @@ where
         "yAxis" => y_axis: Option<axis::Ref>,
         "zPos" => z_pos: Option<annot::ZPos>,
     }
-
-    let xy = xy.ok_or_else(|| A::Error::missing_field("xy"))?;
-    let text = text.ok_or_else(|| A::Error::missing_field("text"))?;
 
     let mut annot = annot::Label::new(text, xy.0, xy.1);
     if let Some(anchor) = anchor {

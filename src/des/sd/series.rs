@@ -174,6 +174,7 @@ fn deserialize_datetime_vec(
     values: &[Value],
 ) -> Result<Vec<Option<crate::time::DateTime>>, Box<dyn std::error::Error>> {
     const FMT: &str = "%Y-%m-%d %H:%M:%S%.f";
+    const ISOFMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
     values
         .iter()
         .map(|v| match v {
@@ -181,6 +182,7 @@ fn deserialize_datetime_vec(
             Value::String(s) => {
                 // Try to parse the string as a DateTime
                 crate::time::DateTime::fmt_parse(s, FMT)
+                    .or_else(|_| crate::time::DateTime::fmt_parse(s, ISOFMT))
                     .map(Some)
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)
             }
@@ -377,29 +379,19 @@ where
 {
     deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "x" => x_data: Option<series::DataCol>,
-        "y" => y_data: Option<series::DataCol>,
+        "x" => x_data: series::DataCol,
+        "y" => y_data: series::DataCol,
+
+        "stroke" => stroke: Option<style::series::Stroke>,
+        "marker" => marker: Option<style::series::Marker>,
+        "interpolation" => interpolation: Option<series::Interpolation>,
+
         "name" => name: Option<String>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
-        "stroke" => stroke: Option<style::series::Stroke>,
-        "marker" => marker: Option<style::series::Marker>,
-        "interpolation" => interpolation: Option<series::Interpolation> ,
     }
-
-    let x_data = x_data.ok_or_else(|| serde::de::Error::missing_field("x"))?;
-    let y_data = y_data.ok_or_else(|| serde::de::Error::missing_field("y"))?;
 
     let mut line = series::Line::new(x_data, y_data);
-    if let Some(name) = name {
-        line = line.with_name(name);
-    }
-    if let Some(x_axis) = x_axis {
-        line = line.with_x_axis(x_axis);
-    }
-    if let Some(y_axis) = y_axis {
-        line = line.with_y_axis(y_axis);
-    }
     if let Some(marker) = marker {
         line = line.with_marker(marker);
     }
@@ -408,6 +400,16 @@ where
     }
     if let Some(interpolation) = interpolation {
         line = line.with_interpolation(interpolation);
+    }
+
+    if let Some(name) = name {
+        line = line.with_name(name);
+    }
+    if let Some(x_axis) = x_axis {
+        line = line.with_x_axis(x_axis);
+    }
+    if let Some(y_axis) = y_axis {
+        line = line.with_y_axis(y_axis);
     }
 
     Ok(line)
@@ -465,31 +467,21 @@ where
 {
     deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "x" => x_data: Option<series::DataCol>,
-        "y" => y_data: Option<series::DataCol>,
-        "name" => name: Option<String>,
-        "xAxis" => x_axis: Option<axis::Ref>,
-        "yAxis" => y_axis: Option<axis::Ref>,
-        "stroke" => stroke: Option<style::series::Stroke>,
+        "x" => x_data: series::DataCol,
+        "y" => y_data: series::DataCol,
+
         "marker" => marker: Option<style::series::Marker>,
         "sizes" => sizes: Option<series::DataCol>,
         "colors" => colors: Option<series::DataCol>,
         "cmap" => cmap: Option<des::cmap::LerpColorMap>,
-    }
 
-    let x_data = x_data.ok_or_else(|| serde::de::Error::missing_field("x"))?;
-    let y_data = y_data.ok_or_else(|| serde::de::Error::missing_field("y"))?;
+        "name" => name: Option<String>,
+        "xAxis" => x_axis: Option<axis::Ref>,
+        "yAxis" => y_axis: Option<axis::Ref>,
+    }
 
     let mut scatter = series::Scatter::new(x_data, y_data);
-    if let Some(name) = name {
-        scatter = scatter.with_name(name);
-    }
-    if let Some(x_axis) = x_axis {
-        scatter = scatter.with_x_axis(x_axis);
-    }
-    if let Some(y_axis) = y_axis {
-        scatter = scatter.with_y_axis(y_axis);
-    }
+
     if let Some(marker) = marker {
         scatter = scatter.with_marker(marker);
     }
@@ -501,12 +493,17 @@ where
             let cmap = cmap.unwrap_or_default();
             scatter = scatter.with_color_data(colors, cmap);
         }
-        (None, Some(_)) => {
-            return Err(serde::de::Error::custom(
-                "Can't provide cmap without colors",
-            ));
-        }
         _ => {}
+    }
+
+    if let Some(name) = name {
+        scatter = scatter.with_name(name);
+    }
+    if let Some(x_axis) = x_axis {
+        scatter = scatter.with_x_axis(x_axis);
+    }
+    if let Some(y_axis) = y_axis {
+        scatter = scatter.with_y_axis(y_axis);
     }
 
     Ok(scatter)
@@ -628,21 +625,21 @@ where
 {
     deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "x" => x_data: Option<series::DataCol>,
-        "y1" => y1_data: Option<series::DataCol>,
+        "x" => x_data: series::DataCol,
+        "y1" => y1_data: series::DataCol,
+
         "y2" => y2_raw: Option<AreaY2Raw>,
         "fill" => fill: Option<style::series::Fill>,
         "y1Stroke" => y1_stroke: Option<style::series::Stroke>,
         "y2Stroke" => y2_stroke: Option<style::series::Stroke>,
+
         "y1Interp" => y1_interp: Option<series::Interpolation>,
         "y2Interp" => y2_interp: Option<series::Interpolation>,
+
         "name" => name: Option<String>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
     }
-
-    let x_data = x_data.ok_or_else(|| serde::de::Error::missing_field("x"))?;
-    let y1_data = y1_data.ok_or_else(|| serde::de::Error::missing_field("y1"))?;
 
     let y2_data = match (y2_raw, y2_interp) {
         (None, _) => series::AreaY2::default(),
@@ -651,17 +648,7 @@ where
             series::AreaY2::DataCol(col, interp.unwrap_or_default())
         }
     };
-
     let mut area = series::Area::new(x_data, y1_data, y2_data);
-    if let Some(name) = name {
-        area = area.with_name(name);
-    }
-    if let Some(x_axis) = x_axis {
-        area = area.with_x_axis(x_axis);
-    }
-    if let Some(y_axis) = y_axis {
-        area = area.with_y_axis(y_axis);
-    }
     if let Some(fill) = fill {
         area = area.with_fill(fill);
     }
@@ -673,6 +660,16 @@ where
     }
     if let Some(interp) = y1_interp {
         area = area.with_interpolation(interp);
+    }
+
+    if let Some(name) = name {
+        area = area.with_name(name);
+    }
+    if let Some(x_axis) = x_axis {
+        area = area.with_x_axis(x_axis);
+    }
+    if let Some(y_axis) = y_axis {
+        area = area.with_y_axis(y_axis);
     }
 
     Ok(area)
@@ -730,28 +727,19 @@ where
 {
     deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "x" => x_data: Option<series::DataCol>,
+        "x" => x_data: series::DataCol,
+
         "fill" => fill: Option<style::series::Fill>,
         "stroke" => stroke: Option<style::series::Stroke>,
         "bins" => bins: Option<u32>,
         "density" => density: Option<bool>,
+
         "name" => name: Option<String>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
     }
 
-    let x_data = x_data.ok_or_else(|| serde::de::Error::missing_field("x"))?;
-
     let mut hist = series::Histogram::new(x_data);
-    if let Some(name) = name {
-        hist = hist.with_name(name);
-    }
-    if let Some(x_axis) = x_axis {
-        hist = hist.with_x_axis(x_axis);
-    }
-    if let Some(y_axis) = y_axis {
-        hist = hist.with_y_axis(y_axis);
-    }
     if let Some(fill) = fill {
         hist = hist.with_fill(fill);
     }
@@ -763,6 +751,16 @@ where
     }
     if density.unwrap_or(false) {
         hist = hist.with_density();
+    }
+
+    if let Some(name) = name {
+        hist = hist.with_name(name);
+    }
+    if let Some(x_axis) = x_axis {
+        hist = hist.with_x_axis(x_axis);
+    }
+    if let Some(y_axis) = y_axis {
+        hist = hist.with_y_axis(y_axis);
     }
 
     Ok(hist)
@@ -887,29 +885,19 @@ where
 {
     deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "x" => x_data: Option<series::DataCol>,
-        "y" => y_data: Option<series::DataCol>,
+        "x" => x_data: series::DataCol,
+        "y" => y_data: series::DataCol,
+
         "fill" => fill: Option<style::series::Fill>,
         "stroke" => stroke: Option<style::series::Stroke>,
         "position" => position: Option<series::BarsPosition>,
+
         "name" => name: Option<String>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
     }
 
-    let x_data = x_data.ok_or_else(|| serde::de::Error::missing_field("x"))?;
-    let y_data = y_data.ok_or_else(|| serde::de::Error::missing_field("y"))?;
-
     let mut bars = series::Bars::new(x_data, y_data);
-    if let Some(name) = name {
-        bars = bars.with_name(name);
-    }
-    if let Some(x_axis) = x_axis {
-        bars = bars.with_x_axis(x_axis);
-    }
-    if let Some(y_axis) = y_axis {
-        bars = bars.with_y_axis(y_axis);
-    }
     if let Some(fill) = fill {
         bars = bars.with_fill(fill);
     }
@@ -918,6 +906,16 @@ where
     }
     if let Some(position) = position {
         bars = bars.with_position(position);
+    }
+
+    if let Some(name) = name {
+        bars = bars.with_name(name);
+    }
+    if let Some(x_axis) = x_axis {
+        bars = bars.with_x_axis(x_axis);
+    }
+    if let Some(y_axis) = y_axis {
+        bars = bars.with_y_axis(y_axis);
     }
 
     Ok(bars)
@@ -1130,14 +1128,14 @@ impl<'de> serde::de::Visitor<'de> for BarSeriesVisitor {
     {
         super::deserialize_map_fields!(
             'de, map,
-            "data" => data: Option<series::DataCol>,
+            "data" => data: series::DataCol,
             "name" => name: Option<String>,
             "fill" => fill: Option<style::series::Fill>,
             "stroke" => stroke: Option<style::series::Stroke>,
         );
 
-        let data = data.ok_or_else(|| serde::de::Error::missing_field("data"))?;
         let mut bar_series = series::BarSeries::new(data);
+
         if let Some(name) = name {
             bar_series = bar_series.with_name(name);
         }
@@ -1198,16 +1196,14 @@ where
 {
     deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "categories" => categories: Option<series::DataCol>,
-        "series" => bar_series: Option<Vec<series::BarSeries>>,
+        "categories" => categories: series::DataCol,
+        "series" => bar_series: Vec<series::BarSeries>,
+
         "orientation" => orientation: Option<series::BarsOrientation>,
         "arrangement" => arrangement: Option<series::BarsArrangement>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
     }
-
-    let categories = categories.ok_or_else(|| serde::de::Error::missing_field("categories"))?;
-    let bar_series = bar_series.ok_or_else(|| serde::de::Error::missing_field("series"))?;
 
     let mut group = series::BarsGroup::new(categories, bar_series);
     if let Some(orientation) = orientation {

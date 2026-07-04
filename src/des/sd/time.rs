@@ -1,6 +1,7 @@
 use crate::time;
 
 const FMT: &str = "%Y-%m-%d %H:%M:%S%.f";
+const ISOFMT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 
 impl serde::Serialize for time::DateTime {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -26,7 +27,6 @@ impl<'de> serde::Deserialize<'de> for time::DateTime {
             where
                 E: serde::de::Error,
             {
-                println!("parsing '{}' as time", value);
                 time::DateTime::from_timestamp(value as f64)
                     .ok_or_else(|| serde::de::Error::custom("invalid time"))
             }
@@ -35,7 +35,6 @@ impl<'de> serde::Deserialize<'de> for time::DateTime {
             where
                 E: serde::de::Error,
             {
-                println!("parsing '{}' as time", value);
                 time::DateTime::from_timestamp(value)
                     .ok_or_else(|| serde::de::Error::custom("invalid time"))
             }
@@ -44,8 +43,8 @@ impl<'de> serde::Deserialize<'de> for time::DateTime {
             where
                 E: serde::de::Error,
             {
-                println!("parsing '{}' as time", value);
                 time::DateTime::fmt_parse(value, FMT)
+                    .or_else(|_| time::DateTime::fmt_parse(value, ISOFMT))
                     .map_err(|_| serde::de::Error::custom("invalid time"))
             }
         }
