@@ -707,7 +707,7 @@ pub mod ticks {
     pub struct Ticks {
         locator: Locator,
         formatter: Option<Formatter>,
-        txt_props: text::TextProps<theme::Color>,
+        lbl_props: text::TextProps<theme::Color>,
         color: theme::Color,
     }
 
@@ -720,7 +720,7 @@ pub mod ticks {
             Ticks {
                 locator: Locator::default(),
                 formatter: Some(Formatter::default()),
-                txt_props: text::TextProps::default(),
+                lbl_props: text::TextProps::default(),
                 color: theme::Col::Foreground.into(),
             }
         }
@@ -742,8 +742,8 @@ pub mod ticks {
             Self { formatter, ..self }
         }
         /// Returns a new ticks with the specified text properties
-        pub fn with_font(self, txt_props: text::TextProps<theme::Color>) -> Self {
-            Self { txt_props, ..self }
+        pub fn with_label_props(self, lbl_props: text::TextProps<theme::Color>) -> Self {
+            Self { lbl_props, ..self }
         }
         /// Returns a new ticks with the specified color
         pub fn with_color(self, color: theme::Color) -> Self {
@@ -760,11 +760,11 @@ pub mod ticks {
             self.formatter.as_ref()
         }
         /// Text properties for the ticks labels
-        pub fn font(&self) -> &text::TextProps<theme::Color> {
-            &self.txt_props
+        pub fn label_props(&self) -> &text::TextProps<theme::Color> {
+            &self.lbl_props
         }
         /// Color for the ticks.
-        /// Will be used for the labels as well unless a specific color is set in [`font`](Self::font).
+        /// Will be used for the labels as well unless a specific color is set in [`label_props`](Self::label_props).
         pub fn color(&self) -> theme::Color {
             self.color
         }

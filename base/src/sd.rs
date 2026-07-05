@@ -5,6 +5,7 @@ use std::str::FromStr;
 use std::sync::LazyLock;
 
 use serde::Serialize;
+use serde::de::IntoDeserializer;
 use serde::ser::SerializeStruct;
 
 use crate::color::{css4, xkcd};
@@ -12,28 +13,162 @@ use crate::geom::{Padding, Size};
 use crate::style::{Color, DefaultColor, DefaultStroke, DefaultStrokeWidth, Stroke};
 use crate::{Rgb8, Rgba8, geom, style};
 
+/// Macro to deserialize fields from a map, with support for optional fields and default values.
+///
+/// It matches 3 types of fields differently:
+///  - Option<Option<T>>: The field is optional, and if present, it can be null.
+///     - If the field is missing, it will be None.
+///     - If the field is present but null, it will be Some(None).
+///     - If the field is present and has a value, it will be Some(Some(value)).
+///  - Option<T>: The field is optional, and if present, it can be null
+///     - If the field is missing, it will be None.
+///     - If the field is present and null, it will be None.
+///     - If the field is present and has a value, it will be Some(value).
+///  - T: The field is required, and if missing, it will return an error.
+#[macro_export]
 macro_rules! deserialize_map_fields {
-    ($de:lifetime, $map:expr, $($key:expr => $name:ident: Option<$ty:ty>,)+) => {
-        $(
-            let mut $name = None::<$ty>;
-        )+
+    ($de:lifetime, $map:expr, $($fields:tt)+) => {
+        $crate::deserialize_map_fields!(@parse [$de, $map] [] [] [] [] ; $($fields)+);
+    };
 
-        while let Some(key) = $map.next_key::<std::borrow::Cow<$de, str>>()? {
-            match key.as_ref() {
-                $($key => {
+    (@parse
+        [$de:lifetime, $map:expr]
+        [$($decls:tt)*]
+        [$($arms:tt)*]
+        [$($field_names:expr,)*]
+        [$($binds:tt)*]
+        ;
+        $key:expr => $name:ident: Option<Option<$inner:ty>>,
+        $($rest:tt)*
+    ) => {
+        $crate::deserialize_map_fields!(
+            @parse
+            [$de, $map]
+            [
+                $($decls)*
+                let mut $name = None::<Option<$inner>>;
+            ]
+            [
+                $($arms)*
+                $key => {
+                    if $name.is_some() {
+                        let _: Option<$inner> = $map.next_value()?;
+                        return Err(serde::de::Error::duplicate_field($key));
+                    }
+                    $name = Some($map.next_value::<Option<$inner>>()?);
+                }
+            ]
+            [$($field_names,)* $key,]
+            [
+                $($binds)*
+                let $name = $name;
+            ]
+            ;
+            $($rest)*
+        );
+    };
+
+    (@parse
+        [$de:lifetime, $map:expr]
+        [$($decls:tt)*]
+        [$($arms:tt)*]
+        [$($field_names:expr,)*]
+        [$($binds:tt)*]
+        ;
+        $key:expr => $name:ident: Option<$inner:ty>,
+        $($rest:tt)*
+    ) => {
+        $crate::deserialize_map_fields!(
+            @parse
+            [$de, $map]
+            [
+                $($decls)*
+                let mut $name = None::<Option<$inner>>;
+            ]
+            [
+                $($arms)*
+                $key => {
+                    if $name.is_some() {
+                        let _: Option<$inner> = $map.next_value()?;
+                        return Err(serde::de::Error::duplicate_field($key));
+                    }
+                    $name = Some($map.next_value::<Option<$inner>>()?);
+                }
+            ]
+            [$($field_names,)* $key,]
+            [
+                $($binds)*
+                let $name = $name.flatten();
+            ]
+            ;
+            $($rest)*
+        );
+    };
+
+    (@parse
+        [$de:lifetime, $map:expr]
+        [$($decls:tt)*]
+        [$($arms:tt)*]
+        [$($field_names:expr,)*]
+        [$($binds:tt)*]
+        ;
+        $key:expr => $name:ident: $ty:ty,
+        $($rest:tt)*
+    ) => {
+        $crate::deserialize_map_fields!(
+            @parse
+            [$de, $map]
+            [
+                $($decls)*
+                let mut $name = None::<$ty>;
+            ]
+            [
+                $($arms)*
+                $key => {
                     if $name.is_some() {
                         let _: $ty = $map.next_value()?;
                         return Err(serde::de::Error::duplicate_field($key));
                     }
                     $name = Some($map.next_value::<$ty>()?);
-                })+
+                }
+            ]
+            [$($field_names,)* $key,]
+            [
+                $($binds)*
+                let $name = $name.ok_or_else(|| serde::de::Error::missing_field($key))?;
+            ]
+            ;
+            $($rest)*
+        );
+    };
+
+    (@parse
+        [$de:lifetime, $map:expr]
+        [$($decls:tt)*]
+        [$($arms:tt)*]
+        [$($field_names:expr,)*]
+        [$($binds:tt)*]
+        ;
+    ) => {
+        $($decls)*
+
+        while let Some(key) = $map.next_key::<std::borrow::Cow<$de, str>>()? {
+            match key.as_ref() {
+                $($arms)*
                 _ => {
-                    return Err(serde::de::Error::unknown_field(key.as_ref(), &[$($key),+]));
+                    return Err(serde::de::Error::unknown_field(
+                        key.as_ref(),
+                        &[$($field_names),*],
+                    ));
                 }
             }
         }
-    }
+
+        $($binds)*
+    };
 }
+
+pub use deserialize_map_fields;
 
 // MARK: Color
 
@@ -131,6 +266,118 @@ impl<'de> serde::Deserialize<'de> for Rgba8 {
     }
 }
 
+/// A color that can be deserialized from a "auto" string (yielding None)
+#[derive(Debug)]
+struct AutoColor<C: std::fmt::Debug>(Option<C>);
+
+impl<'de, C> serde::de::Deserialize<'de> for AutoColor<C>
+where
+    C: serde::de::Deserialize<'de> + std::fmt::Debug,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_any(AutoColorVisitor {
+            phantom: std::marker::PhantomData,
+        })
+    }
+}
+
+struct AutoColorVisitor<C> {
+    phantom: std::marker::PhantomData<C>,
+}
+
+impl<'de, C> serde::de::Visitor<'de> for AutoColorVisitor<C>
+where
+    C: serde::de::Deserialize<'de> + std::fmt::Debug,
+{
+    type Value = AutoColor<C>;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("'auto' or any value deserializable as the target color type")
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if value == "auto" {
+            Ok(AutoColor(None))
+        } else {
+            let color = C::deserialize(value.into_deserializer())?;
+            Ok(AutoColor(Some(color)))
+        }
+    }
+
+    fn visit_borrowed_str<E>(self, value: &'de str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        self.visit_str(value)
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        if value == "auto" {
+            Ok(AutoColor(None))
+        } else {
+            let color = C::deserialize(value.into_deserializer())?;
+            Ok(AutoColor(Some(color)))
+        }
+    }
+
+    fn visit_bool<E>(self, value: bool) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let color = C::deserialize(value.into_deserializer())?;
+        Ok(AutoColor(Some(color)))
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let color = C::deserialize(value.into_deserializer())?;
+        Ok(AutoColor(Some(color)))
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let color = C::deserialize(value.into_deserializer())?;
+        Ok(AutoColor(Some(color)))
+    }
+
+    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let color = C::deserialize(value.into_deserializer())?;
+        Ok(AutoColor(Some(color)))
+    }
+
+    fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::SeqAccess<'de>,
+    {
+        let color = C::deserialize(serde::de::value::SeqAccessDeserializer::new(seq))?;
+        Ok(AutoColor(Some(color)))
+    }
+
+    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        let color = C::deserialize(serde::de::value::MapAccessDeserializer::new(map))?;
+        Ok(AutoColor(Some(color)))
+    }
+}
+
 // MARK: style::Fill
 
 impl<C> serde::Serialize for style::Fill<C>
@@ -160,7 +407,7 @@ where
 
 impl<'de, C> serde::Deserialize<'de> for style::Fill<C>
 where
-    C: serde::Deserialize<'de> + Color + FromStr + DefaultColor,
+    C: serde::Deserialize<'de> + Color + FromStr + DefaultColor + std::fmt::Debug,
     <C as FromStr>::Err: std::fmt::Display,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -179,7 +426,7 @@ struct FillVisitor<C> {
 
 impl<'de, C> serde::de::Visitor<'de> for FillVisitor<C>
 where
-    C: serde::de::Deserialize<'de> + Color + FromStr + DefaultColor,
+    C: serde::de::Deserialize<'de> + Color + FromStr + DefaultColor + std::fmt::Debug,
     <C as FromStr>::Err: std::fmt::Display,
 {
     type Value = style::Fill<C>;
@@ -192,7 +439,11 @@ where
     where
         E: serde::de::Error,
     {
-        let color = value.parse::<C>().map_err(E::custom)?;
+        let color = if value == "auto" {
+            C::default_fill_color().ok_or_else(|| E::custom("No default color available"))?
+        } else {
+            value.parse().map_err(E::custom)?
+        };
         Ok(style::Fill::Solid {
             color,
             opacity: None,
@@ -205,14 +456,19 @@ where
     {
         deserialize_map_fields!(
             'de, map,
-            "color" => color: Option<C>,
+            "color" => color: Option<AutoColor<C>>,
             "opacity" => opacity: Option<f32>,
         );
 
-        let color = match (color, C::default_color()) {
-            (Some(color), _) => color,
-            (None, Some(color)) => color,
-            (None, None) => return Err(serde::de::Error::missing_field("color")),
+        let color = match (color, C::default_fill_color()) {
+            (Some(AutoColor(Some(color))), _) => color,
+            (_, Some(color)) => color,
+            (Some(AutoColor(None)), _) => {
+                return Err(serde::de::Error::custom(
+                    "No default color available for 'auto'",
+                ));
+            }
+            (_, None) => return Err(serde::de::Error::missing_field("color")),
         };
 
         Ok(style::Fill::Solid { color, opacity })
@@ -306,7 +562,12 @@ where
 
 impl<'de, C> serde::de::Deserialize<'de> for Stroke<C>
 where
-    C: serde::de::Deserialize<'de> + DefaultStroke + DefaultStrokeWidth + FromStr,
+    C: serde::de::Deserialize<'de>
+        + DefaultColor
+        + DefaultStroke
+        + DefaultStrokeWidth
+        + FromStr
+        + std::fmt::Debug,
     <C as FromStr>::Err: std::fmt::Display,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -437,7 +698,12 @@ impl<C> StrokeVisitor<C> {
 
 impl<'de, C> serde::de::Visitor<'de> for StrokeVisitor<C>
 where
-    C: serde::de::Deserialize<'de> + DefaultStroke + DefaultStrokeWidth + FromStr,
+    C: serde::de::Deserialize<'de>
+        + DefaultColor
+        + DefaultStroke
+        + DefaultStrokeWidth
+        + FromStr
+        + std::fmt::Debug,
     <C as FromStr>::Err: std::fmt::Display,
 {
     type Value = Stroke<C>;
@@ -488,8 +754,6 @@ where
     where
         E: serde::de::Error,
     {
-        let invalid_string_message = self.invalid_string_message();
-
         if value == "auto" {
             if let Some(default) = self.default_stroke {
                 Ok(default)
@@ -499,7 +763,7 @@ where
                     self.name
                 )))
             }
-        } else if let Some(default) = self.default_stroke {
+        } else if let Some(ref default) = self.default_stroke {
             if let Some(pattern) = str_to_line_pattern(value) {
                 return Ok(Self::Value::from(Stroke {
                     color: default.color,
@@ -511,18 +775,18 @@ where
 
             let color = value
                 .parse()
-                .map_err(|_| serde::de::Error::custom(invalid_string_message))?;
+                .map_err(|_| serde::de::Error::custom(self.invalid_string_message()))?;
 
             Ok(Self::Value::from(Stroke {
                 color,
                 width: default.width,
-                pattern: default.pattern,
+                pattern: default.pattern.clone(),
                 opacity: default.opacity,
             }))
         } else {
             let color = value
                 .parse()
-                .map_err(|_| serde::de::Error::custom(invalid_string_message))?;
+                .map_err(|_| serde::de::Error::custom(self.invalid_string_message()))?;
 
             Ok(Self::Value::from(Stroke {
                 color,
@@ -592,21 +856,38 @@ where
     {
         deserialize_map_fields!(
             'de, map,
-            "color" => color: Option<C>,
+            "color" => color: Option<AutoColor<C>>,
             "width" => width: Option<f32>,
             "pattern" => pattern: Option<style::LinePattern>,
             "opacity" => opacity: Option<f32>,
         );
+
+        let color = match (
+            color,
+            self.default_stroke.as_ref(),
+            C::default_stroke_color(),
+        ) {
+            (Some(AutoColor(Some(color))), _, _) => color,
+            (_, Some(default), _) => default.color,
+            (_, _, Some(color)) => color,
+            (Some(AutoColor(None)), _, _) => {
+                return Err(serde::de::Error::custom(
+                    "No default color available for 'auto'",
+                ));
+            }
+            (_, _, _) => return Err(serde::de::Error::missing_field("color")),
+        };
+
         if let Some(default) = self.default_stroke {
             Ok(Stroke {
-                color: color.unwrap_or(default.color),
+                color,
                 width: width.unwrap_or(default.width),
                 pattern: pattern.unwrap_or(default.pattern),
                 opacity: opacity.or(default.opacity),
             })
         } else {
             Ok(Stroke {
-                color: color.ok_or_else(|| serde::de::Error::missing_field("color"))?,
+                color,
                 width: width.unwrap_or_else(|| C::default_stroke_width()),
                 pattern: pattern.unwrap_or_default(),
                 opacity,

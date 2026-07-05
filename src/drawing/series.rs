@@ -1045,7 +1045,6 @@ impl Area {
                     pb.cubic_to(p1.x, p1.y, p2.x, p2.y, p.x, p.y);
                 }
                 PathSegment::Close => {
-                    println!("Z");
                     pb.close();
                 }
             }

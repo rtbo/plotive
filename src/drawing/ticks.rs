@@ -37,10 +37,8 @@ pub fn locate_num(
         }
         #[cfg(feature = "time")]
         (Locator::DateTime(_), Scale::Auto | Scale::Linear { .. }) => {
-            Ok(locate_datetime(&locator, nb.into())?
-                .into_iter()
-                .map(|dt| dt.timestamp())
-                .collect())
+            let dt = locate_datetime(&locator, nb.into())?;
+            Ok(dt.into_iter().map(|dt| dt.timestamp()).collect())
         }
         #[cfg(feature = "time")]
         (Locator::TimeDelta(loc), Scale::Auto | Scale::Linear { .. }) => {

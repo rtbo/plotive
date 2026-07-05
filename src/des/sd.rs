@@ -1,5 +1,6 @@
 //! Serialization and deserialization of figures
 
+use plotive_base::deserialize_map_fields;
 use serde::ser::{SerializeSeq, SerializeStruct};
 
 use super::Figure;
@@ -348,75 +349,157 @@ macro_rules! serialize_tagged_map_variant {
 
 pub(crate) use serialize_tagged_map_variant;
 
-macro_rules! deserialize_map_fields {
-    ($de:lifetime, $map:expr, $($key:expr => $name:ident: Option<$ty:ty>,)+) => {
-        $(
-            let mut $name = None::<$ty>;
-        )+
+/// Internal macro to deserialize tagged map fields.
+/// This macro is used to generate code for deserializing fields of a struct from a map, handling both required and optional fields, and checking for duplicate or missing fields.
+///
+/// It matches the field type either as a Option<T> or T and generate the appropriate code to handle the deserialization and error checking.
+#[macro_export]
+macro_rules! deserialize_tagged_map_fields {
+    ($de:lifetime, $map:expr, $buffered:expr, $($fields:tt)+) => {
+        $crate::deserialize_tagged_map_fields!(
+            @parse [$de, $map, $buffered, value] [] [] [] [] [] ; $($fields)+
+        );
+    };
 
-        while let Some(key) = $map.next_key::<std::borrow::Cow<$de, str>>()? {
-            match key.as_ref() {
-                $($key => {
+    (@parse
+        [$de:lifetime, $map:expr, $buffered:expr, $value:ident]
+        [$($decls:tt)*]
+        [$($arms1:tt)*]
+        [$($arms2:tt)*]
+        [$($field_names:expr,)*]
+        [$($binds:tt)*]
+        ;
+        $key:expr => $name:ident: Option<$inner:ty>,
+        $($rest:tt)*
+    ) => {
+        $crate::deserialize_tagged_map_fields!(
+            @parse
+            [$de, $map, $buffered, $value]
+            [
+                $($decls)*
+                let mut $name = None::<Option<$inner>>;
+            ]
+            [
+                $($arms1)*
+                $key => {
+                    if $name.is_some() {
+                        return std::result::Result::Err(serde::de::Error::duplicate_field($key));
+                    }
+                    $name = std::option::Option::Some(
+                        $value
+                            .deserialize_into::<Option<$inner>>()
+                            .map_err(serde::de::Error::custom)?,
+                    );
+
+                }
+            ]
+            [
+                $($arms2)*
+                $key => {
+                    if $name.is_some() {
+                        let _: Option<$inner> = $map.next_value()?;
+                        return Err(serde::de::Error::duplicate_field($key));
+                    }
+                    $name = Some($map.next_value::<Option<$inner>>()?);
+                }
+            ]
+            [$($field_names,)* $key,]
+            [
+                $($binds)*
+                let $name = $name.flatten();
+            ]
+            ;
+            $($rest)*
+        );
+    };
+
+    (@parse
+        [$de:lifetime, $map:expr, $buffered:expr, $value:ident]
+        [$($decls:tt)*]
+        [$($arms1:tt)*]
+        [$($arms2:tt)*]
+        [$($field_names:expr,)*]
+        [$($binds:tt)*]
+        ;
+        $key:expr => $name:ident: $ty:ty,
+        $($rest:tt)*
+    ) => {
+        $crate::deserialize_tagged_map_fields!(
+            @parse
+            [$de, $map, $buffered, $value]
+            [
+                $($decls)*
+                let mut $name = None::<$ty>;
+            ]
+            [
+                $($arms1)*
+                $key => {
+                    if $name.is_some() {
+                        return std::result::Result::Err(serde::de::Error::duplicate_field($key));
+                    }
+                    $name = std::option::Option::Some(
+                        $value
+                            .deserialize_into::<$ty>()
+                            .map_err(serde::de::Error::custom)?,
+                    );
+
+                }
+            ]
+            [
+                $($arms2)*
+                $key => {
                     if $name.is_some() {
                         let _: $ty = $map.next_value()?;
                         return Err(serde::de::Error::duplicate_field($key));
                     }
                     $name = Some($map.next_value::<$ty>()?);
-                })+
-                _ => {
-                    return Err(serde::de::Error::unknown_field(key.as_ref(), &[$($key),+]));
                 }
-            }
-        }
-    }
-}
+            ]
+            [$($field_names,)* $key,]
+            [
+                $($binds)*
+                let $name = $name.ok_or_else(|| serde::de::Error::missing_field($key))?;
+            ]
+            ;
+            $($rest)*
+        );
+    };
 
-pub(crate) use deserialize_map_fields;
+    (@parse
+        [$de:lifetime, $map:expr, $buffered:expr, $value:ident]
+        [$($decls:tt)*]
+        [$($arms1:tt)*]
+        [$($arms2:tt)*]
+        [$($field_names:expr,)*]
+        [$($binds:tt)*]
+        ;
+    ) => {
+        $($decls)*
 
-macro_rules! deserialize_tagged_map_fields {
-    ($de:lifetime, $map:expr, $buffered:expr, $($key:expr => $name:ident: Option<$ty:ty>,)+) => {
-        $(
-            let mut $name = None::<$ty>;
-        )+
-        for (key, value) in $buffered {
+        for (key, $value) in $buffered {
             match key.as_str() {
                 "type" => {
-                    return Err(serde::de::Error::duplicate_field("type"));
+                    return std::result::Result::Err(serde::de::Error::duplicate_field("type"));
                 }
-                $($key => {
-                    if $name.is_some() {
-                        return Err(serde::de::Error::duplicate_field($key));
-                    }
-                    $name = Some(
-                        value
-                            .deserialize_into::<$ty>()
-                            .map_err(serde::de::Error::custom)?,
-                    );
-
-                })+
+                $($arms1)*
                 _ => {}
             }
         }
 
         while let Some(key) = $map.next_key::<std::borrow::Cow<$de, str>>()? {
             match key.as_ref() {
-                "type" => {
-                    let _: String = $map.next_value()?;
-                    return Err(serde::de::Error::duplicate_field("type"));
-                }
-                $($key => {
-                    if $name.is_some() {
-                        let _: $ty = $map.next_value()?;
-                        return Err(serde::de::Error::duplicate_field($key));
-                    }
-                    $name = Some($map.next_value::<$ty>()?);
-                })+
+                $($arms2)*
                 _ => {
-                    return Err(serde::de::Error::unknown_field(key.as_ref(), &[$($key),+]));
+                    return Err(serde::de::Error::unknown_field(
+                        key.as_ref(),
+                        &[$($field_names),+]
+                    ));
                 }
             }
         }
-    }
+
+        $($binds)*
+    };
 }
 
 pub(crate) use deserialize_tagged_map_fields;

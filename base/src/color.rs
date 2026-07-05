@@ -237,23 +237,23 @@ impl PartialEq<Rgba8> for Rgb8 {
 /// Parsing error for Rgba8
 #[derive(Debug)]
 pub enum ParseError {
-    InvalidFormat,
-    InvalidComponent,
-    InvalidAlphaComponent,
-    InvalidHex,
-    UnknownName,
-    IntError,
+    InvalidFormat(String),
+    InvalidComponent(String),
+    InvalidAlphaComponent(String),
+    InvalidHex(String),
+    UnknownName(String),
+    IntError(String),
 }
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ParseError::InvalidFormat => write!(f, "invalid color format"),
-            ParseError::InvalidComponent => write!(f, "invalid color component"),
-            ParseError::InvalidAlphaComponent => write!(f, "invalid alpha component"),
-            ParseError::InvalidHex => write!(f, "invalid hex color"),
-            ParseError::UnknownName => write!(f, "unknown color name"),
-            ParseError::IntError => write!(f, "integer parse error"),
+            ParseError::InvalidFormat(s) => write!(f, "invalid color format while parsing {}", s),
+            ParseError::InvalidComponent(s) => write!(f, "invalid color component: {}", s),
+            ParseError::InvalidAlphaComponent(s) => write!(f, "invalid alpha component: {}", s),
+            ParseError::InvalidHex(s) => write!(f, "invalid hex color: {}", s),
+            ParseError::UnknownName(s) => write!(f, "unknown color name: {}", s),
+            ParseError::IntError(s) => write!(f, "integer parse error: {}", s),
         }
     }
 }
@@ -266,16 +266,18 @@ fn parse_component_0_255(s: &str) -> Result<u8, ParseError> {
         let val = s[..s.len() - 1]
             .trim()
             .parse::<f32>()
-            .map_err(|_| ParseError::InvalidComponent)?;
+            .map_err(|_| ParseError::InvalidComponent(s.to_string()))?;
         if !(0.0..=100.0).contains(&val) {
-            return Err(ParseError::InvalidComponent);
+            return Err(ParseError::InvalidComponent(s.to_string()));
         }
         Ok(((val / 100.0) * 255.0).round().clamp(0.0, 255.0) as u8)
     } else {
         // integer 0-255
-        let v: i32 = s.parse().map_err(|_| ParseError::InvalidComponent)?;
+        let v: i32 = s
+            .parse()
+            .map_err(|_| ParseError::InvalidComponent(s.to_string()))?;
         if !(0..=255).contains(&v) {
-            return Err(ParseError::InvalidComponent);
+            return Err(ParseError::InvalidComponent(s.to_string()));
         }
         Ok(v as u8)
     }
@@ -288,23 +290,25 @@ fn parse_alpha(s: &str) -> Result<u8, ParseError> {
         let val = s[..s.len() - 1]
             .trim()
             .parse::<f32>()
-            .map_err(|_| ParseError::InvalidAlphaComponent)?;
+            .map_err(|_| ParseError::InvalidAlphaComponent(s.to_string()))?;
         if !(0.0..=100.0).contains(&val) {
-            return Err(ParseError::InvalidAlphaComponent);
+            return Err(ParseError::InvalidAlphaComponent(s.to_string()));
         }
         Ok(((val / 100.0) * 255.0).round().clamp(0.0, 255.0) as u8)
     } else {
         // try float 0.0-1.0
         if let Ok(f) = s.parse::<f32>() {
             if !(0.0..=1.0).contains(&f) {
-                return Err(ParseError::InvalidAlphaComponent);
+                return Err(ParseError::InvalidAlphaComponent(s.to_string()));
             }
             return Ok((f * 255.0).round().clamp(0.0, 255.0) as u8);
         }
         // try integer 0-255
-        let v: i32 = s.parse().map_err(|_| ParseError::InvalidAlphaComponent)?;
+        let v: i32 = s
+            .parse()
+            .map_err(|_| ParseError::InvalidAlphaComponent(s.to_string()))?;
         if !(0..=255).contains(&v) {
-            return Err(ParseError::InvalidAlphaComponent);
+            return Err(ParseError::InvalidAlphaComponent(s.to_string()));
         }
         Ok(v as u8)
     }
@@ -321,7 +325,7 @@ impl FromStr for Rgb8 {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let raw = s.trim();
         if raw.is_empty() {
-            return Err(ParseError::InvalidFormat);
+            return Err(ParseError::InvalidFormat(raw.to_string()));
         }
 
         // HTML hex: starts with '#'
@@ -333,10 +337,10 @@ impl FromStr for Rgb8 {
                     if bytes[1..].iter().all(|&c| is_hex_char(c)) {
                         Ok(Rgb8::from_hex(bytes))
                     } else {
-                        Err(ParseError::InvalidHex)
+                        Err(ParseError::InvalidHex(raw.to_string()))
                     }
                 }
-                _ => Err(ParseError::InvalidHex),
+                _ => Err(ParseError::InvalidHex(raw.to_string())),
             }
         }
         // rgb(...)
@@ -344,7 +348,7 @@ impl FromStr for Rgb8 {
             let inner = &raw[4..raw.len() - 1];
             let parts: Vec<&str> = inner.split(',').collect();
             if parts.len() != 3 {
-                return Err(ParseError::InvalidFormat);
+                return Err(ParseError::InvalidFormat(raw.to_string()));
             }
             let r = parse_component_0_255(parts[0])?;
             let g = parse_component_0_255(parts[1])?;
@@ -355,11 +359,11 @@ impl FromStr for Rgb8 {
         else {
             if let Some(col) = names::lookup(raw) {
                 if col.a() != 255 {
-                    return Err(ParseError::InvalidAlphaComponent);
+                    return Err(ParseError::InvalidAlphaComponent(raw.to_string()));
                 }
                 Ok(col.rgb())
             } else {
-                Err(ParseError::UnknownName)
+                Err(ParseError::UnknownName(raw.to_string()))
             }
         }
     }
@@ -376,7 +380,7 @@ impl FromStr for Rgba8 {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let raw = s.trim();
         if raw.is_empty() {
-            return Err(ParseError::InvalidFormat);
+            return Err(ParseError::InvalidFormat(raw.to_string()));
         }
 
         // HTML hex: starts with '#'
@@ -388,10 +392,10 @@ impl FromStr for Rgba8 {
                     if bytes[1..].iter().all(|&c| is_hex_char(c)) {
                         Ok(Rgba8::from_hex(bytes))
                     } else {
-                        Err(ParseError::InvalidHex)
+                        Err(ParseError::InvalidHex(raw.to_string()))
                     }
                 }
-                _ => Err(ParseError::InvalidHex),
+                _ => Err(ParseError::InvalidHex(raw.to_string())),
             }
         }
         // rgb(...) or rgba(...)
@@ -399,7 +403,7 @@ impl FromStr for Rgba8 {
             let inner = &raw[4..raw.len() - 1];
             let parts: Vec<&str> = inner.split(',').collect();
             if parts.len() != 3 {
-                return Err(ParseError::InvalidFormat);
+                return Err(ParseError::InvalidFormat(raw.to_string()));
             }
             let r = parse_component_0_255(parts[0])?;
             let g = parse_component_0_255(parts[1])?;
@@ -409,7 +413,7 @@ impl FromStr for Rgba8 {
             let inner = &raw[5..raw.len() - 1];
             let parts: Vec<&str> = inner.split(',').collect();
             if parts.len() != 4 {
-                return Err(ParseError::InvalidFormat);
+                return Err(ParseError::InvalidFormat(raw.to_string()));
             }
             let r = parse_component_0_255(parts[0])?;
             let g = parse_component_0_255(parts[1])?;
@@ -422,7 +426,7 @@ impl FromStr for Rgba8 {
             if let Some(col) = names::lookup(raw) {
                 Ok(col)
             } else {
-                Err(ParseError::UnknownName)
+                Err(ParseError::UnknownName(raw.to_string()))
             }
         }
     }
@@ -866,31 +870,31 @@ mod tests {
         // empty
         assert!(matches!(
             "".parse::<Rgba8>(),
-            Err(ParseError::InvalidFormat)
+            Err(ParseError::InvalidFormat(_))
         ));
 
         // invalid hex length
         assert!(matches!(
             "#12345".parse::<Rgba8>(),
-            Err(ParseError::InvalidHex)
+            Err(ParseError::InvalidHex(_))
         ));
 
         // invalid rgb component (out of 0-255)
         assert!(matches!(
             "rgb(300,0,0)".parse::<Rgba8>(),
-            Err(ParseError::InvalidComponent)
+            Err(ParseError::InvalidComponent(_))
         ));
 
         // invalid rgba alpha (float > 1.0)
         assert!(matches!(
             "rgba(255,0,0,2.0)".parse::<Rgba8>(),
-            Err(ParseError::InvalidAlphaComponent)
+            Err(ParseError::InvalidAlphaComponent(_))
         ));
 
         // unknown name
         assert!(matches!(
             "notacolor".parse::<Rgba8>(),
-            Err(ParseError::UnknownName)
+            Err(ParseError::UnknownName(_))
         ));
     }
 

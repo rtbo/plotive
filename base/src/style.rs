@@ -3,6 +3,15 @@ use crate::Rgba8;
 /// Trait for color types that have a default value for serialization purposes
 pub trait DefaultColor: Color {
     fn default_color() -> Option<Self>;
+    fn default_fill_color() -> Option<Self> {
+        Self::default_color()
+    }
+    fn default_stroke_color() -> Option<Self> {
+        Self::default_color()
+    }
+    fn default_text_color() -> Option<Self> {
+        Self::default_color()
+    }
 }
 
 /// Trait for types that have a default stroke for serialization purposes
@@ -28,7 +37,7 @@ pub trait ResolveColor<C> {
 }
 
 /// Trait for color types that can be resolved to a concrete color.
-pub trait Color: Clone + Copy + From<Rgba8> {
+pub trait Color: Clone + Copy + From<Rgba8> + std::fmt::Debug {
     #[inline]
     fn resolve<R>(&self, rc: &R) -> Rgba8
     where

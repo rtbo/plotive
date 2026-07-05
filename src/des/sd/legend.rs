@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use plotive_base::deserialize_map_fields;
 use serde::ser::SerializeStruct;
 
 use crate::des::{Legend, figure, plot};
@@ -30,6 +31,7 @@ impl<'de> serde::de::Deserialize<'de> for figure::LegendPos {
     {
         let s: Cow<'de, str> = serde::Deserialize::deserialize(deserializer)?;
         match &*s {
+            "auto" => Ok(figure::LegendPos::default()),
             "top" => Ok(figure::LegendPos::Top),
             "right" => Ok(figure::LegendPos::Right),
             "bottom" => Ok(figure::LegendPos::Bottom),
@@ -74,6 +76,7 @@ impl<'de> serde::de::Deserialize<'de> for plot::LegendPos {
     {
         let s: Cow<'de, str> = serde::Deserialize::deserialize(deserializer)?;
         match &*s {
+            "auto" => Ok(plot::LegendPos::default()),
             "out-top" => Ok(plot::LegendPos::OutTop),
             "out-right" => Ok(plot::LegendPos::OutRight),
             "out-bottom" => Ok(plot::LegendPos::OutBottom),
@@ -166,7 +169,7 @@ where
 
 impl<'de, P> serde::de::Deserialize<'de> for Legend<P>
 where
-    P: serde::de::Deserialize<'de> + Default,
+    P: serde::de::Deserialize<'de> + Default + std::fmt::Debug,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -184,7 +187,7 @@ struct LegendVisitor<P> {
 
 impl<'de, P> serde::de::Visitor<'de> for LegendVisitor<P>
 where
-    P: serde::de::Deserialize<'de> + Default,
+    P: serde::de::Deserialize<'de> + Default + std::fmt::Debug,
 {
     type Value = Legend<P>;
 
@@ -210,27 +213,44 @@ where
     where
         M: serde::de::MapAccess<'de>,
     {
-        let mut legend = Legend::<P>::default();
-        while let Some(key) = map.next_key::<Cow<'de, str>>()? {
-            match &*key {
-                "pos" => legend = legend.with_pos(map.next_value()?),
-                "font" => legend = legend.with_font(map.next_value()?),
-                "fill" => legend = legend.with_fill(map.next_value()?),
-                "border" => legend = legend.with_border(map.next_value()?),
-                "columns" => legend = legend.with_columns(map.next_value()?),
-                "padding" => legend = legend.with_padding(map.next_value()?),
-                "margin" => legend = legend.with_margin(map.next_value()?),
-                "spacing" => legend = legend.with_spacing(map.next_value()?),
-                _ => {
-                    return Err(serde::de::Error::unknown_field(
-                        &key,
-                        &[
-                            "pos", "font", "fill", "border", "columns", "padding", "margin",
-                            "spacing",
-                        ],
-                    ));
-                }
-            }
+        deserialize_map_fields!(
+            'de, map,
+            "pos" => pos: Option<P>,
+            "font" => font: Option<text::TextProps<theme::Color>>,
+            "fill" => fill: Option<Option<theme::Fill>>,
+            "border" => border: Option<Option<theme::Stroke>>,
+            "columns" => columns: Option<u32>,
+            "padding" => padding: Option<geom::Padding>,
+            "margin" => margin: Option<f32>,
+            "spacing" => spacing: Option<geom::Size>,
+        );
+
+        let mut legend = if let Some(pos) = pos {
+            Legend::<P>::new(pos)
+        } else {
+            Legend::<P>::default()
+        };
+
+        if let Some(font) = font {
+            legend = legend.with_font(font);
+        }
+        if let Some(fill) = fill {
+            legend = legend.with_fill(fill);
+        }
+        if let Some(border) = border {
+            legend = legend.with_border(border);
+        }
+        if let Some(columns) = columns {
+            legend = legend.with_columns(columns);
+        }
+        if let Some(padding) = padding {
+            legend = legend.with_padding(padding);
+        }
+        if let Some(margin) = margin {
+            legend = legend.with_margin(margin);
+        }
+        if let Some(spacing) = spacing {
+            legend = legend.with_spacing(spacing);
         }
         Ok(legend)
     }
