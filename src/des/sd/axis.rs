@@ -699,11 +699,15 @@ impl serde::Serialize for axis::ticks::Formatter {
         match self {
             axis::ticks::Formatter::Auto => "auto".serialize(serializer),
             axis::ticks::Formatter::SharedAuto => "shared-auto".serialize(serializer),
-            axis::ticks::Formatter::Prec(prec) => {
-                let mut map = serializer.serialize_struct("PrecFormatter", 2)?;
-                map.serialize_field("type", "prec")?;
-                map.serialize_field("digits", prec)?;
-                map.end()
+            axis::ticks::Formatter::Decimal(formatter) => {
+                if let Some(decimals) = formatter.decimal_places {
+                    let mut map = serializer.serialize_struct("PrecFormatter", 2)?;
+                    map.serialize_field("type", "decimal")?;
+                    map.serialize_field("decimals", &decimals)?;
+                    map.end()
+                } else {
+                    "decimal".serialize(serializer)
+                }
             }
             axis::ticks::Formatter::Percent(formatter) => {
                 if let Some(decimals) = formatter.decimal_places {
@@ -765,7 +769,23 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
         match value {
             "auto" => Ok(axis::ticks::Formatter::Auto),
             "shared-auto" => Ok(axis::ticks::Formatter::SharedAuto),
-            other => Err(E::unknown_variant(other, &["auto", "shared-auto"])),
+            "decimal" => Ok(axis::ticks::Formatter::Decimal(Default::default())),
+            "percent" => Ok(axis::ticks::Formatter::Percent(Default::default())),
+            #[cfg(feature = "time")]
+            "datetime" => Ok(axis::ticks::Formatter::DateTime(Default::default())),
+            #[cfg(feature = "time")]
+            "timedelta" => Ok(axis::ticks::Formatter::TimeDelta(Default::default())),
+            other => Err(E::unknown_variant(
+                other,
+                &[
+                    "auto",
+                    "shared-auto",
+                    "decimal",
+                    "percent",
+                    "datetime",
+                    "timedelta",
+                ],
+            )),
         }
     }
 
@@ -779,10 +799,12 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
             if key == "type" {
                 let tag = map.next_value::<String>()?;
                 return match tag.as_str() {
-                    "prec" => deserialize_prec_formatter(&mut map, buffered)
-                        .map(axis::ticks::Formatter::Prec),
+                    "auto" => Ok(axis::ticks::Formatter::Auto),
+                    "shared-auto" => Ok(axis::ticks::Formatter::SharedAuto),
                     "percent" => deserialize_percent_formatter(&mut map, buffered)
                         .map(axis::ticks::Formatter::Percent),
+                    "decimal" => deserialize_decimal_formatter(&mut map, buffered)
+                        .map(axis::ticks::Formatter::Decimal),
                     #[cfg(feature = "time")]
                     "datetime" => deserialize_datetime_formatter(&mut map, buffered)
                         .map(axis::ticks::Formatter::DateTime),
@@ -791,7 +813,14 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
                         .map(axis::ticks::Formatter::TimeDelta),
                     _ => Err(serde::de::Error::unknown_variant(
                         &tag,
-                        &["prec", "percent", "datetime", "timedelta"],
+                        &[
+                            "auto",
+                            "shared-auto",
+                            "decimal",
+                            "percent",
+                            "datetime",
+                            "timedelta",
+                        ],
                     )),
                 };
             }
@@ -804,21 +833,18 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
     }
 }
 
-fn deserialize_prec_formatter<'de, A>(
+fn deserialize_decimal_formatter<'de, A>(
     map: &mut A,
     buffered: Vec<(String, Value)>,
-) -> Result<usize, A::Error>
+) -> Result<axis::ticks::DecimalFormatter, A::Error>
 where
     A: serde::de::MapAccess<'de>,
 {
     deserialize_tagged_map_fields!(
         'de, map, buffered,
-        "digits" => digits: Option<usize>,
+        "decimals" => decimal_places: Option<usize>,
     );
-    let Some(prec) = digits else {
-        return Err(serde::de::Error::missing_field("digits"));
-    };
-    Ok(prec)
+    Ok(axis::ticks::DecimalFormatter { decimal_places })
 }
 
 fn deserialize_percent_formatter<'de, A>(
@@ -975,6 +1001,8 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
             "log" => {
                 Ok(axis::Ticks::default().with_locator(axis::ticks::LogLocator::default().into()))
             }
+            "decimal" => Ok(axis::Ticks::default()
+                .with_formatter(Some(axis::ticks::DecimalFormatter::default().into()))),
             "percent" => Ok(axis::Ticks::default()
                 .with_formatter(Some(axis::ticks::PercentFormatter::default().into()))),
             _ => {
@@ -986,6 +1014,7 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                             "maxn",
                             "pimultiple",
                             "log",
+                            "decimal",
                             "percent",
                             "[color string]",
                         ],

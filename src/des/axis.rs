@@ -572,7 +572,7 @@ pub mod ticks {
         /// Same as [Formatter::Auto] for all axes, even those that are shared.
         SharedAuto,
         /// Format the ticks with decimal precision
-        Prec(usize),
+        Decimal(DecimalFormatter),
         /// The labels are percentages (E.g. `0.5` will be formatted as `50%`)
         Percent(PercentFormatter),
         #[cfg(feature = "time")]
@@ -586,7 +586,29 @@ pub mod ticks {
         TimeDelta(TimeDeltaFormatter),
     }
 
-    /// A label formatter for DateTime ticks
+    /// A label formatter that formats the ticks with a specified number of decimal places
+    #[derive(Debug, Clone, Copy, Default, PartialEq)]
+    pub struct DecimalFormatter {
+        /// Number of decimal places
+        /// None means automatic
+        pub decimal_places: Option<usize>,
+    }
+
+    impl From<DecimalFormatter> for Formatter {
+        fn from(fmt: DecimalFormatter) -> Self {
+            Formatter::Decimal(fmt)
+        }
+    }
+
+    impl From<usize> for DecimalFormatter {
+        fn from(digits: usize) -> Self {
+            DecimalFormatter {
+                decimal_places: Some(digits),
+            }
+        }
+    }
+
+    /// A label formatter that convert values to percentage and formats with provided decimal places
     #[derive(Debug, Clone, Copy, Default, PartialEq)]
     pub struct PercentFormatter {
         /// Number of decimal places
@@ -597,6 +619,14 @@ pub mod ticks {
     impl From<PercentFormatter> for Formatter {
         fn from(fmt: PercentFormatter) -> Self {
             Formatter::Percent(fmt)
+        }
+    }
+
+    impl From<usize> for PercentFormatter {
+        fn from(digits: usize) -> Self {
+            PercentFormatter {
+                decimal_places: Some(digits),
+            }
         }
     }
 
