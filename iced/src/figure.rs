@@ -372,6 +372,7 @@ pub fn map_style(theme: &iced::Theme) -> plotive::Style {
         iced::Theme::CatppuccinMacchiato => plotive::Style::catppuccin_macchiato(),
         iced::Theme::CatppuccinFrappe => plotive::Style::catppuccin_frappe(),
         iced::Theme::CatppuccinLatte => plotive::Style::catppuccin_latte(),
+        iced::Theme::Dracula => plotive::Style::dracula(),
         _ => {
             let theme = map_theme(theme);
             let palette = if theme.is_dark() {

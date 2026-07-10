@@ -187,6 +187,53 @@ impl Show for drawing::PreparedFigure {
     }
 }
 
+fn color_to_iced(color: &plotive::Rgba8) -> iced::Color {
+    iced::Color::from_rgba(
+        color.r() as f32 / 255.0,
+        color.g() as f32 / 255.0,
+        color.b() as f32 / 255.0,
+        color.a() as f32 / 255.0,
+    )
+}
+
+fn theme_plotive_to_iced(pv_style: &plotive::Style) -> iced::Theme {
+    if pv_style == &plotive::Style::dracula() {
+        iced::Theme::Dracula
+    } else if pv_style == &plotive::Style::catppuccin_mocha() {
+        iced::Theme::CatppuccinMocha
+    } else if pv_style == &plotive::Style::catppuccin_latte() {
+        iced::Theme::CatppuccinLatte
+    } else if pv_style == &plotive::Style::catppuccin_frappe() {
+        iced::Theme::CatppuccinFrappe
+    } else if pv_style == &plotive::Style::catppuccin_macchiato() {
+        iced::Theme::CatppuccinMacchiato
+    } else {
+        let palette = iced::theme::Palette {
+            background: color_to_iced(&pv_style.theme().background()),
+            text: color_to_iced(&pv_style.theme().foreground()),
+            primary: color_to_iced(
+                &pv_style
+                    .palette()
+                    .get(plotive::style::series::IndexColor(0)),
+            ),
+            success: iced::theme::Palette::LIGHT.success,
+            warning: iced::theme::Palette::LIGHT.warning,
+            danger: iced::theme::Palette::LIGHT.danger,
+        };
+        iced::Theme::custom("plotive", palette)
+    }
+}
+
+fn theme_from_show<D>(show: &FigureShow<D>) -> iced::Theme
+where
+    D: data::Source + ?Sized + 'static,
+{
+    show.style
+        .as_ref()
+        .map(theme_plotive_to_iced)
+        .unwrap_or(iced::Theme::Light)
+}
+
 fn show_app<D>(
     fig: drawing::PreparedFigure,
     data_source: Arc<D>,
@@ -212,6 +259,7 @@ where
         FigureShow::update,
         FigureShow::view,
     )
+    .theme(theme_from_show::<D>)
     .title(FigureShow::title)
     // subscribe to key events
     .subscription(FigureShow::subscription)
@@ -342,6 +390,13 @@ where
         self.style = style;
     }
 
+    pub fn theme(&self) -> iced::Theme {
+        self.style
+            .as_ref()
+            .map(theme_plotive_to_iced)
+            .unwrap_or(iced::Theme::Light)
+    }
+
     pub fn set_title(&mut self, title: Option<String>) {
         self.title = title;
     }
@@ -352,7 +407,9 @@ where
                 return fst_line.to_string();
             }
         }
-        self.title.clone().unwrap_or_else(|| "Plotive Figure".to_string())
+        self.title
+            .clone()
+            .unwrap_or_else(|| "Plotive Figure".to_string())
     }
 
     pub fn figure(&self) -> Option<&drawing::PreparedFigure> {
@@ -363,7 +420,7 @@ where
         self.fig.as_ref().map(|f| &f.data_source)
     }
 
-    pub fn style(&self) -> Option<&plotive::Style> {
+    pub fn plotive_style(&self) -> Option<&plotive::Style> {
         self.style.as_ref()
     }
 
@@ -706,6 +763,19 @@ where
     /// Create a view for the toolbar
     pub fn toolbar_view(&self) -> iced::Element<'_, Message> {
         let has_fig = self.fig.is_some();
+        let theme = self.theme();
+        let icon_color = |style: fn(&iced::Theme, button::Status) -> button::Style,
+                          enabled: bool| {
+            style(
+                &theme,
+                if enabled {
+                    button::Status::Active
+                } else {
+                    button::Status::Disabled
+                },
+            )
+            .text_color
+        };
 
         let mut toolbar = row![];
 
@@ -724,17 +794,29 @@ where
             const FA_ZOOM: &str = "expand";
             const FA_PAN: &str = "arrows-up-down-left-right";
 
-            let home_button = button(fa_icon_solid(FA_HOME).size(ICON_SZ))
-                .on_press_maybe((has_fig && !self.at_home).then_some(Message::GoHome));
-            let zoom_button = button(fa_icon_solid(FA_ZOOM).size(ICON_SZ))
-                .on_press_maybe(has_fig.then_some(Message::EnableZoom));
+            let home_button = button(
+                fa_icon_solid(FA_HOME)
+                    .size(ICON_SZ)
+                    .color(icon_color(button::primary, has_fig && !self.at_home)),
+            )
+            .on_press_maybe((has_fig && !self.at_home).then_some(Message::GoHome));
+            let zoom_button = button(
+                fa_icon_solid(FA_ZOOM)
+                    .size(ICON_SZ)
+                    .color(icon_color(button::primary, has_fig)),
+            )
+            .on_press_maybe(has_fig.then_some(Message::EnableZoom));
             let zoom_button = if zooming {
                 zoom_button.style(button::secondary)
             } else {
                 zoom_button.style(button::primary)
             };
-            let pan_button = button(fa_icon_solid(FA_PAN).size(ICON_SZ))
-                .on_press_maybe(has_fig.then_some(Message::EnablePan));
+            let pan_button = button(
+                fa_icon_solid(FA_PAN)
+                    .size(ICON_SZ)
+                    .color(icon_color(button::primary, has_fig)),
+            )
+            .on_press_maybe(has_fig.then_some(Message::EnablePan));
             let pan_button = if panning {
                 pan_button.style(button::secondary)
             } else {
@@ -758,9 +840,12 @@ where
 
         if self.commands.has_export_png() {
             let convert_png = button(
-                row![fa_icon_solid("file-image"), text("PNG").size(TEXT_SZ)]
-                    .align_y(Alignment::Center)
-                    .spacing(5),
+                row![
+                    fa_icon_solid("file-image").color(icon_color(button::primary, has_fig)),
+                    text("PNG").size(TEXT_SZ)
+                ]
+                .align_y(Alignment::Center)
+                .spacing(5),
             )
             .on_press_maybe(has_fig.then_some(Message::ExportPng));
             toolbar = toolbar.push(convert_png);
@@ -768,9 +853,12 @@ where
 
         if self.commands.has_export_svg() {
             let convert_svg = button(
-                row![fa_icon_solid("file-image"), text("SVG").size(TEXT_SZ)]
-                    .align_y(Alignment::Center)
-                    .spacing(5),
+                row![
+                    fa_icon_solid("file-image").color(icon_color(button::primary, has_fig)),
+                    text("SVG").size(TEXT_SZ)
+                ]
+                .align_y(Alignment::Center)
+                .spacing(5),
             )
             .on_press_maybe(has_fig.then_some(Message::ExportSvg));
             toolbar = toolbar.push(convert_svg);
@@ -779,9 +867,9 @@ where
         #[cfg(feature = "clipboard")]
         if self.commands.has_export_clipboard() {
             let icon = if self.ack_clipboard {
-                fa_icon_solid("check")
+                fa_icon_solid("check").color(icon_color(button::primary, has_fig))
             } else {
-                fa_icon("clipboard")
+                fa_icon("clipboard").color(icon_color(button::primary, has_fig))
             };
 
             let convert_clipboard =
@@ -791,8 +879,9 @@ where
 
         #[cfg(feature = "data-csv")]
         if self.commands.has_export_csv() {
-            let convert_csv = button(fa_icon_solid("file-csv"))
-                .on_press_maybe(has_fig.then_some(Message::ExportCsv));
+            let convert_csv =
+                button(fa_icon_solid("file-csv").color(icon_color(button::primary, has_fig)))
+                    .on_press_maybe(has_fig.then_some(Message::ExportCsv));
             toolbar = toolbar.push(convert_csv);
         }
 
