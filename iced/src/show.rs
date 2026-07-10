@@ -135,6 +135,7 @@ pub struct Params {
     pub style: Option<plotive::Style>,
     pub fontdb: Option<Arc<fontdb::Database>>,
     pub commands: Commands,
+    pub title: Option<String>,
 }
 
 impl Default for Params {
@@ -143,6 +144,7 @@ impl Default for Params {
             style: None,
             fontdb: None,
             commands: Commands::all(),
+            title: None,
         }
     }
 }
@@ -168,7 +170,7 @@ impl Show for des::Figure {
             .prepare(&*data_source, Some(&*fontdb))
             .expect("Failed to prepare figure");
 
-        show_app(fig, data_source, fontdb, params.style)
+        show_app(fig, data_source, fontdb, params.style, params.title)
     }
 }
 
@@ -181,7 +183,7 @@ impl Show for drawing::PreparedFigure {
             .fontdb
             .unwrap_or_else(|| Arc::new(plotive::bundled_font_db()));
 
-        show_app(self, data_source, fontdb, params.style)
+        show_app(self, data_source, fontdb, params.style, params.title)
     }
 }
 
@@ -190,6 +192,7 @@ fn show_app<D>(
     data_source: Arc<D>,
     fontdb: Arc<fontdb::Database>,
     style: Option<plotive::Style>,
+    title: Option<String>,
 ) -> iced::Result
 where
     D: data::Source + ?Sized + 'static,
@@ -203,11 +206,13 @@ where
             let mut show = FigureShow::new(fontdb, Commands::all(), None);
             show.set_figure(fig, data_source.clone());
             show.set_style(style.clone());
+            show.set_title(title.clone());
             (show, iced::Task::none())
         },
         FigureShow::update,
         FigureShow::view,
     )
+    .title(FigureShow::title)
     // subscribe to key events
     .subscription(FigureShow::subscription)
     .run()
@@ -274,6 +279,7 @@ pub struct FigureShow<D: data::Source + ?Sized + 'static> {
     fontdb: Arc<fontdb::Database>,
     style: Option<plotive::Style>,
     commands: Commands,
+    title: Option<String>,
     at_home: bool,
     over_plot: bool,
     tb_status: Option<(String, String)>,
@@ -304,6 +310,7 @@ where
             at_home: true,
             over_plot: false,
             tb_status: None,
+            title: None,
             interaction: Interaction::None,
             middle_but_drag: None,
             fig_scale: 1.0,
@@ -333,6 +340,19 @@ where
 
     pub fn set_style(&mut self, style: Option<plotive::Style>) {
         self.style = style;
+    }
+
+    pub fn set_title(&mut self, title: Option<String>) {
+        self.title = title;
+    }
+
+    pub fn title(&self) -> String {
+        if let Some(title) = self.fig.as_ref().and_then(|f| f.fig.title()) {
+            if let Some(fst_line) = title.lines().next() {
+                return fst_line.to_string();
+            }
+        }
+        self.title.clone().unwrap_or_else(|| "Plotive Figure".to_string())
     }
 
     pub fn figure(&self) -> Option<&drawing::PreparedFigure> {
