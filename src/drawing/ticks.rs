@@ -502,7 +502,10 @@ pub fn num_label_formatter(
         Some(Formatter::Auto | Formatter::SharedAuto) => {
             auto_label_formatter(locator, formatter, ab, scale)
         }
-        Some(Formatter::Prec(prec)) => Arc::new(PrecLabelFormat(*prec)),
+        Some(Formatter::Decimal(fmt)) => Arc::new(DecimalLabelFormat(
+            fmt.decimal_places
+                .unwrap_or_else(|| decimal_auto_precision(ab)),
+        )),
         Some(Formatter::Percent(fmt)) => {
             let prec = fmt
                 .decimal_places
@@ -534,11 +537,11 @@ fn auto_label_formatter(
             if max >= 100000.0 || max < 0.001 {
                 Arc::new(SciLabelFormat)
             } else if max >= 100.0 {
-                Arc::new(PrecLabelFormat(0))
+                Arc::new(DecimalLabelFormat(0))
             } else if max >= 10.0 {
-                Arc::new(PrecLabelFormat(1))
+                Arc::new(DecimalLabelFormat(1))
             } else {
-                Arc::new(PrecLabelFormat(2))
+                Arc::new(DecimalLabelFormat(2))
             }
         }
         #[cfg(feature = "time")]
@@ -548,6 +551,19 @@ fn auto_label_formatter(
             locator,
             scale
         ),
+    }
+}
+
+fn decimal_auto_precision(ab: axis::NumBounds) -> usize {
+    let span = ab.span();
+    if span >= 100.0 {
+        0
+    } else if span >= 10.0 {
+        1
+    } else if span >= 1.0 {
+        2
+    } else {
+        3
     }
 }
 
@@ -607,9 +623,9 @@ fn auto_datetime_label_formatter(tb: axis::TimeBounds) -> Result<Arc<dyn LabelFo
         } else {
             "%H:%M:%S%.f"
         }
-    } else if span < TimeDelta::from_days(10.0) {
+    } else if span < TimeDelta::from_days(6.0) {
         "%Y-%m-%d %H:%M"
-    } else if span < TimeDelta::from_days(10.0 * 30.0) {
+    } else if span < TimeDelta::from_days(6.0 * 30.0) {
         "%Y-%m-%d"
     } else {
         "%Y-%m"
@@ -656,9 +672,9 @@ impl LabelFormatter for Categories {
 }
 
 #[derive(Debug, Clone)]
-struct PrecLabelFormat(usize);
+struct DecimalLabelFormat(usize);
 
-impl LabelFormatter for PrecLabelFormat {
+impl LabelFormatter for DecimalLabelFormat {
     fn format_label(&self, data: data::SampleRef) -> String {
         let data = data.as_num().unwrap();
         format!("{data:.*}", self.0)

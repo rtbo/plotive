@@ -26,6 +26,9 @@ pub use series::{DataCol, Series, data_inline, data_src_ref};
 use crate::style::theme;
 use crate::text;
 
+/// Rich-Text properties for titles, labels, legends, etc.
+pub type TextProps = text::TextProps<theme::Color>;
+
 /// Text content for titles, labels, legends, etc.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Text {
@@ -34,12 +37,12 @@ pub enum Text {
     /// Rich text, the format string is parsed to produce a rich text, using the standard classes
     Rich(String),
     /// Rich text, the format string is parsed to produce a rich text,
-    /// and the non-standard classes can be used to define the properties of the spans
-    RichWithClasses {
-        /// The format string for the rich text, with optional classes
+    /// and the user defined props can be used to define the properties of the spans
+    RichWithProps {
+        /// The format string for the rich text, with optional properties classes
         fmt: String,
-        /// The classes that can be used in the format string
-        classes: Vec<(String, text::TextProps<theme::Color>)>,
+        /// The properties that can be used in the format string
+        props: Vec<(String, TextProps)>,
     },
 }
 
@@ -60,7 +63,10 @@ impl Text {
                 let builder = parsed_text.into_builder(base).with_layout(layout);
                 builder.done(db)
             }
-            Text::RichWithClasses { fmt, classes } => {
+            Text::RichWithProps {
+                fmt,
+                props: classes,
+            } => {
                 let parsed_text = text::parse_rich_text_with_classes(fmt, &classes)?;
                 let builder = parsed_text.into_builder(base).with_layout(layout);
                 builder.done(db)
@@ -147,9 +153,9 @@ impl From<(&str, &str, &str)> for Text {
 
 impl From<(String, Vec<(String, text::TextProps<theme::Color>)>)> for Text {
     fn from(tuple: (String, Vec<(String, text::TextProps<theme::Color>)>)) -> Self {
-        Text::RichWithClasses {
+        Text::RichWithProps {
             fmt: tuple.0,
-            classes: tuple.1,
+            props: tuple.1,
         }
     }
 }

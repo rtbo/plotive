@@ -615,7 +615,6 @@ where
     ) {
         (true, true, true, true) => "auto".serialize(serializer),
         (false, true, true, true) => stroke.color.serialize(serializer),
-        (true, false, true, true) => stroke.width.serialize(serializer),
         (true, true, false, true) => stroke.pattern.serialize(serializer),
         _ => {
             let fields = (!has_default_color as usize)
@@ -681,13 +680,6 @@ impl<C> StrokeVisitor<C> {
         )
     }
 
-    fn no_default_numeric_message(&self) -> String {
-        format!(
-            "Numeric value is not valid for {} because there is no default stroke defined",
-            self.name
-        )
-    }
-
     fn no_default_dash_array_message(&self) -> String {
         format!(
             "Dash array is not valid for {} because there is no default stroke defined",
@@ -710,44 +702,6 @@ where
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str(self.expecting_description())
-    }
-
-    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        self.visit_f64(value as f64)
-    }
-
-    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        self.visit_f64(value as f64)
-    }
-
-    fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
-    where
-        E: serde::de::Error,
-    {
-        let Some(default) = self.default_stroke else {
-            return Err(serde::de::Error::custom(self.no_default_numeric_message()));
-        };
-
-        if value <= 0.0 {
-            return Err(serde::de::Error::custom(format!(
-                "Invalid stroke width for {}: width cannot be null or negative",
-                self.name
-            )));
-        }
-
-        let width = value as f32;
-        Ok(Stroke {
-            color: default.color,
-            width,
-            pattern: default.pattern,
-            opacity: default.opacity,
-        })
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>

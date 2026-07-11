@@ -391,6 +391,13 @@ pub trait Column: std::fmt::Debug {
     ///
     /// Panics if none of the f64, i64, str, time or time_delta methods return Some.
     fn boxed_copy(&self) -> Box<dyn Column> {
+        #[cfg(feature = "time")]
+        if let Some(col) = self.time() {
+            return Box::new(col.time_iter().collect::<Vec<_>>());
+        } else if let Some(col) = self.time_delta() {
+            return Box::new(col.time_delta_iter().collect::<Vec<_>>());
+        }
+
         if let Some(col) = self.f64() {
             let mut vec = Vec::with_capacity(col.len());
             for v in col.f64_iter() {
@@ -405,13 +412,6 @@ pub trait Column: std::fmt::Debug {
                     .map(|s| s.map(|s| s.to_string()))
                     .collect::<Vec<_>>(),
             );
-        }
-
-        #[cfg(feature = "time")]
-        if let Some(col) = self.time() {
-            return Box::new(col.time_iter().collect::<Vec<_>>());
-        } else if let Some(col) = self.time_delta() {
-            return Box::new(col.time_delta_iter().collect::<Vec<_>>());
         }
 
         panic!("Cannot box copy column: no known type");

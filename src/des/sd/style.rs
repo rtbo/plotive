@@ -387,13 +387,6 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_series_stroke_number_uses_default_color() {
-        let stroke: style::series::Stroke = serde_json::from_str("2.5").unwrap();
-
-        assert_eq!(stroke, style::series::Stroke::default().with_width(2.5),);
-    }
-
-    #[test]
     fn deserialize_theme_stroke_auto_still_fails_without_default() {
         let err = serde_json::from_str::<style::theme::Stroke>("\"auto\"").unwrap_err();
 
@@ -424,16 +417,6 @@ mod tests {
     }
 
     #[test]
-    fn deserialize_theme_stroke_number_without_default_has_precise_message() {
-        let err = serde_json::from_str::<style::theme::Stroke>("2.5").unwrap_err();
-
-        assert_eq!(
-            err.to_string(),
-            "Numeric value is not valid for Stroke because there is no default stroke defined at line 1 column 3",
-        );
-    }
-
-    #[test]
     fn deserialize_theme_stroke_dash_array_without_default_has_precise_message() {
         let err = serde_json::from_str::<style::theme::Stroke>("[2.0,3.0]").unwrap_err();
 
@@ -448,24 +431,6 @@ mod tests {
         let json = serde_json::to_string(&style::series::Stroke::default()).unwrap();
 
         assert_eq!(json, "\"auto\"");
-    }
-
-    #[test]
-    fn serialize_series_stroke_width_only_uses_number() {
-        let json =
-            serde_json::to_string(&style::series::Stroke::default().with_width(2.5)).unwrap();
-
-        assert_eq!(json, "2.5");
-    }
-
-    #[test]
-    fn serialize_series_stroke_roundtrip_width_only() {
-        let stroke = style::series::Stroke::default().with_width(2.5);
-        let json = serde_json::to_string(&stroke).unwrap();
-        let deserialized: style::series::Stroke = serde_json::from_str(&json).unwrap();
-
-        assert_eq!(json, "2.5");
-        assert_eq!(deserialized, stroke);
     }
 
     #[test]

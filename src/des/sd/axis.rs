@@ -401,22 +401,27 @@ impl serde::Serialize for axis::ticks::Locator {
                 map.serialize_field("type", "datetime")?;
                 let period = match locator {
                     axis::ticks::DateTimeLocator::Auto => None,
-                    axis::ticks::DateTimeLocator::Years(years) => Some((*years, "year")),
-                    axis::ticks::DateTimeLocator::Months(months) => Some((*months, "month")),
-                    axis::ticks::DateTimeLocator::Weeks(weeks) => Some((*weeks, "week")),
-                    axis::ticks::DateTimeLocator::Days(days) => Some((*days, "day")),
-                    axis::ticks::DateTimeLocator::Hours(hours) => Some((*hours, "hour")),
-                    axis::ticks::DateTimeLocator::Minutes(minutes) => Some((*minutes, "min")),
-                    axis::ticks::DateTimeLocator::Seconds(seconds) => Some((*seconds, "sec")),
+                    axis::ticks::DateTimeLocator::Years(years) => Some((*years, "years")),
+                    axis::ticks::DateTimeLocator::Months(months) => Some((*months, "months")),
+                    axis::ticks::DateTimeLocator::Weeks(weeks) => Some((*weeks, "weeks")),
+                    axis::ticks::DateTimeLocator::Days(days) => Some((*days, "days")),
+                    axis::ticks::DateTimeLocator::Hours(hours) => Some((*hours, "hours")),
+                    axis::ticks::DateTimeLocator::Minutes(minutes) => Some((*minutes, "mins")),
+                    axis::ticks::DateTimeLocator::Seconds(seconds) => Some((*seconds, "secs")),
                     axis::ticks::DateTimeLocator::Micros(micros) => {
                         if micros % 1000 == 0 {
-                            Some((micros / 1000, "milli"))
+                            Some((micros / 1000, "millis"))
                         } else {
-                            Some((*micros, "micro"))
+                            Some((*micros, "micros"))
                         }
                     }
                 };
                 if let Some((value, unit)) = period {
+                    let unit = if value <= 1 {
+                        unit.strip_suffix('s').unwrap_or(unit)
+                    } else {
+                        unit
+                    };
                     map.serialize_field("period", &(value, unit))?;
                 }
                 map.end()
@@ -427,19 +432,24 @@ impl serde::Serialize for axis::ticks::Locator {
                 map.serialize_field("type", "timedelta")?;
                 let period = match locator {
                     axis::ticks::TimeDeltaLocator::Auto => None,
-                    axis::ticks::TimeDeltaLocator::Days(days) => Some((*days, "day")),
-                    axis::ticks::TimeDeltaLocator::Hours(hours) => Some((*hours, "hour")),
-                    axis::ticks::TimeDeltaLocator::Minutes(minutes) => Some((*minutes, "min")),
-                    axis::ticks::TimeDeltaLocator::Seconds(seconds) => Some((*seconds, "sec")),
+                    axis::ticks::TimeDeltaLocator::Days(days) => Some((*days, "days")),
+                    axis::ticks::TimeDeltaLocator::Hours(hours) => Some((*hours, "hours")),
+                    axis::ticks::TimeDeltaLocator::Minutes(minutes) => Some((*minutes, "mins")),
+                    axis::ticks::TimeDeltaLocator::Seconds(seconds) => Some((*seconds, "secs")),
                     axis::ticks::TimeDeltaLocator::Micros(micros) => {
                         if micros % 1000 == 0 {
-                            Some((micros / 1000, "milli"))
+                            Some((micros / 1000, "millis"))
                         } else {
-                            Some((*micros, "micro"))
+                            Some((*micros, "micros"))
                         }
                     }
                 };
                 if let Some((value, unit)) = period {
+                    let unit = if value <= 1 {
+                        unit.strip_suffix('s').unwrap_or(unit)
+                    } else {
+                        unit
+                    };
                     map.serialize_field("period", &(value, unit))?;
                 }
                 map.end()
@@ -604,15 +614,15 @@ where
     );
     if let Some((period, unit)) = period {
         let locator = match unit.as_str() {
-            "year" => axis::ticks::DateTimeLocator::Years(period),
-            "month" => axis::ticks::DateTimeLocator::Months(period),
-            "week" => axis::ticks::DateTimeLocator::Weeks(period),
-            "day" => axis::ticks::DateTimeLocator::Days(period),
-            "hour" => axis::ticks::DateTimeLocator::Hours(period),
-            "min" => axis::ticks::DateTimeLocator::Minutes(period),
-            "sec" => axis::ticks::DateTimeLocator::Seconds(period),
-            "milli" => axis::ticks::DateTimeLocator::Micros(period * 1000),
-            "micro" => axis::ticks::DateTimeLocator::Micros(period),
+            "year" | "years" => axis::ticks::DateTimeLocator::Years(period),
+            "month" | "months" => axis::ticks::DateTimeLocator::Months(period),
+            "week" | "weeks" => axis::ticks::DateTimeLocator::Weeks(period),
+            "day" | "days" => axis::ticks::DateTimeLocator::Days(period),
+            "hour" | "hours" => axis::ticks::DateTimeLocator::Hours(period),
+            "min" | "mins" => axis::ticks::DateTimeLocator::Minutes(period),
+            "sec" | "secs" => axis::ticks::DateTimeLocator::Seconds(period),
+            "milli" | "millis" => axis::ticks::DateTimeLocator::Micros(period * 1000),
+            "micro" | "micros" => axis::ticks::DateTimeLocator::Micros(period),
             _ => {
                 return Err(serde::de::Error::custom(format!(
                     "invalid datetime locator period unit: {}",
@@ -641,12 +651,12 @@ where
 
     if let Some((period, unit)) = period {
         let locator = match unit.as_str() {
-            "day" => axis::ticks::TimeDeltaLocator::Days(period),
-            "hour" => axis::ticks::TimeDeltaLocator::Hours(period),
-            "min" => axis::ticks::TimeDeltaLocator::Minutes(period),
-            "sec" => axis::ticks::TimeDeltaLocator::Seconds(period),
-            "milli" => axis::ticks::TimeDeltaLocator::Micros(period * 1000),
-            "micro" => axis::ticks::TimeDeltaLocator::Micros(period),
+            "day" | "days" => axis::ticks::TimeDeltaLocator::Days(period),
+            "hour" | "hours" => axis::ticks::TimeDeltaLocator::Hours(period),
+            "min" | "mins" => axis::ticks::TimeDeltaLocator::Minutes(period),
+            "sec" | "secs" => axis::ticks::TimeDeltaLocator::Seconds(period),
+            "milli" | "millis" => axis::ticks::TimeDeltaLocator::Micros(period * 1000),
+            "micro" | "micros" => axis::ticks::TimeDeltaLocator::Micros(period),
             _ => {
                 return Err(serde::de::Error::custom(format!(
                     "invalid timedelta locator period unit: {}",
@@ -689,11 +699,15 @@ impl serde::Serialize for axis::ticks::Formatter {
         match self {
             axis::ticks::Formatter::Auto => "auto".serialize(serializer),
             axis::ticks::Formatter::SharedAuto => "shared-auto".serialize(serializer),
-            axis::ticks::Formatter::Prec(prec) => {
-                let mut map = serializer.serialize_struct("PrecFormatter", 2)?;
-                map.serialize_field("type", "prec")?;
-                map.serialize_field("digits", prec)?;
-                map.end()
+            axis::ticks::Formatter::Decimal(formatter) => {
+                if let Some(decimals) = formatter.decimal_places {
+                    let mut map = serializer.serialize_struct("PrecFormatter", 2)?;
+                    map.serialize_field("type", "decimal")?;
+                    map.serialize_field("decimals", &decimals)?;
+                    map.end()
+                } else {
+                    "decimal".serialize(serializer)
+                }
             }
             axis::ticks::Formatter::Percent(formatter) => {
                 if let Some(decimals) = formatter.decimal_places {
@@ -755,7 +769,23 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
         match value {
             "auto" => Ok(axis::ticks::Formatter::Auto),
             "shared-auto" => Ok(axis::ticks::Formatter::SharedAuto),
-            other => Err(E::unknown_variant(other, &["auto", "shared-auto"])),
+            "decimal" => Ok(axis::ticks::Formatter::Decimal(Default::default())),
+            "percent" => Ok(axis::ticks::Formatter::Percent(Default::default())),
+            #[cfg(feature = "time")]
+            "datetime" => Ok(axis::ticks::Formatter::DateTime(Default::default())),
+            #[cfg(feature = "time")]
+            "timedelta" => Ok(axis::ticks::Formatter::TimeDelta(Default::default())),
+            other => Err(E::unknown_variant(
+                other,
+                &[
+                    "auto",
+                    "shared-auto",
+                    "decimal",
+                    "percent",
+                    "datetime",
+                    "timedelta",
+                ],
+            )),
         }
     }
 
@@ -769,10 +799,12 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
             if key == "type" {
                 let tag = map.next_value::<String>()?;
                 return match tag.as_str() {
-                    "prec" => deserialize_prec_formatter(&mut map, buffered)
-                        .map(axis::ticks::Formatter::Prec),
+                    "auto" => Ok(axis::ticks::Formatter::Auto),
+                    "shared-auto" => Ok(axis::ticks::Formatter::SharedAuto),
                     "percent" => deserialize_percent_formatter(&mut map, buffered)
                         .map(axis::ticks::Formatter::Percent),
+                    "decimal" => deserialize_decimal_formatter(&mut map, buffered)
+                        .map(axis::ticks::Formatter::Decimal),
                     #[cfg(feature = "time")]
                     "datetime" => deserialize_datetime_formatter(&mut map, buffered)
                         .map(axis::ticks::Formatter::DateTime),
@@ -781,7 +813,14 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
                         .map(axis::ticks::Formatter::TimeDelta),
                     _ => Err(serde::de::Error::unknown_variant(
                         &tag,
-                        &["prec", "percent", "datetime", "timedelta"],
+                        &[
+                            "auto",
+                            "shared-auto",
+                            "decimal",
+                            "percent",
+                            "datetime",
+                            "timedelta",
+                        ],
                     )),
                 };
             }
@@ -794,21 +833,18 @@ impl<'de> serde::de::Visitor<'de> for FormatterVisitor {
     }
 }
 
-fn deserialize_prec_formatter<'de, A>(
+fn deserialize_decimal_formatter<'de, A>(
     map: &mut A,
     buffered: Vec<(String, Value)>,
-) -> Result<usize, A::Error>
+) -> Result<axis::ticks::DecimalFormatter, A::Error>
 where
     A: serde::de::MapAccess<'de>,
 {
     deserialize_tagged_map_fields!(
         'de, map, buffered,
-        "digits" => digits: Option<usize>,
+        "decimals" => decimal_places: Option<usize>,
     );
-    let Some(prec) = digits else {
-        return Err(serde::de::Error::missing_field("digits"));
-    };
-    Ok(prec)
+    Ok(axis::ticks::DecimalFormatter { decimal_places })
 }
 
 fn deserialize_percent_formatter<'de, A>(
@@ -965,6 +1001,8 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
             "log" => {
                 Ok(axis::Ticks::default().with_locator(axis::ticks::LogLocator::default().into()))
             }
+            "decimal" => Ok(axis::Ticks::default()
+                .with_formatter(Some(axis::ticks::DecimalFormatter::default().into()))),
             "percent" => Ok(axis::Ticks::default()
                 .with_formatter(Some(axis::ticks::PercentFormatter::default().into()))),
             _ => {
@@ -976,6 +1014,7 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                             "maxn",
                             "pimultiple",
                             "log",
+                            "decimal",
                             "percent",
                             "[color string]",
                         ],
@@ -1063,15 +1102,17 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                     let mut locator = axis::ticks::DateTimeLocator::Auto;
                     if let Some((period, unit)) = period {
                         locator = match unit.as_str() {
-                            "year" => axis::ticks::DateTimeLocator::Years(period),
-                            "month" => axis::ticks::DateTimeLocator::Months(period),
-                            "week" => axis::ticks::DateTimeLocator::Weeks(period),
-                            "day" => axis::ticks::DateTimeLocator::Days(period),
-                            "hour" => axis::ticks::DateTimeLocator::Hours(period),
-                            "min" => axis::ticks::DateTimeLocator::Minutes(period),
-                            "sec" => axis::ticks::DateTimeLocator::Seconds(period),
-                            "milli" => axis::ticks::DateTimeLocator::Micros(period * 1000),
-                            "micro" => axis::ticks::DateTimeLocator::Micros(period),
+                            "year" | "years" => axis::ticks::DateTimeLocator::Years(period),
+                            "month" | "months" => axis::ticks::DateTimeLocator::Months(period),
+                            "week" | "weeks" => axis::ticks::DateTimeLocator::Weeks(period),
+                            "day" | "days" => axis::ticks::DateTimeLocator::Days(period),
+                            "hour" | "hours" => axis::ticks::DateTimeLocator::Hours(period),
+                            "min" | "mins" => axis::ticks::DateTimeLocator::Minutes(period),
+                            "sec" | "secs" => axis::ticks::DateTimeLocator::Seconds(period),
+                            "milli" | "millis" => {
+                                axis::ticks::DateTimeLocator::Micros(period * 1000)
+                            }
+                            "micro" | "micros" => axis::ticks::DateTimeLocator::Micros(period),
                             _ => {
                                 return Err(A::Error::custom(format!(
                                     "invalid datetime locator period unit: {}",
@@ -1087,12 +1128,14 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                     let mut locator = axis::ticks::TimeDeltaLocator::Auto;
                     if let Some((period, unit)) = period {
                         locator = match unit.as_str() {
-                            "day" => axis::ticks::TimeDeltaLocator::Days(period),
-                            "hour" => axis::ticks::TimeDeltaLocator::Hours(period),
-                            "min" => axis::ticks::TimeDeltaLocator::Minutes(period),
-                            "sec" => axis::ticks::TimeDeltaLocator::Seconds(period),
-                            "milli" => axis::ticks::TimeDeltaLocator::Micros(period * 1000),
-                            "micro" => axis::ticks::TimeDeltaLocator::Micros(period),
+                            "day" | "days" => axis::ticks::TimeDeltaLocator::Days(period),
+                            "hour" | "hours" => axis::ticks::TimeDeltaLocator::Hours(period),
+                            "min" | "mins" => axis::ticks::TimeDeltaLocator::Minutes(period),
+                            "sec" | "secs" => axis::ticks::TimeDeltaLocator::Seconds(period),
+                            "milli" | "millis" => {
+                                axis::ticks::TimeDeltaLocator::Micros(period * 1000)
+                            }
+                            "micro" | "micros" => axis::ticks::TimeDeltaLocator::Micros(period),
                             _ => {
                                 return Err(A::Error::custom(format!(
                                     "invalid timedelta locator period unit: {}",
