@@ -37,6 +37,11 @@ impl PreparedFigure {
         self.size
     }
 
+    /// Get the text of the figure title, if any.
+    pub fn title(&self) -> Option<&str> {
+        self.title.as_ref().map(|(_, text)| text.text.as_str())
+    }
+
     ///
     pub fn plot_indices(&self) -> impl Iterator<Item = des::PlotIdx> + '_ {
         self.plots.iter_indices()
