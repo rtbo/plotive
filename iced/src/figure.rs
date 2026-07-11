@@ -79,8 +79,8 @@ where
     }
 
     /// Set the scale of the [`Figure`]
-    pub fn scale(mut self, scale: impl Into<f32>) -> Self {
-        self.scale = scale.into();
+    pub fn scale(mut self, scale: f32) -> Self {
+        self.scale = scale;
         self
     }
 
