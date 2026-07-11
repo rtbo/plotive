@@ -208,30 +208,36 @@ fn theme_plotive_to_iced(pv_style: &plotive::Style) -> iced::Theme {
     } else if pv_style == &plotive::Style::catppuccin_macchiato() {
         iced::Theme::CatppuccinMacchiato
     } else {
-        let palette = iced::theme::Palette {
-            background: color_to_iced(&pv_style.theme().background()),
-            text: color_to_iced(&pv_style.theme().foreground()),
-            primary: color_to_iced(
-                &pv_style
-                    .palette()
-                    .get(plotive::style::series::IndexColor(0)),
-            ),
-            success: iced::theme::Palette::LIGHT.success,
-            warning: iced::theme::Palette::LIGHT.warning,
-            danger: iced::theme::Palette::LIGHT.danger,
+        let mut palette = if pv_style.theme().is_dark() {
+            iced::theme::Palette::DARK
+        } else {
+            iced::theme::Palette::LIGHT
         };
-        iced::Theme::custom("plotive", palette)
+        palette.background = color_to_iced(&pv_style.theme().background());
+        let theme = iced::Theme::custom("plotive", palette);
+        theme
     }
 }
 
-fn theme_from_show<D>(show: &FigureShow<D>) -> iced::Theme
+fn system_theme() -> Option<plotive::Style> {
+    match dark_light::detect() {
+        Ok(dark_light::Mode::Light) => Some(plotive::Style::light()),
+        Ok(dark_light::Mode::Dark) => Some(plotive::Style::dark()),
+        _ => None,
+    }
+}
+
+fn theme_from_show<D>(show: &FigureShow<D>) -> Option<iced::Theme>
 where
     D: data::Source + ?Sized + 'static,
 {
-    show.style
-        .as_ref()
-        .map(theme_plotive_to_iced)
-        .unwrap_or(iced::Theme::Light)
+    if let Some(style) = &show.style {
+        return Some(theme_plotive_to_iced(style));
+    }
+    if let Some(style) = system_theme() {
+        return Some(theme_plotive_to_iced(&style));
+    }
+    None
 }
 
 fn show_app<D>(
