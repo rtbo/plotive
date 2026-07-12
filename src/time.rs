@@ -81,8 +81,19 @@ const fn days_in_year(year: i32) -> i32 {
 /// A type representing a date and time.
 /// It is represented by a `f64`, that is the seconds elapsed since Jan. 1, 1970 (Unix Epoch).
 /// Timezone is not supported.
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct DateTime(f64);
+
+impl std::fmt::Debug for DateTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if f.alternate() {
+            let s = self.to_comps().fmt_to_string("%Y-%m-%d %H:%M:%S%.f");
+            write!(f, "DateTime({})", s)
+        } else {
+            write!(f, "DateTime({})", self.0)
+        }
+    }
+}
 
 impl DateTime {
     /// Build a DateTime from year, month and day
