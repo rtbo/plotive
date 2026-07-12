@@ -725,7 +725,7 @@ impl serde::Serialize for axis::ticks::Formatter {
                 map.serialize_field("type", "datetime")?;
                 let fmt_str = formatter.fmt_str();
                 if let Some(fmt_str) = fmt_str {
-                    map.serialize_field("format", &fmt_str)?;
+                    map.serialize_field("fmt", &fmt_str)?;
                 }
                 map.end()
             }
@@ -734,7 +734,7 @@ impl serde::Serialize for axis::ticks::Formatter {
                 let mut map = serializer.serialize_struct("TimeDeltaFormatter", 2)?;
                 map.serialize_field("type", "timedelta")?;
                 if let Some(fmt_str) = formatter.fmt_str() {
-                    map.serialize_field("format", &fmt_str)?;
+                    map.serialize_field("fmt", &fmt_str)?;
                 }
                 map.end()
             }
@@ -873,7 +873,7 @@ where
 {
     deserialize_tagged_map_fields!(
         'de, map, buffered,
-        "format" => format: Option<String>,
+        "fmt" => format: Option<String>,
     );
     match format {
         Some(fmt_str) => {
@@ -905,7 +905,7 @@ where
 {
     deserialize_tagged_map_fields!(
         'de, map, buffered,
-        "format" => format: Option<String>,
+        "fmt" => format: Option<String>,
     );
     match format {
         Some(fmt_str) => {
@@ -993,6 +993,9 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
     {
         match value {
             "auto" => Ok(axis::Ticks::default()),
+            "shared-auto" => Ok(axis::Ticks::default()
+                .with_formatter(Some(axis::ticks::Formatter::SharedAuto.into()))),
+            "list" => Err(E::custom("list locator must be specified as an array of numbers")),
             "maxn" => {
                 Ok(axis::Ticks::default().with_locator(axis::ticks::MaxNLocator::default().into()))
             }
@@ -1005,6 +1008,14 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                 .with_formatter(Some(axis::ticks::DecimalFormatter::default().into()))),
             "percent" => Ok(axis::Ticks::default()
                 .with_formatter(Some(axis::ticks::PercentFormatter::default().into()))),
+            #[cfg(feature = "time")]
+            "datetime" => Ok(axis::Ticks::default()
+                .with_locator(axis::ticks::DateTimeLocator::Auto.into())
+                .with_formatter(Some(axis::ticks::DateTimeFormatter::default().into()))),
+            #[cfg(feature = "time")]
+            "timedelta" => Ok(axis::Ticks::default()
+                .with_locator(axis::ticks::TimeDeltaLocator::Auto.into())
+                .with_formatter(Some(axis::ticks::TimeDeltaFormatter::default().into()))),
             _ => {
                 let color = value.parse::<theme::Color>().map_err(|_| {
                     E::unknown_variant(
