@@ -80,6 +80,9 @@ required-features = ["utils"]
 name = "readme"
 
 [[example]]
+name = "primes"
+
+[[example]]
 name = "sine"
 
 [[example]]
