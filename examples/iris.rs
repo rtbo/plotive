@@ -135,5 +135,5 @@ fn main() {
 
     let fig = des::Figure::new(plot.into()).with_title(title.into());
 
-    common::save_figure(&fig, &source, None, "iris");
+    common::process_figure(&fig, &source, None, "iris");
 }

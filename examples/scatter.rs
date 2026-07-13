@@ -73,5 +73,5 @@ fn main() {
     )
     .with_title("Scatter Plot Example".into());
 
-    common::save_figure(&fig, &data_src, None, "scatter");
+    common::process_figure(&fig, &data_src, None, "scatter");
 }

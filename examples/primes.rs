@@ -47,5 +47,5 @@ fn main() {
         .with_column("indices", &indices)
         .with_column("primes", &primes);
 
-    common::save_figure(&fig, &data_source, None, "primes");
+    common::process_figure(&fig, &data_source, None, "primes");
 }

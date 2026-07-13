@@ -148,5 +148,5 @@ fn main() {
     )
     .with_title(title.into());
 
-    common::save_figure(&fig, &data_source, None, "bouncing_ball");
+    common::process_figure(&fig, &data_source, None, "bouncing_ball");
 }

@@ -92,5 +92,5 @@ fn main() {
 
     let fig = des::Figure::new(plot.into()).with_title("Categorial bars".into());
 
-    common::save_figure(&fig, &source, None, "bars");
+    common::process_figure(&fig, &source, None, "bars");
 }
