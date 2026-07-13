@@ -2,6 +2,7 @@ use std::borrow::Cow;
 use std::marker::PhantomData;
 use std::str::FromStr;
 
+use plotive_base::deserialize_map_fields;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Serialize};
 
@@ -247,36 +248,35 @@ where
     where
         A: serde::de::MapAccess<'de>,
     {
-        let mut shape: Option<style::MarkerShape> = None;
-        let mut size: Option<style::MarkerSize> = None;
-        let mut fill: Option<style::Fill<C>> = None;
-        let mut stroke: Option<style::Stroke<C>> = None;
-        let mut color: Option<C> = None;
-        let mut fill_opacity: Option<f32> = None;
-
-        while let Some(key) = map.next_key::<Cow<'de, str>>()? {
-            match key.as_ref() {
-                "shape" => shape = Some(map.next_value()?),
-                "size" => size = Some(map.next_value()?),
-                "fill" => fill = Some(map.next_value()?),
-                "stroke" => stroke = Some(map.next_value()?),
-                "color" => color = Some(map.next_value()?),
-                "fill-opacity" => fill_opacity = Some(map.next_value()?),
-                _ => {
-                    return Err(serde::de::Error::unknown_field(
-                        key.as_ref(),
-                        &["shape", "size", "fill", "stroke", "color", "fill-opacity"],
-                    ));
-                }
-            }
-        }
+        deserialize_map_fields!(
+            'de, map,
+            "shape" => shape: Option<style::MarkerShape>,
+            "size" => size: Option<style::MarkerSize>,
+            "fill" => fill: Option<Option<style::Fill<C>>>,
+            "stroke" => stroke: Option<Option<style::Stroke<C>>>,
+            "color" => color: Option<C>,
+            "fill-opacity" => fill_opacity: Option<f32>,
+        );
 
         let mut marker = style::Marker {
             shape: shape.unwrap_or_default(),
             size: size.unwrap_or_default(),
-            fill,
-            stroke,
+            fill: fill.unwrap_or_else(|| {
+                C::default_stroke_color().map(|color| style::Fill::Solid {
+                    color,
+                    opacity: None,
+                })
+            }),
+            stroke: stroke.unwrap_or_else(|| {
+                C::default_stroke_color().map(|color| style::Stroke {
+                    color,
+                    width: C::default_stroke_width(),
+                    pattern: style::LinePattern::default(),
+                    opacity: None,
+                })
+            }),
         };
+
         if let Some(color) = color {
             marker = marker.with_color(color);
         }
