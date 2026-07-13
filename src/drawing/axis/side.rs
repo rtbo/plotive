@@ -314,16 +314,12 @@ impl Side {
     /// Returns the transform to be applied to the ticks to align them with the axis.
     /// Identity will map ticks horizontally from the top left corner.
     pub fn ticks_marks_transform(&self, rect: &geom::Rect) -> geom::Transform {
-        // FIXME: for left axis, and top axis, the ticks are inside out (doesn't matter if symmetrical)
+        // FIXME: for top axis, ticks are inside out (doesn't matter if symmetrical)
         match self {
             Side::Bottom => geom::Transform::from_translate(rect.left(), rect.bottom()),
             Side::Top => geom::Transform::from_translate(rect.left(), rect.top()),
-            Side::Left => {
-                geom::Transform::from_translate(rect.left(), rect.bottom()).pre_rotate(-90.0)
-            }
-            Side::Right => {
-                geom::Transform::from_translate(rect.right(), rect.bottom()).pre_rotate(-90.0)
-            }
+            Side::Left => geom::Transform::from_translate(rect.left(), rect.bottom()),
+            Side::Right => geom::Transform::from_translate(rect.right(), rect.bottom()),
         }
     }
 }

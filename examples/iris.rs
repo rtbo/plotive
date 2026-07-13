@@ -51,20 +51,20 @@ fn main() {
 
     let species = table.column("Species").unwrap();
     let sepal_length = table.column("SepalLengthCm").unwrap();
-    let petal_length = table.column("PetalLengthCm").unwrap();
+    let sepal_width = table.column("SepalWidthCm").unwrap();
 
     let setosa_mask = category_mask(species, "Iris-setosa").unwrap();
     let versicolor_mask = category_mask(species, "Iris-versicolor").unwrap();
     let virginica_mask = category_mask(species, "Iris-virginica").unwrap();
 
     let setosa_sepal_length = filter_numeric_by_mask(sepal_length, &setosa_mask).unwrap();
-    let setosa_petal_length = filter_numeric_by_mask(petal_length, &setosa_mask).unwrap();
+    let setosa_sepal_width = filter_numeric_by_mask(sepal_width, &setosa_mask).unwrap();
 
     let versicolor_sepal_length = filter_numeric_by_mask(sepal_length, &versicolor_mask).unwrap();
-    let versicolor_petal_length = filter_numeric_by_mask(petal_length, &versicolor_mask).unwrap();
+    let versicolor_sepal_width = filter_numeric_by_mask(sepal_width, &versicolor_mask).unwrap();
 
     let virginica_sepal_length = filter_numeric_by_mask(sepal_length, &virginica_mask).unwrap();
-    let virginica_petal_length = filter_numeric_by_mask(petal_length, &virginica_mask).unwrap();
+    let virginica_sepal_width = filter_numeric_by_mask(sepal_width, &virginica_mask).unwrap();
 
     let mut source = data::NamedColumns::new();
 
@@ -73,8 +73,8 @@ fn main() {
         &setosa_sepal_length as &dyn data::Column,
     );
     source.add_column(
-        "setosa_petal_length",
-        &setosa_petal_length as &dyn data::Column,
+        "setosa_sepal_width",
+        &setosa_sepal_width as &dyn data::Column,
     );
 
     source.add_column(
@@ -82,8 +82,8 @@ fn main() {
         &versicolor_sepal_length as &dyn data::Column,
     );
     source.add_column(
-        "versicolor_petal_length",
-        &versicolor_petal_length as &dyn data::Column,
+        "versicolor_sepal_width",
+        &versicolor_sepal_width as &dyn data::Column,
     );
 
     source.add_column(
@@ -91,8 +91,8 @@ fn main() {
         &virginica_sepal_length as &dyn data::Column,
     );
     source.add_column(
-        "virginica_petal_length",
-        &virginica_petal_length as &dyn data::Column,
+        "virginica_sepal_width",
+        &virginica_sepal_width as &dyn data::Column,
     );
 
     let title = "Iris dataset";
@@ -102,28 +102,28 @@ fn main() {
         .with_ticks(Default::default())
         .with_grid(Default::default());
     let y_axis = des::Axis::new()
-        .with_title("Petal Length [cm]".into())
+        .with_title("Sepal Width [cm]".into())
         .with_ticks(Default::default())
         .with_grid(Default::default());
 
     let setosa = des::Series::Scatter(
         des::series::Scatter::new(
             des::data_src_ref("setosa_sepal_length"),
-            des::data_src_ref("setosa_petal_length"),
+            des::data_src_ref("setosa_sepal_width"),
         )
         .with_name("Setosa"),
     );
     let virginica = des::Series::Scatter(
         des::series::Scatter::new(
             des::data_src_ref("virginica_sepal_length"),
-            des::data_src_ref("virginica_petal_length"),
+            des::data_src_ref("virginica_sepal_width"),
         )
         .with_name("Virginica"),
     );
     let versicolor = des::Series::Scatter(
         des::series::Scatter::new(
             des::data_src_ref("versicolor_sepal_length"),
-            des::data_src_ref("versicolor_petal_length"),
+            des::data_src_ref("versicolor_sepal_width"),
         )
         .with_name("Versicolor"),
     );

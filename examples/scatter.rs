@@ -3,29 +3,18 @@ use rand::Rng;
 
 mod common;
 
-fn main() {
+fn normal_sample(rng: &mut impl Rng, mean: f64, std_dev: f64, n: usize) -> Vec<f64> {
     use rand_distr::Normal;
-
-    let rng = rand::rng();
-    let x1 = rng
-        .clone()
-        .sample_iter(Normal::new(30.0, 5.0).unwrap())
-        .take(300)
-        .collect::<Vec<f64>>();
-    let y1 = rng
-        .clone()
-        .sample_iter(Normal::new(20.0, 2.0).unwrap())
-        .take(300)
-        .collect::<Vec<f64>>();
-    let x2 = rng
-        .clone()
-        .sample_iter(Normal::new(40.0, 2.0).unwrap())
-        .take(500)
-        .collect::<Vec<f64>>();
-    let y2 = rng
-        .sample_iter(Normal::new(10.0, 5.0).unwrap())
-        .take(500)
-        .collect::<Vec<f64>>();
+    rng.sample_iter(Normal::new(mean, std_dev).unwrap())
+        .take(n)
+        .collect()
+}
+fn main() {
+    let mut rng = rand::rng();
+    let x1 = normal_sample(&mut rng, 30.0, 5.0, 300);
+    let y1 = normal_sample(&mut rng, 20.0, 2.0, 300);
+    let x2 = normal_sample(&mut rng, 40.0, 2.0, 500);
+    let y2 = normal_sample(&mut rng, 10.0, 5.0, 500);
 
     let data_src = data::NamedColumns::new()
         .with_column("x1", &x1)

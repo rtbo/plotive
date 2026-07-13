@@ -1,13 +1,12 @@
 use std::f64::consts::PI;
 
-use plotive::{data, des, style};
+use plotive::{data, des};
 
 mod common;
 
 fn main() {
     let fig = des::series::Line::new(des::data_src_ref("x"), des::data_src_ref("y"))
         .with_name("y=sin(x)")
-        .with_stroke(style::series::Stroke::default().with_width(4.0))
         .into_plot()
         .with_x_axis(
             des::Axis::new()
@@ -22,11 +21,8 @@ fn main() {
             des::Axis::new()
                 .with_title("y".into())
                 .with_ticks(Default::default())
-                .with_grid(Default::default())
-                .with_minor_ticks(Default::default())
-                .with_minor_grid(Default::default()),
+                .with_grid(Default::default()),
         )
-        .with_border(des::plot::AxisArrowBorder::default().into())
         .with_legend(des::plot::LegendPos::InTopRight.into())
         .into_figure()
         .with_title("Sine wave".into());

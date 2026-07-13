@@ -43,6 +43,12 @@ impl Size {
     }
 }
 
+impl From<(f32, f32)> for Size {
+    fn from((w, h): (f32, f32)) -> Self {
+        Size { w, h }
+    }
+}
+
 /// A rectangle in 2D space represented by x, y, width and height
 #[derive(Debug, Clone, Copy)]
 pub struct Rect {
