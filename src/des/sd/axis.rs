@@ -1157,6 +1157,13 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
                     }
                     ticks = ticks.with_locator(locator.into());
                 }
+                "decimal" => {
+                    let mut formatter = axis::ticks::DecimalFormatter::default();
+                    if let Some(decimals) = decimals {
+                        formatter.decimal_places = Some(decimals);
+                    }
+                    ticks = ticks.with_formatter(Some(formatter.into()));
+                }
                 "percent" => {
                     let mut formatter = axis::ticks::PercentFormatter::default();
                     if let Some(decimals) = decimals {
