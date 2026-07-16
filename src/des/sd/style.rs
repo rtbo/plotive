@@ -255,7 +255,7 @@ where
             "fill" => fill: Option<Option<style::Fill<C>>>,
             "stroke" => stroke: Option<Option<style::Stroke<C>>>,
             "color" => color: Option<C>,
-            "fill-opacity" => fill_opacity: Option<f32>,
+            "fillOpacity" => fill_opacity: Option<f32>,
         );
 
         let mut marker = style::Marker {
