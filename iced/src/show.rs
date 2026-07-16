@@ -250,6 +250,10 @@ fn show_app<D>(
 where
     D: data::Source + ?Sized + 'static,
 {
+    // ICON_SZ 24 + button padding (5 + 5) + toolbar padding (5 + 5)
+    const TOOLBAR_HEIGHT: f32 = 44.0;
+    let size = fig.size();
+
     iced::application(
         move || {
             let fig = fig.clone();
@@ -267,6 +271,7 @@ where
     )
     .theme(theme_from_show::<D>)
     .title(FigureShow::title)
+    .window_size((size.width(), size.height() + TOOLBAR_HEIGHT))
     // subscribe to key events
     .subscription(FigureShow::subscription)
     .run()
