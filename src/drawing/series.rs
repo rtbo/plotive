@@ -27,7 +27,7 @@ impl SeriesExt for des::series::Line {
         self.name().map(|n| legend::Entry {
             label: n.as_ref(),
             txt_props: None,
-            shape: legend::ShapeRef::Line(self.stroke()),
+            shape: legend::ShapeRef::Line(self.stroke(), self.marker()),
         })
     }
 }
