@@ -5,6 +5,96 @@ use serde_value::Value;
 use crate::des::{Annotation, Text, annot, axis};
 use crate::style::{self, theme};
 
+impl serde::Serialize for annot::Coord {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            annot::Coord::Data(value) => value.serialize(serializer),
+            annot::Coord::Plot(value) => (value, "plot").serialize(serializer),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for annot::Coord {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = annot::Coord;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a number or a tuple of (number, \"data\" | \"plot\")")
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(annot::Coord::Data(value as f64))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(annot::Coord::Data(value as f64))
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(annot::Coord::Data(value))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                // #[derive(serde::Deserialize)]
+                // #[serde(untagged)]
+                // pub enum C {
+                //     F64(f64),
+                //     I64(i64),
+                // }
+
+                // impl C {
+                //     fn as_f64(&self) -> f64 {
+                //         match self {
+                //             C::F64(f) => *f,
+                //             C::I64(i) => *i as f64,
+                //         }
+                //     }
+                // }
+
+                let value = seq
+                    .next_element::<f64>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let tag = seq
+                    .next_element::<String>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                if tag == "plot" {
+                    Ok(annot::Coord::Plot(value as f32))
+                } else if tag == "data" {
+                    Ok(annot::Coord::Data(value))
+                } else {
+                    return Err(serde::de::Error::unknown_variant(
+                        &tag,
+                        &["data", "plot"],
+                    ));
+                }
+            }
+        }
+
+        deserializer.deserialize_any(Visitor)
+    }
+}
+
 impl serde::Serialize for annot::ZPos {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -290,10 +380,10 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "horizontal" => horizontal: Option<f64>,
-        "vertical" => vertical: Option<f64>,
-        "slope" => slope: Option<((f64, f64), f32)>,
-        "twoPoints" => two_points: Option<((f64, f64), (f64, f64))>,
+        "horizontal" => horizontal: Option<annot::Coord>,
+        "vertical" => vertical: Option<annot::Coord>,
+        "slope" => slope: Option<((annot::Coord, annot::Coord), f32)>,
+        "twoPoints" => two_points: Option<((annot::Coord, annot::Coord), (annot::Coord, annot::Coord))>,
         "stroke" => stroke: Option<theme::Stroke>,
         "pattern" => pattern: Option<style::LinePattern>,
         "xAxis" => x_axis: Option<axis::Ref>,
@@ -353,7 +443,7 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: (f64, f64),
+        "xy" => xy: (annot::Coord, annot::Coord),
         "dxy" => dxy: (f32, f32),
         "headSize" => head_size: Option<f32>,
         "stroke" => stroke: Option<theme::Stroke>,
@@ -391,7 +481,7 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: (f64, f64),
+        "xy" => xy: (annot::Coord, annot::Coord),
         "marker" => marker: Option<theme::Marker>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
@@ -424,7 +514,7 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: (f64, f64),
+        "xy" => xy: (annot::Coord, annot::Coord),
         "text" => text: Text,
         "anchor" => anchor: Option<annot::Anchor>,
         "frame" => frame: Option<(Option<theme::Fill>, Option<theme::Stroke>)>,
@@ -455,4 +545,61 @@ where
     }
 
     Ok(annot)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_annot_coord_deserialize_float() {
+        use super::annot::Coord;
+        let json = "42.0";
+
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Data(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_int() {
+        use super::annot::Coord;
+
+        let json = "42";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Data(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_tuple_data_int() {
+        use super::annot::Coord;
+
+        let json = "[42, \"data\"]";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Data(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_tuple_data_float() {
+        use super::annot::Coord;
+
+        let json = "[42.0, \"data\"]";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Data(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_tuple_plot() {
+        use super::annot::Coord;
+
+        let json = "[42.0, \"plot\"]";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Plot(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_tuple_plot_neg() {
+        use super::annot::Coord;
+
+        let json = "[-42.0, \"plot\"]";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Plot(-42.0));
+    }
 }

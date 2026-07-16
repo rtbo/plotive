@@ -371,7 +371,7 @@ fn build_figure() -> des::Figure {
                     )
                     .into(),
                 ])
-                .with_annotation(des::annot::Line::horizontal(0.0).into())
+                .with_annotation(des::annot::Line::horizontal(des::annot::data(0.0)).into())
                 .with_x_axis(
                     des::Axis::new()
                         .with_title("Time (s)".to_string().into())
