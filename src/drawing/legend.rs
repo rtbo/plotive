@@ -290,9 +290,11 @@ impl LegendEntry {
                 if let Some(marker) = marker {
                     let path = crate::drawing::marker::marker_path(marker.shape);
                     let scale = style::MarkerSize::default().to_visual_size();
-                    let transform =
-                        geom::Transform::from_translate(shape_rect.center_x(), shape_rect.center_y())
-                            .pre_scale(scale, scale);
+                    let transform = geom::Transform::from_translate(
+                        shape_rect.center_x(),
+                        shape_rect.center_y(),
+                    )
+                    .pre_scale(scale, scale);
 
                     let path = render::Path {
                         path: &path,

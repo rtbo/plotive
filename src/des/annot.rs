@@ -230,12 +230,26 @@ impl Line {
     /// This is only meaningful on linear scales, and will raise an error
     /// if either X or Y axes are logarithmic.
     pub fn slope(x: impl Into<Coord>, y: impl Into<Coord>, slope: f32) -> Self {
-        Line::new(LineDir::Slope { x: x.into(), y: y.into(), slope })
+        Line::new(LineDir::Slope {
+            x: x.into(),
+            y: y.into(),
+            slope,
+        })
     }
 
     /// Plot a line passing by (x1, y1) and (x2, y2).
-    pub fn two_points(x1: impl Into<Coord>, y1: impl Into<Coord>, x2: impl Into<Coord>, y2: impl Into<Coord>) -> Self {
-        Line::new(LineDir::TwoPoints { x1: x1.into(), y1: y1.into(), x2: x2.into(), y2: y2.into() })
+    pub fn two_points(
+        x1: impl Into<Coord>,
+        y1: impl Into<Coord>,
+        x2: impl Into<Coord>,
+        y2: impl Into<Coord>,
+    ) -> Self {
+        Line::new(LineDir::TwoPoints {
+            x1: x1.into(),
+            y1: y1.into(),
+            x2: x2.into(),
+            y2: y2.into(),
+        })
     }
 
     /// Set the line to be displayed.

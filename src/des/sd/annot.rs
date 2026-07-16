@@ -83,10 +83,7 @@ impl<'de> serde::Deserialize<'de> for annot::Coord {
                 } else if tag == "data" {
                     Ok(annot::Coord::Data(value))
                 } else {
-                    return Err(serde::de::Error::unknown_variant(
-                        &tag,
-                        &["data", "plot"],
-                    ));
+                    return Err(serde::de::Error::unknown_variant(&tag, &["data", "plot"]));
                 }
             }
         }

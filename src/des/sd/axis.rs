@@ -995,7 +995,9 @@ impl<'de> serde::de::Visitor<'de> for TicksVisitor {
             "auto" => Ok(axis::Ticks::default()),
             "shared-auto" => Ok(axis::Ticks::default()
                 .with_formatter(Some(axis::ticks::Formatter::SharedAuto.into()))),
-            "list" => Err(E::custom("list locator must be specified as an array of numbers")),
+            "list" => Err(E::custom(
+                "list locator must be specified as an array of numbers",
+            )),
             "maxn" => {
                 Ok(axis::Ticks::default().with_locator(axis::ticks::MaxNLocator::default().into()))
             }

@@ -792,7 +792,6 @@ pub mod ticks {
         }
     }
 
-
     #[cfg(feature = "time")]
     impl From<TimeDeltaFormatter> for Ticks {
         fn from(fmt: TimeDeltaFormatter) -> Self {
