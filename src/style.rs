@@ -215,6 +215,8 @@ where
             color,
             width: self.width,
             pattern,
+            cap: render::LineCap::default(),
+            join: render::LineJoin::default(),
         }
     }
 }

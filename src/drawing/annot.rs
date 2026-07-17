@@ -291,11 +291,7 @@ impl Annot {
         builder.line_to(head_size / 2.0, head_size);
         let path = builder.finish().expect("Should be a valid path");
         let angle = (dy.atan2(dx) + f32::consts::FRAC_PI_2) * 180.0 / f32::consts::PI;
-        let transform = geom::Transform::from_translate(
-            target_x,
-            target_y,
-        )
-        .pre_rotate(angle);
+        let transform = geom::Transform::from_translate(target_x, target_y).pre_rotate(angle);
         let rpath = render::Path {
             path: &path,
             fill: None,
@@ -323,9 +319,7 @@ impl Annot {
         let path = marker::marker_path(marker.shape);
         let scale = marker.size.to_visual_size();
 
-        let transform =
-            geom::Transform::from_translate(x, y)
-                .pre_scale(scale, scale);
+        let transform = geom::Transform::from_translate(x, y).pre_scale(scale, scale);
 
         let rpath = render::Path {
             path: &path,
@@ -353,9 +347,7 @@ impl Annot {
         let x = map_x_annot_coord(label.x, x_axis, y_axis, plot_rect);
         let y = map_y_annot_coord(label.y, x_axis, y_axis, plot_rect);
 
-        let transform =
-            geom::Transform::from_translate(x, y)
-                .pre_rotate(-label.angle);
+        let transform = geom::Transform::from_translate(x, y).pre_rotate(-label.angle);
 
         if label.frame.0.is_some() || label.frame.1.is_some() {
             let bounds = label.text.bbox.expect("Text bbox should be computed");

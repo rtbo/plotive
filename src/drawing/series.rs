@@ -760,7 +760,12 @@ impl Line {
             let rpath = render::Path {
                 path,
                 fill: None,
-                stroke: Some(self.stroke.as_stroke(&rc)),
+                // Use round line join to avoid rare tesselation issues
+                stroke: Some(
+                    self.stroke
+                        .as_stroke(&rc)
+                        .with_line_join(render::LineJoin::Round),
+                ),
                 transform: None,
             };
             surface.draw_path(&rpath);

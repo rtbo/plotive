@@ -367,95 +367,20 @@ impl SvgSurface {
                     node.assign("stroke-dasharray", array)
                 }
             }
+            match stroke.join {
+                render::LineJoin::Miter => node.assign("stroke-linejoin", "miter"),
+                render::LineJoin::Round => node.assign("stroke-linejoin", "round"),
+                render::LineJoin::Bevel => node.assign("stroke-linejoin", "bevel"),
+            }
+            match stroke.cap {
+                render::LineCap::Butt => node.assign("stroke-linecap", "butt"),
+                render::LineCap::Round => node.assign("stroke-linecap", "round"),
+                render::LineCap::Square => node.assign("stroke-linecap", "square"),
+            }
         } else {
             node.assign("stroke", "none");
         }
     }
-    // fn draw_rich_text_hor(
-    //     &mut self,
-    //     text: &render::RichText,
-    //     align: rich::Align,
-    // ) -> Result<(), render::Error> {
-    //     let mut node =
-    //         element::Text::new(String::new()).set("text-rendering", "optimizeLegibility");
-
-    //     let whole_txt = text.text.text();
-
-    //     let mut dy = 0.0;
-    //     let mut last_height = 0.0;
-
-    //     for line in text.text.lines().iter() {
-    //         let mut line_node = element::TSpan::new(String::new())
-    //             .set("text-anchor", rich_text_anchor(align, line.main_dir()))
-    //             .set("x", 0.0);
-
-    //         let this_height = line.total_height();
-    //         if dy != 0.0 {
-    //             dy += this_height - last_height;
-    //             line_node.assign("dy", dy);
-    //         }
-
-    //         for shape in line.shapes() {
-    //             let mut shape_node = element::TSpan::new(String::new());
-
-    //             for (idx, span) in shape.spans().iter().enumerate() {
-    //                 if idx == 0 {
-    //                     assign_font(
-    //                         &mut shape_node,
-    //                         span.props().font(),
-    //                         span.props().font_size(),
-    //                     );
-    //                 }
-    //                 let span_txt = &whole_txt[span.start()..span.end()];
-    //                 let mut span_node = element::TSpan::new(span_txt);
-    //                 let paint = span.props().fill().map(|c| {
-    //                     render::Paint::Solid(Rgba8::from_rgba(
-    //                         c.red(),
-    //                         c.green(),
-    //                         c.blue(),
-    //                         c.alpha(),
-    //                     ))
-    //                 });
-    //                 assign_fill(&mut span_node, paint.as_ref());
-    //                 shape_node.append(span_node);
-    //             }
-
-    //             line_node.append(shape_node);
-    //         }
-    //         node.append(line_node);
-
-    //         last_height = this_height;
-    //         dy += last_height;
-    //     }
-
-    //     let yshift = rich_text_hor_yshift(&text.text);
-    //     let transform = text
-    //         .transform
-    //         .pre_concat(Transform::from_translate(0.0, yshift));
-    //     assign_transform(&mut node, Some(&transform));
-
-    //     self.append_node(node);
-    //     Ok(())
-    // }
-
-    // fn draw_rich_text_ver(
-    //     &mut self,
-    //     _text: &render::RichText,
-    //     _align: rich::Align,
-    //     _hor_align: rich::HorAlign,
-    //     progression: rich::VerProgression,
-    // ) -> Result<(), render::Error> {
-    //     let writing_mode = match progression {
-    //         rich::VerProgression::LTR => "vertical-lr",
-    //         rich::VerProgression::RTL => "vertical-rl",
-    //         _ => unreachable!(),
-    //     };
-    //     let _text_style = format!(
-    //         "writing-mode: {};\ntext-orientation: upright;\n",
-    //         writing_mode
-    //     );
-    //     todo!()
-    // }
 }
 
 fn path_data(path: &geom::Path) -> element::path::Data {

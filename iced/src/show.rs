@@ -243,11 +243,7 @@ where
     None
 }
 
-fn show_app<D>(
-    fig: drawing::PreparedFigure,
-    data_source: Arc<D>,
-    params: Params,
-) -> iced::Result
+fn show_app<D>(fig: drawing::PreparedFigure, data_source: Arc<D>, params: Params) -> iced::Result
 where
     D: data::Source + ?Sized + 'static,
 {
@@ -260,7 +256,9 @@ where
             let fig = fig.clone();
             let data_source = data_source.clone();
             let params = params.clone();
-            let fontdb = params.fontdb.unwrap_or_else(|| Arc::new(plotive::bundled_font_db()));
+            let fontdb = params
+                .fontdb
+                .unwrap_or_else(|| Arc::new(plotive::bundled_font_db()));
             let mut show = FigureShow::new(fontdb, params.commands, None);
             show.set_figure(fig, data_source.clone());
             show.fig_scale = params.scale;

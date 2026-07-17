@@ -400,6 +400,16 @@ fn ts_stroke(stroke: render::Stroke, paint: &mut tiny_skia::Paint) -> tiny_skia:
 
     let mut ts = tiny_skia::Stroke {
         width: stroke.width,
+        line_join: match stroke.join {
+            render::LineJoin::Miter => tiny_skia::LineJoin::Miter,
+            render::LineJoin::Round => tiny_skia::LineJoin::Round,
+            render::LineJoin::Bevel => tiny_skia::LineJoin::Bevel,
+        },
+        line_cap: match stroke.cap {
+            render::LineCap::Butt => tiny_skia::LineCap::Butt,
+            render::LineCap::Round => tiny_skia::LineCap::Round,
+            render::LineCap::Square => tiny_skia::LineCap::Square,
+        },
         ..Default::default()
     };
 

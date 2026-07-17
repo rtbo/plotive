@@ -152,6 +152,16 @@ fn to_iced_stroke<'a>(
         width,
         style,
         line_dash,
+        line_cap: match stroke.cap {
+            render::LineCap::Butt => geometry::LineCap::Butt,
+            render::LineCap::Round => geometry::LineCap::Round,
+            render::LineCap::Square => geometry::LineCap::Square,
+        },
+        line_join: match stroke.join {
+            render::LineJoin::Miter => geometry::LineJoin::Miter,
+            render::LineJoin::Round => geometry::LineJoin::Round,
+            render::LineJoin::Bevel => geometry::LineJoin::Bevel,
+        },
         ..Default::default()
     }
 }
