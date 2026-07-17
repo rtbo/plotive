@@ -87,25 +87,36 @@ where
     }
 }
 
-fn map_annot_coord(coord: Coord, axis: &Axis, plot_bounds: (f32, f32)) -> f32 {
+fn map_x_annot_coord(coord: Coord, x_axis: &Axis, _y_axis: &Axis, plot_rect: &geom::Rect) -> f32 {
     match coord {
-        Coord::Data(v) => axis.coord_map().map_coord_num(v),
+        Coord::Data(v) => {
+            let v = x_axis.coord_map().map_coord_num(v);
+            plot_rect.left() + v
+        }
         Coord::Plot(v) => {
             if v >= 0.0 {
-                (plot_bounds.1 - plot_bounds.0) - v
+                plot_rect.left() + v
             } else {
-                -v
+                plot_rect.right() + v
             }
         }
     }
 }
 
-fn map_x_annot_coord(coord: Coord, x_axis: &Axis, _y_axis: &Axis, plot_rect: &geom::Rect) -> f32 {
-    map_annot_coord(coord, x_axis, (plot_rect.left(), plot_rect.right()))
-}
-
 fn map_y_annot_coord(coord: Coord, _x_axis: &Axis, y_axis: &Axis, plot_rect: &geom::Rect) -> f32 {
-    map_annot_coord(coord, y_axis, (plot_rect.top(), plot_rect.bottom()))
+    match coord {
+        Coord::Data(v) => {
+            let v = y_axis.coord_map().map_coord_num(v);
+            plot_rect.bottom() - v
+        }
+        Coord::Plot(v) => {
+            if v >= 0.0 {
+                plot_rect.top() + v
+            } else {
+                plot_rect.bottom() + v
+            }
+        }
+    }
 }
 
 impl Annot {
@@ -239,15 +250,6 @@ impl Annot {
             }
         };
 
-        let p1 = geom::Point {
-            x: p1.x + plot_rect.left(),
-            y: plot_rect.bottom() - p1.y,
-        };
-        let p2 = geom::Point {
-            x: p2.x + plot_rect.left(),
-            y: plot_rect.bottom() - p2.y,
-        };
-
         let points = plot_rect_intersections(plot_rect, &p1, &p2);
         if let Some([p1, p2]) = points {
             let mut path = geom::PathBuilder::with_capacity(2, 2);
@@ -290,8 +292,8 @@ impl Annot {
         let path = builder.finish().expect("Should be a valid path");
         let angle = (dy.atan2(dx) + f32::consts::FRAC_PI_2) * 180.0 / f32::consts::PI;
         let transform = geom::Transform::from_translate(
-            plot_rect.left() + target_x,
-            plot_rect.bottom() - target_y,
+            target_x,
+            target_y,
         )
         .pre_rotate(angle);
         let rpath = render::Path {
@@ -322,7 +324,7 @@ impl Annot {
         let scale = marker.size.to_visual_size();
 
         let transform =
-            geom::Transform::from_translate(plot_rect.left() + x, plot_rect.bottom() - y)
+            geom::Transform::from_translate(x, y)
                 .pre_scale(scale, scale);
 
         let rpath = render::Path {
@@ -352,7 +354,7 @@ impl Annot {
         let y = map_y_annot_coord(label.y, x_axis, y_axis, plot_rect);
 
         let transform =
-            geom::Transform::from_translate(plot_rect.left() + x, plot_rect.bottom() - y)
+            geom::Transform::from_translate(x, y)
                 .pre_rotate(-label.angle);
 
         if label.frame.0.is_some() || label.frame.1.is_some() {
