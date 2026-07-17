@@ -3,8 +3,7 @@
 use plotive_base::deserialize_map_fields;
 use serde::ser::SerializeStruct;
 
-use super::Figure;
-use crate::des::{FigLegend, Plot, Subplots, Text, figure};
+use crate::des::{FigLegend, Figure, Plot, Subplots, Text, figure};
 use crate::geom;
 use crate::style::{defaults, theme};
 

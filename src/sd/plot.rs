@@ -2,9 +2,9 @@ use serde::Deserialize;
 use serde::ser::{SerializeSeq, SerializeStruct, SerializeTuple};
 use serde_value::Value;
 
-use crate::des::sd::axis::{DeXAxis, DeYAxis};
-use crate::des::sd::{self, deserialize_map_fields, deserialize_tagged_map_fields};
 use crate::des::{Annotation, Plot, PlotLegend, Subplots, Text, axis, colorbar, plot, series};
+use crate::sd::axis::{DeXAxis, DeYAxis};
+use crate::sd::{self, deserialize_map_fields, deserialize_tagged_map_fields};
 use crate::style::theme;
 
 // MARK: Plot

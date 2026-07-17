@@ -8,8 +8,8 @@ use serde::ser::{SerializeSeq, SerializeStruct};
 use serde::{Deserializer, Serializer};
 use serde_value::Value;
 
-use crate::des::sd::deserialize_tagged_map_fields;
-use crate::des::{self, axis, sd};
+use crate::des::{self, axis};
+use crate::sd::{deserialize_tagged_map_fields, serialize_tagged_map_variant};
 use crate::style::theme;
 
 // MARK: axis::Ref
@@ -201,7 +201,7 @@ impl serde::Serialize for axis::Scale {
                 }
             }
             axis::Scale::Log(log_scale) => {
-                sd::serialize_tagged_map_variant!(
+                serialize_tagged_map_variant!(
                     serializer, "log",
                     (log_scale, axis::LogScale),
                     "base" => base,
@@ -374,7 +374,7 @@ impl serde::Serialize for axis::ticks::Locator {
             axis::ticks::Locator::Auto => "auto".serialize(serializer),
             axis::ticks::Locator::List(locator) => locator.0.serialize(serializer),
             axis::ticks::Locator::MaxN(locator) => {
-                sd::serialize_tagged_map_variant!(
+                serialize_tagged_map_variant!(
                     serializer, "maxn",
                     (locator, axis::ticks::MaxNLocator),
                     "bins" => bins,
@@ -382,14 +382,14 @@ impl serde::Serialize for axis::ticks::Locator {
                 )
             }
             axis::ticks::Locator::PiMultiple(locator) => {
-                sd::serialize_tagged_map_variant!(
+                serialize_tagged_map_variant!(
                     serializer, "pimultiple",
                     (locator, axis::ticks::PiMultipleLocator),
                     "bins" => bins,
                 )
             }
             axis::ticks::Locator::Log(locator) => {
-                sd::serialize_tagged_map_variant!(
+                serialize_tagged_map_variant!(
                     serializer, "log",
                     (locator, axis::ticks::LogLocator),
                     "base" => base,

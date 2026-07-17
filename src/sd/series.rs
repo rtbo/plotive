@@ -5,9 +5,9 @@ use serde::de::MapAccess;
 use serde::ser::SerializeStruct;
 use serde_value::Value;
 
-use crate::des::sd::deserialize_tagged_map_fields;
-use crate::des::{Series, axis, series};
-use crate::{data, des, style};
+use crate::des::{Series, axis, cmap, series};
+use crate::sd::deserialize_tagged_map_fields;
+use crate::{data, style};
 
 // MARK: series::DataCol
 
@@ -473,7 +473,7 @@ where
         "marker" => marker: Option<style::series::Marker>,
         "sizes" => sizes: Option<series::DataCol>,
         "colors" => colors: Option<series::DataCol>,
-        "cmap" => cmap: Option<des::cmap::LerpColorMap>,
+        "cmap" => cmap: Option<cmap::LerpColorMap>,
 
         "name" => name: Option<String>,
         "xAxis" => x_axis: Option<axis::Ref>,
