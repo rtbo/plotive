@@ -70,7 +70,7 @@ impl Palette {
 }
 
 /// A series color identified by its index in a palette
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct IndexColor(pub usize);
 
 /// An error type for parsing an IndexColor from a string
@@ -122,7 +122,7 @@ impl std::fmt::Display for IndexColor {
 pub struct AutoColor;
 
 /// A flexible color for data series
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub enum Color {
     /// Automatic color from the palette
     #[default]

@@ -1,7 +1,45 @@
 //! A module for defining color maps that can be used in the design of plots to map scalar values to colors.
 
+use std::collections::HashMap;
+
 use crate::color::Rgb8;
 use crate::des::axis;
+use crate::style;
+
+/// A generic color map that can be used to map scalar values to colors in a plot.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum ColorMap {
+    /// A color map that automatically chooses a color map based on the data range and type.
+    /// When the data is floating point, it will use the viridis perceptual color map,
+    /// When the data is is string, it will use a categorical color map.
+    /// When the data is integer, a literal color map will be used, interpreting the integer values as RGBA 32 bit colors.
+    #[default]
+    Auto,
+    /// A color map that interpolates between colors in a specified color space.
+    Lerp(LerpColorMap),
+    /// A color map that uses a predefined set of colors for categorical data.
+    Cat(CatColorMap),
+    /// A color map that interprets string values as literal colors using `Rgb8::parse` and integer values as RGBA 32 bit colors.
+    Literal(LiteralColorMap),
+}
+
+impl From<LerpColorMap> for ColorMap {
+    fn from(cmap: LerpColorMap) -> Self {
+        ColorMap::Lerp(cmap)
+    }
+}
+
+impl From<CatColorMap> for ColorMap {
+    fn from(cmap: CatColorMap) -> Self {
+        ColorMap::Cat(cmap)
+    }
+}
+
+impl From<LiteralColorMap> for ColorMap {
+    fn from(cmap: LiteralColorMap) -> Self {
+        ColorMap::Literal(cmap)
+    }
+}
 
 /// Describes how to interpolate between colors in a color map, either in linear RGB or perceptual color space.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
@@ -177,10 +215,23 @@ impl From<(LerpMethod, &[Rgb8])> for LerpColorMap {
 /// Returns None if the name is not recognized.
 pub fn from_name(name: &str) -> Option<LerpColorMap> {
     match name {
-        "stellar" => Some(stellar()),
         "viridis" => Some(viridis()),
+        "stellar" => Some(stellar()),
         _ => None,
     }
+}
+
+/// The famous "viridis" color map from matplotlib
+pub fn viridis() -> LerpColorMap {
+    const STOPS: &[Rgb8] = &[
+        Rgb8::from_hex(b"#440154"),
+        Rgb8::from_hex(b"#3b518a"),
+        Rgb8::from_hex(b"#208f8c"),
+        Rgb8::from_hex(b"#5bc862"),
+        Rgb8::from_hex(b"#fde724"),
+    ];
+    let cmap: LerpColorMap = (LerpMethod::Perceptual, STOPS).into();
+    cmap.with_name("viridis")
 }
 
 /// A colormap that maps kelvin temperatures to black body color, with a range from 1000K to 15000K.
@@ -244,15 +295,20 @@ pub fn stellar() -> LerpColorMap {
     .with_name("stellar")
 }
 
-/// The famous "viridis" color map from matplotlib
-pub fn viridis() -> LerpColorMap {
-    const STOPS: &[Rgb8] = &[
-        Rgb8::from_hex(b"#440154"),
-        Rgb8::from_hex(b"#3b518a"),
-        Rgb8::from_hex(b"#208f8c"),
-        Rgb8::from_hex(b"#5bc862"),
-        Rgb8::from_hex(b"#fde724"),
-    ];
-    let cmap: LerpColorMap = (LerpMethod::Perceptual, STOPS).into();
-    cmap.with_name("viridis")
+/// A categorical color map that maps a set of categories to a set of colors.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum CatColorMap {
+    /// A categorical color map that pick colors based on the category type.
+    /// Each distinct category will be assigned a distinct color, in the order they are encoutered.
+    /// The colors are the one from the active series color palette.
+    #[default]
+    Auto,
+    /// A categorical color map that uses a predefined set of colors indexed by string categories
+    Strings(HashMap<String, style::series::Color>),
+    /// A categorical color map that uses a predefined set of colors indexed by integer categories
+    Integers(HashMap<i64, style::series::Color>),
 }
+
+/// A colormap that interpret string values as literal colors using `Rgb8::parse` and integer values as RGBA 32 bit colors.
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct LiteralColorMap;

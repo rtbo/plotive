@@ -2,13 +2,15 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::f32;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::des::{PlotIdx, annot, colorbar};
 use crate::drawing::annot::Annot;
 use crate::drawing::axis::{
     AsBoundRef, Axis, AxisCacheKey, AxisCacheMap, AxisScale, Bounds, Orientation, Side,
 };
-use crate::drawing::colorbar::{ColorBar, ColorBarBuilder, ColorScale};
+use crate::drawing::cmap::ColorMap;
+use crate::drawing::colorbar::{ColorBar, ColorBarBuilder};
 use crate::drawing::legend::{Legend, LegendBuilder};
 use crate::drawing::scale::CoordMapXy;
 use crate::drawing::series::{self, Series, SeriesExt};
@@ -52,7 +54,7 @@ impl Plots {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub(super) struct Plot {
     idx: PlotIdx,
     rect: geom::Rect,
@@ -63,8 +65,27 @@ pub(super) struct Plot {
     border: Option<des::plot::Border>,
     series: Vec<Series>,
     legend: Option<(geom::Point, Legend)>,
-    colorbars: Vec<(ColorScale, Option<ColorBar>)>,
+    colorbars: Vec<(Arc<dyn ColorMap>, Option<ColorBar>)>,
     annots: Vec<Annot>,
+}
+
+impl std::fmt::Debug for Plot {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Plot")
+            .field("idx", &self.idx)
+            .field("rect", &self.rect)
+            .field("axes", &self.axes)
+            .field("fill", &self.fill)
+            .field("border", &self.border)
+            .field("series", &self.series)
+            .field("legend", &self.legend)
+            .field(
+                "colorbars",
+                &self.colorbars.iter().map(|(_, cb)| cb).collect::<Vec<_>>(),
+            )
+            .field("annots", &self.annots)
+            .finish()
+    }
 }
 
 impl Plot {
@@ -149,12 +170,12 @@ impl Axes {
     }
 }
 
-/// Plot itermediate data during setup phase
+/// Plot intermediate data during setup phase
 #[derive(Debug, Clone)]
 struct PlotData {
     series: Vec<Series>,
     legend: Option<Legend>,
-    colorbars: Vec<(ColorScale, Option<ColorBar>)>,
+    colorbars: Vec<(Arc<dyn ColorMap>, Option<ColorBar>)>,
     insets: geom::Padding,
 }
 
@@ -589,14 +610,13 @@ where
     fn setup_plot_colorbars(
         &self,
         des_plot: &des::Plot,
-    ) -> Result<Vec<(ColorScale, Option<ColorBar>)>, Error> {
+    ) -> Result<Vec<(Arc<dyn ColorMap>, Option<ColorBar>)>, Error> {
         let des_colorbar = des_plot.colorbar();
 
         let mut builders: Vec<ColorBarBuilder> = Vec::new();
 
         for_each_series(des_plot, |s| {
             if let Some(entry) = s.colorbar_entry() {
-                let scale = entry.cmap.scale();
                 let col = get_column(entry.data_col, self.data_source())?;
                 let bounds = col
                     .bounds()
@@ -606,18 +626,18 @@ where
                     .map(|cb| cb.ticks_locator())
                     .cloned()
                     .unwrap_or_default();
-                let hash = entry.cmap.hash();
+
+                let hash = entry.cmap_build.hash(bounds.as_bound_ref());
 
                 if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
                     cbb.unite_bounds(bounds.as_bound_ref())?;
                 } else {
                     builders.push(ColorBarBuilder::new(
+                        entry.cmap_build,
                         hash,
-                        entry.cmap.as_color_map(),
                         bounds,
-                        scale.clone(),
                         locator,
-                    ));
+                    )?);
                 }
             }
             Ok(())
@@ -1081,9 +1101,9 @@ impl Plot {
                 y: &*y_cm,
             };
             let cmap_hash = series.cmap_hash();
-            let cmap = self.colorbars.iter().find_map(|(s, _)| {
-                if Some(s.hash()) == cmap_hash {
-                    return Some(s);
+            let cmap = self.colorbars.iter().find_map(|(cm, _)| {
+                if Some(cm.hash()) == cmap_hash {
+                    return Some(&**cm);
                 }
                 None
             });
@@ -1112,9 +1132,9 @@ impl Plot {
         let plot_box = axes.draw(surface, style, &self.rect);
         self.draw_border_box(surface, style);
 
-        for (cs, cbar) in &self.colorbars {
+        for (_, cbar) in &self.colorbars {
             if let Some(cbar) = cbar {
-                cbar.draw(surface, style, &self.rect, &plot_box, cs);
+                cbar.draw(surface, style, &self.rect, &plot_box);
             }
         }
 

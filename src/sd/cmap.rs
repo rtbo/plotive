@@ -1,11 +1,257 @@
+use std::collections::HashMap;
+
 use plotive_base::Rgb8;
 use serde::Deserializer;
-use serde::de::{Error, SeqAccess};
+use serde::de::{Error, IntoDeserializer, SeqAccess};
 use serde::ser::{SerializeMap, SerializeSeq};
 
-use crate::des;
-use crate::des::cmap;
-use crate::des::cmap::{LerpColorMap, LerpMethod};
+use crate::des::cmap::{self, CatColorMap, ColorMap, LerpColorMap, LerpMethod};
+use crate::{des, style};
+
+impl serde::Serialize for ColorMap {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ColorMap::Auto => "auto".serialize(serializer),
+            ColorMap::Lerp(cmap) => cmap.serialize(serializer),
+            ColorMap::Cat(cmap) => cmap.serialize(serializer),
+            ColorMap::Literal(_) => "literal".serialize(serializer),
+        }
+    }
+}
+
+/// Helper type to deserialize a value that can be either a color or another type.
+/// This is the disambiguation used to differentiate between a categorical color map and a lerp color map when deserializing.
+#[derive(Debug)]
+enum ColorOr<T> {
+    Color(style::series::Color),
+    T(T),
+}
+
+impl<'de, T> serde::de::Deserialize<'de> for ColorOr<T>
+where
+    T: serde::de::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ColorOrVisitor<T> {
+            marker: std::marker::PhantomData<T>,
+        }
+
+        impl<'de, T> serde::de::Visitor<'de> for ColorOrVisitor<T>
+        where
+            T: serde::de::Deserialize<'de>,
+        {
+            type Value = ColorOr<T>;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a color or one of the LerpColorMap fields")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                if let Ok(color) = value.parse::<style::series::Color>() {
+                    Ok(ColorOr::Color(color))
+                } else {
+                    let t = T::deserialize(value.into_deserializer())?;
+                    Ok(ColorOr::T(t))
+                }
+            }
+
+            fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let t = T::deserialize(serde::de::value::MapAccessDeserializer::new(map))?;
+                Ok(ColorOr::T(t))
+            }
+
+            fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let t = T::deserialize(serde::de::value::SeqAccessDeserializer::new(seq))?;
+                Ok(ColorOr::T(t))
+            }
+        }
+
+        deserializer.deserialize_any(ColorOrVisitor {
+            marker: std::marker::PhantomData,
+        })
+    }
+}
+
+/// Helper type deserialize either a string or an integer as a key for a categorical color map.
+#[derive(Debug, serde::Deserialize)]
+#[serde(untagged)]
+enum CatKey {
+    String(String),
+    Integer(i64),
+}
+
+impl<'de> serde::de::Deserialize<'de> for ColorMap {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct ColorMapVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for ColorMapVisitor {
+            type Value = ColorMap;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a ColorMap")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "auto" => Ok(ColorMap::Auto),
+                    "cat" | "categorical" => Ok(cmap::CatColorMap::Auto.into()),
+                    "literal" => Ok(cmap::LiteralColorMap.into()),
+                    value => {
+                        if let Some(cmap) = cmap::from_name(value) {
+                            Ok(cmap.into())
+                        } else {
+                            Err(E::custom(format!("unknown ColorMap: {}", value)))
+                        }
+                    }
+                }
+            }
+
+            fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let stops = StopsVisitor.visit_seq(seq)?;
+
+                Ok(
+                    LerpColorMap::new(LerpMethod::default(), stops.start, stops.end)
+                        .with_stops(stops.stops)
+                        .into(),
+                )
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut is_lerp = false;
+                let mut method: Option<LerpMethod> = None;
+                let mut cmap: Option<String> = None;
+                let mut stops: Option<DeStops> = None;
+                let mut scale: Option<des::axis::Scale> = None;
+
+                let mut is_cats = false;
+                let mut cats: HashMap<String, style::series::Color> = HashMap::new();
+                let mut icats: HashMap<i64, style::series::Color> = HashMap::new();
+
+                while let Some(key) = map.next_key::<CatKey>()? {
+                    let str_key = match key {
+                        CatKey::String(s) => s,
+                        CatKey::Integer(i) => {
+                            let val = map.next_value()?;
+                            icats.insert(i, val);
+                            is_cats = true;
+                            continue;
+                        }
+                    };
+                    match str_key.as_str() {
+                        "method" if !is_cats => {
+                            let val: ColorOr<LerpMethod> = map.next_value()?;
+                            match val {
+                                ColorOr::Color(val) => {
+                                    cats.insert("method".to_string(), val);
+                                    is_cats = true;
+                                }
+                                ColorOr::T(val) => {
+                                    method = Some(val);
+                                    is_lerp = true;
+                                }
+                            }
+                        }
+                        "cmap" if !is_cats => {
+                            let val: ColorOr<String> = map.next_value()?;
+                            match val {
+                                ColorOr::Color(val) => {
+                                    cats.insert("cmap".to_string(), val);
+                                    is_cats = true;
+                                }
+                                ColorOr::T(val) => {
+                                    cmap = Some(val);
+                                    is_lerp = true;
+                                }
+                            }
+                        }
+                        "stops" => {
+                            let val: ColorOr<DeStops> = map.next_value()?;
+                            match val {
+                                ColorOr::Color(val) => {
+                                    cats.insert("stops".to_string(), val);
+                                    is_cats = true;
+                                }
+                                ColorOr::T(val) => {
+                                    stops = Some(val);
+                                    is_lerp = true;
+                                }
+                            }
+                        }
+                        "scale" => {
+                            let val: ColorOr<des::axis::Scale> = map.next_value()?;
+                            match val {
+                                ColorOr::Color(val) => {
+                                    cats.insert("scale".to_string(), val);
+                                    is_cats = true;
+                                }
+                                ColorOr::T(val) => {
+                                    scale = Some(val);
+                                    is_lerp = true;
+                                }
+                            }
+                        }
+                        _ => {
+                            let val: style::series::Color = map.next_value()?;
+                            cats.insert(str_key, val);
+                            is_cats = true;
+                        }
+                    }
+                }
+
+                if is_cats {
+                    if is_lerp {
+                        return Err(A::Error::custom(
+                            "Can't mix categorical and lerp color map fields",
+                        ));
+                    }
+                    if !icats.is_empty() && !cats.is_empty() {
+                        return Err(A::Error::custom(
+                            "Can't mix integer and string keys in categorical color map",
+                        ));
+                    }
+                    if !icats.is_empty() {
+                        return Ok(CatColorMap::Integers(icats).into());
+                    } else {
+                        return Ok(CatColorMap::Strings(cats).into());
+                    }
+                }
+                if is_lerp {
+                    return Ok(
+                        lerp_color_map_from_fields::<A::Error>(method, cmap, stops, scale)?.into(),
+                    );
+                }
+                Err(A::Error::custom("Missing fields for ColorMap"))
+            }
+        }
+
+        deserializer.deserialize_any(ColorMapVisitor)
+    }
+}
 
 impl serde::Serialize for LerpMethod {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -281,38 +527,118 @@ impl<'de> serde::Deserialize<'de> for LerpColorMap {
                     "method" => method: Option<LerpMethod>,
                     "cmap" => cmap: Option<String>,
                     "stops" => stops: Option<DeStops>,
-                    "scale" => scale: Option<Option<des::axis::Scale>>,
+                    "scale" => scale: Option<des::axis::Scale>,
                 );
 
-                let mut cmap = if let Some(cmap) = cmap {
-                    if stops.is_some() {
-                        return Err(A::Error::custom("Can't specify both cmap and stops"));
-                    }
-                    if method.is_some() {
-                        return Err(A::Error::custom("Can't specify both cmap and method"));
-                    }
-                    let Some(cmap) = cmap::from_name(&cmap) else {
-                        return Err(A::Error::custom(format!("Unknown ColorMap name: {}", cmap)));
-                    };
-                    cmap
-                } else {
-                    let Some(stops) = stops else {
-                        return Err(A::Error::missing_field("stops"));
-                    };
-                    let method = method.unwrap_or(LerpMethod::default());
-                    let mut cmap = LerpColorMap::new(method, stops.start, stops.end);
-                    if !stops.stops.is_empty() {
-                        cmap = cmap.with_stops(stops.stops);
-                    }
-                    cmap
-                };
-
-                if let Some(scale) = scale {
-                    cmap = cmap.with_scale(scale.unwrap_or_default());
-                }
-                Ok(cmap)
+                lerp_color_map_from_fields::<A::Error>(method, cmap, stops, scale)
             }
         }
         deserializer.deserialize_any(LerpColorMapVisitor)
+    }
+}
+
+fn lerp_color_map_from_fields<E>(
+    method: Option<LerpMethod>,
+    cmap: Option<String>,
+    stops: Option<DeStops>,
+    scale: Option<des::axis::Scale>,
+) -> Result<LerpColorMap, E>
+where
+    E: serde::de::Error,
+{
+    let mut cmap = if let Some(cmap) = cmap {
+        if stops.is_some() {
+            return Err(E::custom("Can't specify both cmap and stops"));
+        }
+        if method.is_some() {
+            return Err(E::custom("Can't specify both cmap and method"));
+        }
+        let Some(cmap) = cmap::from_name(&cmap) else {
+            return Err(E::custom(format!("Unknown ColorMap name: {}", cmap)));
+        };
+        cmap
+    } else {
+        let Some(stops) = stops else {
+            return Err(E::custom("Missing field: stops"));
+        };
+        let method = method.unwrap_or(LerpMethod::default());
+        let mut cmap = LerpColorMap::new(method, stops.start, stops.end);
+        if !stops.stops.is_empty() {
+            cmap = cmap.with_stops(stops.stops);
+        }
+        cmap
+    };
+
+    if let Some(scale) = scale {
+        cmap = cmap.with_scale(scale);
+    }
+    Ok(cmap)
+}
+
+impl serde::Serialize for CatColorMap {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            CatColorMap::Auto => "cat".serialize(serializer),
+            CatColorMap::Strings(cmap) => {
+                let mut state = serializer.serialize_map(Some(cmap.len() + 1))?;
+                for (key, value) in cmap {
+                    state.serialize_entry(key, value)?;
+                }
+                state.end()
+            }
+            CatColorMap::Integers(cmap) => {
+                let mut state = serializer.serialize_map(Some(cmap.len() + 1))?;
+                for (key, value) in cmap {
+                    state.serialize_entry(&key.to_string(), value)?;
+                }
+                state.end()
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::des;
+    use crate::des::cmap::ColorMap;
+
+    #[test]
+    fn colormap_scale_seq_deserializes_as_linear_scale() {
+        let input = r##"
+{
+  "stops": ["#440154", "#fde724"],
+  "scale": [0.0, 2.0]
+}
+    "##;
+
+        let cmap: ColorMap = serde_json::from_str(input).unwrap();
+        let ColorMap::Lerp(cmap) = cmap else {
+            panic!("expected lerp colormap");
+        };
+
+        assert_eq!(
+            cmap.scale(),
+            &des::axis::Scale::Linear(des::axis::Range(Some(0.0), Some(2.0)))
+        );
+    }
+
+    #[test]
+    fn colormap_scale_null_deserializes_as_default_scale() {
+        let input = r##"
+{
+  "stops": ["#440154", "#fde724"],
+  "scale": null
+}
+    "##;
+
+        let cmap: ColorMap = serde_json::from_str(input).unwrap();
+        let ColorMap::Lerp(cmap) = cmap else {
+            panic!("expected lerp colormap");
+        };
+
+        assert_eq!(cmap.scale(), &des::axis::Scale::default());
     }
 }

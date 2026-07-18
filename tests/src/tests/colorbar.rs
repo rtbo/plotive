@@ -27,18 +27,18 @@ fn scatter(x: Vec<f64>, y: Vec<f64>) -> des::series::Scatter {
 }
 
 #[test]
-fn colorbar_default() {
+fn colorbar_lerp_auto() {
     let (x, y, col) = columns();
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis())
+            .with_color_data(des::data_inline(col), Default::default())
             .into(),
     ])
     .with_colorbar(Default::default());
     let fig = fig_small(plot);
 
-    assert_fig_eq_ref!(&fig, "colorbar/default");
+    assert_fig_eq_ref!(&fig, "colorbar/lerp-auto");
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn colorbar_locator() {
         scatter(x, y)
             .with_color_data(
                 des::data_inline(col),
-                cmap::viridis().with_scale((0.0, 1.0).into()),
+                cmap::viridis().with_scale((0.0, 1.0).into()).into(),
             )
             .into(),
     ])
@@ -66,7 +66,7 @@ fn colorbar_default_with_axes() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis())
+            .with_color_data(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_x_axis(
@@ -94,7 +94,7 @@ fn colorbar_auto_range() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis())
+            .with_color_data(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_colorbar(Default::default());
@@ -111,7 +111,7 @@ fn colorbar_cmap_scale() {
         scatter(x, y)
             .with_color_data(
                 des::data_inline(col),
-                cmap::viridis().with_scale((0.0, 2.0).into()),
+                cmap::viridis().with_scale((0.0, 2.0).into()).into(),
             )
             .into(),
     ])
@@ -127,7 +127,7 @@ fn colorbar_left() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis())
+            .with_color_data(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_colorbar(colorbar::Pos::Left.into());
@@ -142,7 +142,7 @@ fn colorbar_top() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis())
+            .with_color_data(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_colorbar(colorbar::Pos::Top.into());
@@ -157,11 +157,37 @@ fn colorbar_bottom() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis())
+            .with_color_data(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_colorbar(colorbar::Pos::Bottom.into());
     let fig = fig_small(plot);
 
     assert_fig_eq_ref!(&fig, "colorbar/bottom");
+}
+
+#[test]
+fn colorbar_cats() {
+    let fig = crate::json_figure("colorbar/cats");
+    assert_fig_eq_ref!(&fig, "colorbar/cats", &plotive::style::Style::light());
+}
+
+#[test]
+fn colorbar_cats_nocbar() {
+    let fig = crate::json_figure("colorbar/cats-nocbar");
+    assert_fig_eq_ref!(
+        &fig,
+        "colorbar/cats-nocbar",
+        &plotive::style::Style::light()
+    );
+}
+
+#[test]
+fn colorbar_right_axis_right() {
+    let fig = crate::json_figure("colorbar/right-axis-right");
+    assert_fig_eq_ref!(
+        &fig,
+        "colorbar/right-axis-right",
+        &plotive::style::Style::light()
+    );
 }
