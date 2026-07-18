@@ -1,7 +1,7 @@
 //! Serialization and deserialization of figures
 
 use plotive_base::deserialize_map_fields;
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 
 use crate::des::{FigLegend, Figure, Plot, Subplots, Text, figure};
 use crate::geom;
@@ -26,33 +26,33 @@ impl serde::Serialize for Figure {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("Figure", 5)?;
+        let mut state = serializer.serialize_map(None)?;
         if self.size() != defaults::FIG_SIZE {
-            state.serialize_field("size", &self.size())?;
+            state.serialize_entry("size", &self.size())?;
         }
         if let Some(title) = self.title() {
-            state.serialize_field("title", title)?;
+            state.serialize_entry("title", title)?;
         }
         if self.fill() != Some(theme::Col::Background.into()) {
-            state.serialize_field("fill", &self.fill())?;
+            state.serialize_entry("fill", &self.fill())?;
         }
         if let Some(legend) = self.legend() {
-            state.serialize_field("legend", legend)?;
+            state.serialize_entry("legend", legend)?;
         }
         if self.padding() != &defaults::FIG_PADDING {
-            state.serialize_field("padding", &self.padding())?;
+            state.serialize_entry("padding", &self.padding())?;
         }
 
         match self.plots() {
             figure::Plots::Plot(plot) => {
-                state.serialize_field("plot", plot)?;
+                state.serialize_entry("plot", plot)?;
             }
             figure::Plots::Subplots(subplots) => {
                 if subplots.space() != 0.0 {
-                    state.serialize_field("space", &subplots.space())?;
+                    state.serialize_entry("space", &subplots.space())?;
                 }
 
-                state.serialize_field("plots", subplots)?;
+                state.serialize_entry("plots", subplots)?;
             }
         }
 
@@ -151,22 +151,15 @@ impl<'de> serde::de::Visitor<'de> for FigureVisitor {
 macro_rules! serialize_tagged_map_variant {
     ($serializer:expr, $tag:expr, ($obj:ident, $typ:ty), $($key:expr => $field:ident,)+) => {
         {
-            let typ_name = std::stringify!($typ);
             let default = <$typ>::default();
             if $obj == &default {
                 $tag.serialize($serializer)
             } else {
-                let mut len = 1; // for the tag
+                let mut map = $serializer.serialize_map(std::option::Option::None)?;
+                map.serialize_entry("type", $tag)?;
                 $(
                     if $obj.$field != default.$field {
-                        len += 1;
-                    }
-                )+
-                let mut map = $serializer.serialize_struct(typ_name, len)?;
-                map.serialize_field("type", $tag)?;
-                $(
-                    if $obj.$field != default.$field {
-                        map.serialize_field($key, &$obj.$field)?;
+                        map.serialize_entry($key, &$obj.$field)?;
                     }
                 )+
                 map.end()

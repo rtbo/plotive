@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 
 use serde::Serialize;
 use serde::de::IntoDeserializer;
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 
 use crate::color::{css4, xkcd};
 use crate::geom::{Padding, Size};
@@ -394,9 +394,9 @@ where
             if *opacity == 1.0 {
                 color.serialize(serializer)
             } else {
-                let mut state = serializer.serialize_struct("Fill", 2)?;
-                state.serialize_field("color", color)?;
-                state.serialize_field("opacity", opacity)?;
+                let mut state = serializer.serialize_map(Some(2))?;
+                state.serialize_entry("color", color)?;
+                state.serialize_entry("opacity", opacity)?;
                 state.end()
             }
         } else {
@@ -556,7 +556,7 @@ where
     where
         S: serde::Serializer,
     {
-        serialize_stroke(self, C::default_stroke(), "Stroke", serializer)
+        serialize_stroke(self, C::default_stroke(), serializer)
     }
 }
 
@@ -581,7 +581,6 @@ where
 pub fn serialize_stroke<C, S>(
     stroke: &Stroke<C>,
     default_stroke: Option<Stroke<C>>,
-    name: &'static str,
     serializer: S,
 ) -> Result<S::Ok, S::Error>
 where
@@ -617,22 +616,18 @@ where
         (false, true, true, true) => stroke.color.serialize(serializer),
         (true, true, false, true) => stroke.pattern.serialize(serializer),
         _ => {
-            let fields = (!has_default_color as usize)
-                + (!has_default_width as usize)
-                + (!has_default_pattern as usize)
-                + (!has_default_opacity as usize);
-            let mut state = serializer.serialize_struct(name, fields)?;
+            let mut state = serializer.serialize_map(None)?;
             if !has_default_color {
-                state.serialize_field("color", &stroke.color)?;
+                state.serialize_entry("color", &stroke.color)?;
             }
             if !has_default_width {
-                state.serialize_field("width", &stroke.width)?;
+                state.serialize_entry("width", &stroke.width)?;
             }
             if !has_default_pattern {
-                state.serialize_field("pattern", &stroke.pattern)?;
+                state.serialize_entry("pattern", &stroke.pattern)?;
             }
             if !has_default_opacity {
-                state.serialize_field("opacity", &stroke.opacity.unwrap_or(1.0))?;
+                state.serialize_entry("opacity", &stroke.opacity.unwrap_or(1.0))?;
             }
             state.end()
         }

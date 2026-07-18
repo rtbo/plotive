@@ -1,5 +1,5 @@
 use serde::de::{Error, MapAccess};
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 use serde_value::Value;
 
 use crate::des::{Annotation, Text, annot, axis};
@@ -198,16 +198,16 @@ fn serialize_base_fields<S>(
     default_zpos: annot::ZPos,
 ) -> Result<(), S::Error>
 where
-    S: serde::ser::SerializeStruct,
+    S: serde::ser::SerializeMap,
 {
     if x_axis != &axis::Ref::default() {
-        state.serialize_field("xAxis", x_axis)?;
+        state.serialize_entry("xAxis", x_axis)?;
     }
     if y_axis != &axis::Ref::default() {
-        state.serialize_field("yAxis", y_axis)?;
+        state.serialize_entry("yAxis", y_axis)?;
     }
     if zpos != default_zpos {
-        state.serialize_field("zpos", &zpos)?;
+        state.serialize_entry("zpos", &zpos)?;
     }
     Ok(())
 }
@@ -216,20 +216,20 @@ fn serialize_line<S>(line: &annot::Line, serializer: S) -> Result<S::Ok, S::Erro
 where
     S: serde::Serializer,
 {
-    let mut state = serializer.serialize_struct("LineAnnotation", 8)?;
-    state.serialize_field("type", "line")?;
+    let mut state = serializer.serialize_map(None)?;
+    state.serialize_entry("type", "line")?;
     match line.direction() {
-        annot::LineDir::Horizontal(y) => state.serialize_field("horizontal", &y)?,
-        annot::LineDir::Vertical(x) => state.serialize_field("vertical", &x)?,
+        annot::LineDir::Horizontal(y) => state.serialize_entry("horizontal", &y)?,
+        annot::LineDir::Vertical(x) => state.serialize_entry("vertical", &x)?,
         annot::LineDir::Slope { x, y, slope } => {
-            state.serialize_field("slope", &((x, y), slope))?
+            state.serialize_entry("slope", &((x, y), slope))?
         }
         annot::LineDir::TwoPoints { x1, y1, x2, y2 } => {
-            state.serialize_field("twoPoints", &((x1, y1), (x2, y2)))?
+            state.serialize_entry("twoPoints", &((x1, y1), (x2, y2)))?
         }
     }
     if line.stroke() != &theme::Stroke::from(theme::Col::Foreground) {
-        state.serialize_field("stroke", line.stroke())?;
+        state.serialize_entry("stroke", line.stroke())?;
     }
     serialize_base_fields(
         &mut state,
@@ -245,15 +245,15 @@ fn serialize_arrow<S>(arrow: &annot::Arrow, serializer: S) -> Result<S::Ok, S::E
 where
     S: serde::Serializer,
 {
-    let mut state = serializer.serialize_struct("ArrowAnnotation", 8)?;
-    state.serialize_field("type", "arrow")?;
-    state.serialize_field("xy", &arrow.target())?;
-    state.serialize_field("dxy", &arrow.delta())?;
+    let mut state = serializer.serialize_map(None)?;
+    state.serialize_entry("type", "arrow")?;
+    state.serialize_entry("xy", &arrow.target())?;
+    state.serialize_entry("dxy", &arrow.delta())?;
     if arrow.stroke() != &theme::Stroke::from(theme::Col::Foreground) {
-        state.serialize_field("stroke", arrow.stroke())?;
+        state.serialize_entry("stroke", arrow.stroke())?;
     }
     if (arrow.head_size() - 10.0).abs() > f32::EPSILON {
-        state.serialize_field("headSize", &arrow.head_size())?;
+        state.serialize_entry("headSize", &arrow.head_size())?;
     }
     serialize_base_fields(
         &mut state,
@@ -269,10 +269,10 @@ fn serialize_marker<S>(marker: &annot::Marker, serializer: S) -> Result<S::Ok, S
 where
     S: serde::Serializer,
 {
-    let mut state = serializer.serialize_struct("MarkerAnnotation", 6)?;
-    state.serialize_field("xy", &marker.position())?;
+    let mut state = serializer.serialize_map(None)?;
+    state.serialize_entry("xy", &marker.position())?;
     if marker.marker() != &theme::Marker::default() {
-        state.serialize_field("marker", marker.marker())?;
+        state.serialize_entry("marker", marker.marker())?;
     }
     serialize_base_fields(
         &mut state,
@@ -288,19 +288,19 @@ fn serialize_label<S>(label: &annot::Label, serializer: S) -> Result<S::Ok, S::E
 where
     S: serde::Serializer,
 {
-    let mut state = serializer.serialize_struct("LabelAnnotation", 10)?;
-    state.serialize_field("type", "label")?;
-    state.serialize_field("xy", &label.position())?;
-    state.serialize_field("text", label.text())?;
+    let mut state = serializer.serialize_map(None)?;
+    state.serialize_entry("type", "label")?;
+    state.serialize_entry("xy", &label.position())?;
+    state.serialize_entry("text", label.text())?;
     if label.anchor() != annot::Anchor::default() {
-        state.serialize_field("anchor", &label.anchor())?;
+        state.serialize_entry("anchor", &label.anchor())?;
     }
     let (fill, stroke) = label.frame();
     if let (Some(fill), Some(stroke)) = (fill, stroke) {
-        state.serialize_field("frame", &(fill, stroke))?;
+        state.serialize_entry("frame", &(fill, stroke))?;
     }
     if label.angle() != 0.0 {
-        state.serialize_field("angle", &label.angle())?;
+        state.serialize_entry("angle", &label.angle())?;
     }
     serialize_base_fields(
         &mut state,

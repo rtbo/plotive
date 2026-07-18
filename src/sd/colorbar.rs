@@ -1,5 +1,5 @@
 use serde::de::MapAccess;
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 use serde::{Deserializer, Serializer};
 
 use crate::des::axis::ticks;
@@ -67,27 +67,27 @@ impl serde::Serialize for colorbar::ColorBar {
             return self.pos().serialize(serializer);
         }
 
-        let mut map = serializer.serialize_struct("ColorBar", 6)?;
+        let mut map = serializer.serialize_map(None)?;
         if self.pos() != default.pos() {
-            map.serialize_field("pos", &self.pos())?;
+            map.serialize_entry("pos", &self.pos())?;
         }
         if self.width() != default.width() {
-            map.serialize_field("width", &self.width())?;
+            map.serialize_entry("width", &self.width())?;
         }
         if self.title() != default.title() {
-            map.serialize_field("title", &self.title())?;
+            map.serialize_entry("title", &self.title())?;
         }
         if self.border() != default.border() {
-            map.serialize_field("border", &self.border())?;
+            map.serialize_entry("border", &self.border())?;
         }
         if self.ticks_font() != default.ticks_font() {
-            map.serialize_field("ticksFont", &self.ticks_font())?;
+            map.serialize_entry("ticksFont", &self.ticks_font())?;
         }
         if self.ticks_locator() != default.ticks_locator() {
-            map.serialize_field("ticks", &self.ticks_locator())?;
+            map.serialize_entry("ticks", &self.ticks_locator())?;
         }
         if self.margin() != default.margin() {
-            map.serialize_field("margin", &self.margin())?;
+            map.serialize_entry("margin", &self.margin())?;
         }
         map.end()
     }

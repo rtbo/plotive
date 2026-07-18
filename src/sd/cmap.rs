@@ -1,7 +1,7 @@
 use plotive_base::Rgb8;
 use serde::Deserializer;
 use serde::de::{Error, SeqAccess};
-use serde::ser::{SerializeSeq, SerializeStruct};
+use serde::ser::{SerializeSeq, SerializeMap};
 
 use crate::des;
 use crate::des::cmap;
@@ -219,9 +219,9 @@ impl serde::Serialize for LerpColorMap {
         if let Some(name) = self.name() {
             name.serialize(serializer)
         } else {
-            let mut state = serializer.serialize_struct("LerpColorMap", 1)?;
+            let mut state = serializer.serialize_map(None)?;
             if self.method() != LerpMethod::default() {
-                state.serialize_field("method", &self.method())?;
+                state.serialize_entry("method", &self.method())?;
             }
             let stops = SerStops {
                 monotonic: self.is_monotonic(),
@@ -229,8 +229,8 @@ impl serde::Serialize for LerpColorMap {
                 end: self.end(),
                 stops: self.stops(),
             };
-            state.serialize_field("stops", &stops)?;
-            state.serialize_field("scale", self.scale())?;
+            state.serialize_entry("stops", &stops)?;
+            state.serialize_entry("scale", self.scale())?;
             state.end()
         }
     }

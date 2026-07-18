@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 
 use plotive_base::deserialize_map_fields;
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 
 use crate::style::{self, theme};
@@ -165,18 +165,18 @@ where
         } else if has_default_shape && has_default_fill && has_default_stroke {
             size.serialize(serializer)
         } else {
-            let mut state = serializer.serialize_struct("Marker", 3)?;
+            let mut state = serializer.serialize_map(None)?;
             if !has_default_shape {
-                state.serialize_field("shape", shape)?;
+                state.serialize_entry("shape", shape)?;
             }
             if !has_default_size {
-                state.serialize_field("size", size)?;
+                state.serialize_entry("size", size)?;
             }
             if !has_default_fill {
-                state.serialize_field("fill", fill)?;
+                state.serialize_entry("fill", fill)?;
             }
             if !has_default_stroke {
-                state.serialize_field("stroke", stroke)?;
+                state.serialize_entry("stroke", stroke)?;
             }
             state.end()
         }

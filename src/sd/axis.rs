@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use plotive_base::deserialize_map_fields;
 use plotive_text::TextProps;
 use serde::de::{Error, SeqAccess};
-use serde::ser::{SerializeSeq, SerializeStruct};
+use serde::ser::{SerializeSeq, SerializeMap};
 use serde::{Deserializer, Serializer};
 use serde_value::Value;
 
@@ -209,9 +209,9 @@ impl serde::Serialize for axis::Scale {
                 )
             }
             axis::Scale::Shared(id) => {
-                let mut map = serializer.serialize_struct("SharedScale", 1)?;
-                map.serialize_field("type", "shared")?;
-                map.serialize_field("ref", id)?;
+                let mut map = serializer.serialize_map(Some(2))?;
+                map.serialize_entry("type", "shared")?;
+                map.serialize_entry("ref", id)?;
                 map.end()
             }
         }
@@ -397,8 +397,8 @@ impl serde::Serialize for axis::ticks::Locator {
             }
             #[cfg(feature = "time")]
             axis::ticks::Locator::DateTime(locator) => {
-                let mut map = serializer.serialize_struct("DateTimeLocator", 2)?;
-                map.serialize_field("type", "datetime")?;
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("type", "datetime")?;
                 let period = match locator {
                     axis::ticks::DateTimeLocator::Auto => None,
                     axis::ticks::DateTimeLocator::Years(years) => Some((*years, "years")),
@@ -422,14 +422,14 @@ impl serde::Serialize for axis::ticks::Locator {
                     } else {
                         unit
                     };
-                    map.serialize_field("period", &(value, unit))?;
+                    map.serialize_entry("period", &(value, unit))?;
                 }
                 map.end()
             }
             #[cfg(feature = "time")]
             axis::ticks::Locator::TimeDelta(locator) => {
-                let mut map = serializer.serialize_struct("TimeDeltaLocator", 2)?;
-                map.serialize_field("type", "timedelta")?;
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("type", "timedelta")?;
                 let period = match locator {
                     axis::ticks::TimeDeltaLocator::Auto => None,
                     axis::ticks::TimeDeltaLocator::Days(days) => Some((*days, "days")),
@@ -450,7 +450,7 @@ impl serde::Serialize for axis::ticks::Locator {
                     } else {
                         unit
                     };
-                    map.serialize_field("period", &(value, unit))?;
+                    map.serialize_entry("period", &(value, unit))?;
                 }
                 map.end()
             }
@@ -701,9 +701,9 @@ impl serde::Serialize for axis::ticks::Formatter {
             axis::ticks::Formatter::SharedAuto => "shared-auto".serialize(serializer),
             axis::ticks::Formatter::Decimal(formatter) => {
                 if let Some(decimals) = formatter.decimal_places {
-                    let mut map = serializer.serialize_struct("PrecFormatter", 2)?;
-                    map.serialize_field("type", "decimal")?;
-                    map.serialize_field("decimals", &decimals)?;
+                    let mut map = serializer.serialize_map(Some(2))?;
+                    map.serialize_entry("type", "decimal")?;
+                    map.serialize_entry("decimals", &decimals)?;
                     map.end()
                 } else {
                     "decimal".serialize(serializer)
@@ -711,9 +711,9 @@ impl serde::Serialize for axis::ticks::Formatter {
             }
             axis::ticks::Formatter::Percent(formatter) => {
                 if let Some(decimals) = formatter.decimal_places {
-                    let mut map = serializer.serialize_struct("PercentFormatter", 2)?;
-                    map.serialize_field("type", "percent")?;
-                    map.serialize_field("decimals", &decimals)?;
+                    let mut map = serializer.serialize_map(Some(2))?;
+                    map.serialize_entry("type", "percent")?;
+                    map.serialize_entry("decimals", &decimals)?;
                     map.end()
                 } else {
                     "percent".serialize(serializer)
@@ -721,20 +721,20 @@ impl serde::Serialize for axis::ticks::Formatter {
             }
             #[cfg(feature = "time")]
             axis::ticks::Formatter::DateTime(formatter) => {
-                let mut map = serializer.serialize_struct("DateTimeFormatter", 2)?;
-                map.serialize_field("type", "datetime")?;
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("type", "datetime")?;
                 let fmt_str = formatter.fmt_str();
                 if let Some(fmt_str) = fmt_str {
-                    map.serialize_field("fmt", &fmt_str)?;
+                    map.serialize_entry("fmt", &fmt_str)?;
                 }
                 map.end()
             }
             #[cfg(feature = "time")]
             axis::ticks::Formatter::TimeDelta(formatter) => {
-                let mut map = serializer.serialize_struct("TimeDeltaFormatter", 2)?;
-                map.serialize_field("type", "timedelta")?;
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("type", "timedelta")?;
                 if let Some(fmt_str) = formatter.fmt_str() {
-                    map.serialize_field("fmt", &fmt_str)?;
+                    map.serialize_entry("fmt", &fmt_str)?;
                 }
                 map.end()
             }
@@ -946,22 +946,18 @@ impl serde::Serialize for axis::Ticks {
             (true, false, true, true) => self.formatter().serialize(serializer),
             (true, true, true, false) => self.color().serialize(serializer),
             _ => {
-                let len = 3
-                    - has_default_locator as usize
-                    - has_default_formatter as usize
-                    - has_default_color as usize;
-                let mut state = serializer.serialize_struct("Ticks", len)?;
+                let mut state = serializer.serialize_map(None)?;
                 if !has_default_locator {
-                    state.serialize_field("locator", self.locator())?;
+                    state.serialize_entry("locator", self.locator())?;
                 }
                 if !has_default_formatter {
-                    state.serialize_field("formatter", &self.formatter())?;
+                    state.serialize_entry("formatter", &self.formatter())?;
                 }
                 if !has_default_label_props {
-                    state.serialize_field("labelProps", &self.label_props())?;
+                    state.serialize_entry("labelProps", &self.label_props())?;
                 }
                 if !has_default_color {
-                    state.serialize_field("color", &self.color())?;
+                    state.serialize_entry("color", &self.color())?;
                 }
                 state.end()
             }
@@ -1209,13 +1205,12 @@ impl serde::Serialize for axis::MinorTicks {
             (false, true) => self.locator().serialize(serializer),
             (true, false) => self.color().serialize(serializer),
             _ => {
-                let len = 2 - has_default_locator as usize - has_default_color as usize;
-                let mut state = serializer.serialize_struct("MinorTicks", len)?;
+                let mut state = serializer.serialize_map(None)?;
                 if !has_default_locator {
-                    state.serialize_field("locator", self.locator())?;
+                    state.serialize_entry("locator", self.locator())?;
                 }
                 if !has_default_color {
-                    state.serialize_field("color", &self.color())?;
+                    state.serialize_entry("color", &self.color())?;
                 }
                 state.end()
             }
@@ -1302,7 +1297,7 @@ impl serde::Serialize for axis::Grid {
         S: serde::Serializer,
     {
         let default_stroke = Some(axis::Grid::default().0);
-        plotive_base::sd::serialize_stroke(&self.0, default_stroke, "Grid", serializer)
+        plotive_base::sd::serialize_stroke(&self.0, default_stroke, serializer)
     }
 }
 
@@ -1324,7 +1319,7 @@ impl serde::Serialize for axis::MinorGrid {
         S: serde::Serializer,
     {
         let default_stroke = Some(axis::MinorGrid::default().0);
-        plotive_base::sd::serialize_stroke(&self.0, default_stroke, "MinorGrid", serializer)
+        plotive_base::sd::serialize_stroke(&self.0, default_stroke, serializer)
     }
 }
 
@@ -1397,39 +1392,39 @@ impl<'a> serde::Serialize for SerAxis<'a> {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("Axis", 3)?;
+        let mut state = serializer.serialize_map(None)?;
 
         if let Some(id) = self.axis.id() {
-            state.serialize_field("id", id)?;
+            state.serialize_entry("id", id)?;
         }
 
         if let Some(title) = self.axis.title() {
-            state.serialize_field("title", title)?;
+            state.serialize_entry("title", title)?;
         }
 
         if self.axis.side() != axis::Side::default() {
             let side_str = self.side_str();
-            state.serialize_field("side", side_str)?;
+            state.serialize_entry("side", side_str)?;
         }
 
         if self.axis.scale() != &axis::Scale::default() {
-            state.serialize_field("scale", self.axis.scale())?;
+            state.serialize_entry("scale", self.axis.scale())?;
         }
 
         if let Some(ticks) = self.axis.ticks() {
-            state.serialize_field("ticks", ticks)?;
+            state.serialize_entry("ticks", ticks)?;
         }
 
         if let Some(minor_ticks) = self.axis.minor_ticks() {
-            state.serialize_field("minorTicks", minor_ticks)?;
+            state.serialize_entry("minorTicks", minor_ticks)?;
         }
 
         if let Some(grid) = self.axis.grid() {
-            state.serialize_field("grid", grid)?;
+            state.serialize_entry("grid", grid)?;
         }
 
         if let Some(minor_grid) = self.axis.minor_grid() {
-            state.serialize_field("minorGrid", minor_grid)?;
+            state.serialize_entry("minorGrid", minor_grid)?;
         }
 
         state.end()
