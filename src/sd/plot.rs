@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use serde::ser::{SerializeSeq, SerializeMap, SerializeTuple};
+use serde::ser::{SerializeMap, SerializeSeq, SerializeTuple};
 use serde_value::Value;
 
 use crate::des::{Annotation, Plot, PlotLegend, Subplots, Text, axis, colorbar, plot, series};

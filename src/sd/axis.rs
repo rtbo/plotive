@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use plotive_base::deserialize_map_fields;
 use plotive_text::TextProps;
 use serde::de::{Error, SeqAccess};
-use serde::ser::{SerializeSeq, SerializeMap};
+use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserializer, Serializer};
 use serde_value::Value;
 

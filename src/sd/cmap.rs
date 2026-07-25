@@ -1,7 +1,7 @@
 use plotive_base::Rgb8;
 use serde::Deserializer;
 use serde::de::{Error, SeqAccess};
-use serde::ser::{SerializeSeq, SerializeMap};
+use serde::ser::{SerializeMap, SerializeSeq};
 
 use crate::des;
 use crate::des::cmap;
