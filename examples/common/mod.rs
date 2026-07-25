@@ -122,7 +122,7 @@ fn parse_args() -> Args {
     args
 }
 
-pub fn save_figure<D>(
+pub fn process_figure<D>(
     fig: &des::Figure,
     data_source: &D,
     fontdb: Option<&fontdb::Database>,
@@ -132,14 +132,14 @@ pub fn save_figure<D>(
 {
     let args = parse_args();
     if let Some(fontdb) = fontdb {
-        save_fig(fig, data_source, &args, fontdb, default_name);
+        process_fig(fig, data_source, &args, fontdb, default_name);
     } else {
         let fontdb = plotive::bundled_font_db();
-        save_fig(fig, data_source, &args, &fontdb, default_name);
+        process_fig(fig, data_source, &args, &fontdb, default_name);
     }
 }
 
-fn save_fig<D>(
+fn process_fig<D>(
     fig: &des::Figure,
     data_source: &D,
     args: &Args,

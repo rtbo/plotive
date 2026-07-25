@@ -416,21 +416,39 @@ pub mod ticks {
     #[derive(Debug, Clone, PartialEq)]
     pub struct ListLocator(pub Vec<f64>);
 
-    impl From<Vec<f64>> for Locator {
-        fn from(loc: Vec<f64>) -> Self {
-            Locator::List(ListLocator(loc))
-        }
-    }
-
     impl From<Vec<f64>> for ListLocator {
         fn from(loc: Vec<f64>) -> Self {
             ListLocator(loc)
         }
     }
 
+    impl From<Vec<f64>> for Locator {
+        fn from(loc: Vec<f64>) -> Self {
+            Locator::List(ListLocator(loc))
+        }
+    }
+
     impl From<ListLocator> for Locator {
         fn from(loc: ListLocator) -> Self {
             Locator::List(loc)
+        }
+    }
+
+    impl From<Vec<f64>> for Ticks {
+        fn from(loc: Vec<f64>) -> Self {
+            Ticks {
+                locator: Locator::List(ListLocator(loc)),
+                ..Default::default()
+            }
+        }
+    }
+
+    impl From<ListLocator> for Ticks {
+        fn from(loc: ListLocator) -> Self {
+            Ticks {
+                locator: Locator::List(loc),
+                ..Default::default()
+            }
         }
     }
 
@@ -459,6 +477,15 @@ pub mod ticks {
         }
     }
 
+    impl From<MaxNLocator> for Ticks {
+        fn from(locator: MaxNLocator) -> Self {
+            Ticks {
+                locator: Locator::MaxN(locator),
+                ..Default::default()
+            }
+        }
+    }
+
     /// A locator that places ticks at multiples of π
     /// The axis will be annotated with `× π`
     #[derive(Debug, Clone, Copy, PartialEq)]
@@ -479,6 +506,15 @@ pub mod ticks {
         }
     }
 
+    impl From<PiMultipleLocator> for Ticks {
+        fn from(locator: PiMultipleLocator) -> Self {
+            Ticks {
+                locator: Locator::PiMultiple(locator),
+                ..Default::default()
+            }
+        }
+    }
+
     /// A locator that places ticks on a logarithmic scale
     #[derive(Debug, Clone, Copy, PartialEq)]
     pub struct LogLocator {
@@ -495,6 +531,15 @@ pub mod ticks {
     impl From<LogLocator> for Locator {
         fn from(locator: LogLocator) -> Self {
             Locator::Log(locator)
+        }
+    }
+
+    impl From<LogLocator> for Ticks {
+        fn from(locator: LogLocator) -> Self {
+            Ticks {
+                locator: Locator::Log(locator),
+                ..Default::default()
+            }
         }
     }
 
@@ -532,6 +577,16 @@ pub mod ticks {
     }
 
     #[cfg(feature = "time")]
+    impl From<DateTimeLocator> for Ticks {
+        fn from(value: DateTimeLocator) -> Self {
+            Ticks {
+                locator: Locator::DateTime(value),
+                ..Default::default()
+            }
+        }
+    }
+
+    #[cfg(feature = "time")]
     /// Describes how to locate the ticks of a TimeDelta axis
     #[derive(Debug, Default, Clone, Copy, PartialEq)]
     pub enum TimeDeltaLocator {
@@ -553,8 +608,18 @@ pub mod ticks {
 
     #[cfg(feature = "time")]
     impl From<TimeDeltaLocator> for Locator {
-        fn from(locator: TimeDeltaLocator) -> Self {
-            Locator::TimeDelta(locator)
+        fn from(value: TimeDeltaLocator) -> Self {
+            Locator::TimeDelta(value)
+        }
+    }
+
+    #[cfg(feature = "time")]
+    impl From<TimeDeltaLocator> for Ticks {
+        fn from(value: TimeDeltaLocator) -> Self {
+            Ticks {
+                locator: Locator::TimeDelta(value),
+                ..Default::default()
+            }
         }
     }
 
@@ -594,16 +659,25 @@ pub mod ticks {
         pub decimal_places: Option<usize>,
     }
 
+    impl From<usize> for DecimalFormatter {
+        fn from(digits: usize) -> Self {
+            DecimalFormatter {
+                decimal_places: Some(digits),
+            }
+        }
+    }
+
     impl From<DecimalFormatter> for Formatter {
         fn from(fmt: DecimalFormatter) -> Self {
             Formatter::Decimal(fmt)
         }
     }
 
-    impl From<usize> for DecimalFormatter {
-        fn from(digits: usize) -> Self {
-            DecimalFormatter {
-                decimal_places: Some(digits),
+    impl From<DecimalFormatter> for Ticks {
+        fn from(fmt: DecimalFormatter) -> Self {
+            Ticks {
+                formatter: Some(Formatter::Decimal(fmt)),
+                ..Default::default()
             }
         }
     }
@@ -616,16 +690,25 @@ pub mod ticks {
         pub decimal_places: Option<usize>,
     }
 
+    impl From<usize> for PercentFormatter {
+        fn from(digits: usize) -> Self {
+            PercentFormatter {
+                decimal_places: Some(digits),
+            }
+        }
+    }
+
     impl From<PercentFormatter> for Formatter {
         fn from(fmt: PercentFormatter) -> Self {
             Formatter::Percent(fmt)
         }
     }
 
-    impl From<usize> for PercentFormatter {
-        fn from(digits: usize) -> Self {
-            PercentFormatter {
-                decimal_places: Some(digits),
+    impl From<PercentFormatter> for Ticks {
+        fn from(fmt: PercentFormatter) -> Self {
+            Ticks {
+                formatter: Some(Formatter::Percent(fmt)),
+                ..Default::default()
             }
         }
     }
@@ -670,6 +753,16 @@ pub mod ticks {
     }
 
     #[cfg(feature = "time")]
+    impl From<DateTimeFormatter> for Ticks {
+        fn from(fmt: DateTimeFormatter) -> Self {
+            Ticks {
+                formatter: Some(Formatter::DateTime(fmt)),
+                ..Default::default()
+            }
+        }
+    }
+
+    #[cfg(feature = "time")]
     /// A label formatter for TimeDelta ticks
     #[derive(Debug, Clone, Default, PartialEq)]
     pub enum TimeDeltaFormatter {
@@ -696,6 +789,16 @@ pub mod ticks {
     impl From<TimeDeltaFormatter> for Formatter {
         fn from(fmt: TimeDeltaFormatter) -> Self {
             Formatter::TimeDelta(fmt)
+        }
+    }
+
+    #[cfg(feature = "time")]
+    impl From<TimeDeltaFormatter> for Ticks {
+        fn from(fmt: TimeDeltaFormatter) -> Self {
+            Ticks {
+                formatter: Some(Formatter::TimeDelta(fmt)),
+                ..Default::default()
+            }
         }
     }
 

@@ -152,6 +152,9 @@ pub mod drawing;
 pub mod render;
 pub mod style;
 
+#[cfg(feature = "serde")]
+mod sd;
+
 #[cfg(feature = "time")]
 pub mod time;
 

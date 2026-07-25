@@ -444,7 +444,7 @@ where
                             None
                         } else if x.is_empty() || y.is_empty() {
                             unreachable!(
-                                "axis are None when there is no series, so should be both None or both Some"
+                                "axes are None when there are no series, so should be both None or both Some"
                             )
                         } else {
                             Some(Axes { x, y })

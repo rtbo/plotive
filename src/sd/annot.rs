@@ -1,9 +1,96 @@
 use serde::de::{Error, MapAccess};
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 use serde_value::Value;
 
 use crate::des::{Annotation, Text, annot, axis};
 use crate::style::{self, theme};
+
+impl serde::Serialize for annot::Coord {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            annot::Coord::Data(value) => value.serialize(serializer),
+            annot::Coord::Plot(value) => (value, "plot").serialize(serializer),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for annot::Coord {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct Visitor;
+
+        impl<'de> serde::de::Visitor<'de> for Visitor {
+            type Value = annot::Coord;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a number or a tuple of (number, \"data\" | \"plot\")")
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(annot::Coord::Data(value as f64))
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(annot::Coord::Data(value as f64))
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(annot::Coord::Data(value))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                // #[derive(serde::Deserialize)]
+                // #[serde(untagged)]
+                // pub enum C {
+                //     F64(f64),
+                //     I64(i64),
+                // }
+
+                // impl C {
+                //     fn as_f64(&self) -> f64 {
+                //         match self {
+                //             C::F64(f) => *f,
+                //             C::I64(i) => *i as f64,
+                //         }
+                //     }
+                // }
+
+                let value = seq
+                    .next_element::<f64>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+                let tag = seq
+                    .next_element::<String>()?
+                    .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+                if tag == "plot" {
+                    Ok(annot::Coord::Plot(value as f32))
+                } else if tag == "data" {
+                    Ok(annot::Coord::Data(value))
+                } else {
+                    return Err(serde::de::Error::unknown_variant(&tag, &["data", "plot"]));
+                }
+            }
+        }
+
+        deserializer.deserialize_any(Visitor)
+    }
+}
 
 impl serde::Serialize for annot::ZPos {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -111,16 +198,16 @@ fn serialize_base_fields<S>(
     default_zpos: annot::ZPos,
 ) -> Result<(), S::Error>
 where
-    S: serde::ser::SerializeStruct,
+    S: serde::ser::SerializeMap,
 {
     if x_axis != &axis::Ref::default() {
-        state.serialize_field("xAxis", x_axis)?;
+        state.serialize_entry("xAxis", x_axis)?;
     }
     if y_axis != &axis::Ref::default() {
-        state.serialize_field("yAxis", y_axis)?;
+        state.serialize_entry("yAxis", y_axis)?;
     }
     if zpos != default_zpos {
-        state.serialize_field("zpos", &zpos)?;
+        state.serialize_entry("zpos", &zpos)?;
     }
     Ok(())
 }
@@ -129,20 +216,20 @@ fn serialize_line<S>(line: &annot::Line, serializer: S) -> Result<S::Ok, S::Erro
 where
     S: serde::Serializer,
 {
-    let mut state = serializer.serialize_struct("LineAnnotation", 8)?;
-    state.serialize_field("type", "line")?;
+    let mut state = serializer.serialize_map(None)?;
+    state.serialize_entry("type", "line")?;
     match line.direction() {
-        annot::LineDir::Horizontal(y) => state.serialize_field("horizontal", &y)?,
-        annot::LineDir::Vertical(x) => state.serialize_field("vertical", &x)?,
+        annot::LineDir::Horizontal(y) => state.serialize_entry("horizontal", &y)?,
+        annot::LineDir::Vertical(x) => state.serialize_entry("vertical", &x)?,
         annot::LineDir::Slope { x, y, slope } => {
-            state.serialize_field("slope", &((x, y), slope))?
+            state.serialize_entry("slope", &((x, y), slope))?
         }
         annot::LineDir::TwoPoints { x1, y1, x2, y2 } => {
-            state.serialize_field("twoPoints", &((x1, y1), (x2, y2)))?
+            state.serialize_entry("twoPoints", &((x1, y1), (x2, y2)))?
         }
     }
     if line.stroke() != &theme::Stroke::from(theme::Col::Foreground) {
-        state.serialize_field("stroke", line.stroke())?;
+        state.serialize_entry("stroke", line.stroke())?;
     }
     serialize_base_fields(
         &mut state,
@@ -158,15 +245,15 @@ fn serialize_arrow<S>(arrow: &annot::Arrow, serializer: S) -> Result<S::Ok, S::E
 where
     S: serde::Serializer,
 {
-    let mut state = serializer.serialize_struct("ArrowAnnotation", 8)?;
-    state.serialize_field("type", "arrow")?;
-    state.serialize_field("xy", &arrow.target())?;
-    state.serialize_field("dxy", &arrow.delta())?;
+    let mut state = serializer.serialize_map(None)?;
+    state.serialize_entry("type", "arrow")?;
+    state.serialize_entry("xy", &arrow.target())?;
+    state.serialize_entry("dxy", &arrow.delta())?;
     if arrow.stroke() != &theme::Stroke::from(theme::Col::Foreground) {
-        state.serialize_field("stroke", arrow.stroke())?;
+        state.serialize_entry("stroke", arrow.stroke())?;
     }
     if (arrow.head_size() - 10.0).abs() > f32::EPSILON {
-        state.serialize_field("headSize", &arrow.head_size())?;
+        state.serialize_entry("headSize", &arrow.head_size())?;
     }
     serialize_base_fields(
         &mut state,
@@ -182,10 +269,10 @@ fn serialize_marker<S>(marker: &annot::Marker, serializer: S) -> Result<S::Ok, S
 where
     S: serde::Serializer,
 {
-    let mut state = serializer.serialize_struct("MarkerAnnotation", 6)?;
-    state.serialize_field("xy", &marker.position())?;
+    let mut state = serializer.serialize_map(None)?;
+    state.serialize_entry("xy", &marker.position())?;
     if marker.marker() != &theme::Marker::default() {
-        state.serialize_field("marker", marker.marker())?;
+        state.serialize_entry("marker", marker.marker())?;
     }
     serialize_base_fields(
         &mut state,
@@ -201,19 +288,19 @@ fn serialize_label<S>(label: &annot::Label, serializer: S) -> Result<S::Ok, S::E
 where
     S: serde::Serializer,
 {
-    let mut state = serializer.serialize_struct("LabelAnnotation", 10)?;
-    state.serialize_field("type", "label")?;
-    state.serialize_field("xy", &label.position())?;
-    state.serialize_field("text", label.text())?;
+    let mut state = serializer.serialize_map(None)?;
+    state.serialize_entry("type", "label")?;
+    state.serialize_entry("xy", &label.position())?;
+    state.serialize_entry("text", label.text())?;
     if label.anchor() != annot::Anchor::default() {
-        state.serialize_field("anchor", &label.anchor())?;
+        state.serialize_entry("anchor", &label.anchor())?;
     }
     let (fill, stroke) = label.frame();
     if let (Some(fill), Some(stroke)) = (fill, stroke) {
-        state.serialize_field("frame", &(fill, stroke))?;
+        state.serialize_entry("frame", &(fill, stroke))?;
     }
     if label.angle() != 0.0 {
-        state.serialize_field("angle", &label.angle())?;
+        state.serialize_entry("angle", &label.angle())?;
     }
     serialize_base_fields(
         &mut state,
@@ -290,10 +377,10 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "horizontal" => horizontal: Option<f64>,
-        "vertical" => vertical: Option<f64>,
-        "slope" => slope: Option<((f64, f64), f32)>,
-        "twoPoints" => two_points: Option<((f64, f64), (f64, f64))>,
+        "horizontal" => horizontal: Option<annot::Coord>,
+        "vertical" => vertical: Option<annot::Coord>,
+        "slope" => slope: Option<((annot::Coord, annot::Coord), f32)>,
+        "twoPoints" => two_points: Option<((annot::Coord, annot::Coord), (annot::Coord, annot::Coord))>,
         "stroke" => stroke: Option<theme::Stroke>,
         "pattern" => pattern: Option<style::LinePattern>,
         "xAxis" => x_axis: Option<axis::Ref>,
@@ -353,7 +440,7 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: (f64, f64),
+        "xy" => xy: (annot::Coord, annot::Coord),
         "dxy" => dxy: (f32, f32),
         "headSize" => head_size: Option<f32>,
         "stroke" => stroke: Option<theme::Stroke>,
@@ -391,7 +478,7 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: (f64, f64),
+        "xy" => xy: (annot::Coord, annot::Coord),
         "marker" => marker: Option<theme::Marker>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
@@ -424,7 +511,7 @@ where
 {
     super::deserialize_tagged_map_fields! {
         'de, map, buffered,
-        "xy" => xy: (f64, f64),
+        "xy" => xy: (annot::Coord, annot::Coord),
         "text" => text: Text,
         "anchor" => anchor: Option<annot::Anchor>,
         "frame" => frame: Option<(Option<theme::Fill>, Option<theme::Stroke>)>,
@@ -455,4 +542,61 @@ where
     }
 
     Ok(annot)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_annot_coord_deserialize_float() {
+        use super::annot::Coord;
+        let json = "42.0";
+
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Data(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_int() {
+        use super::annot::Coord;
+
+        let json = "42";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Data(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_tuple_data_int() {
+        use super::annot::Coord;
+
+        let json = "[42, \"data\"]";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Data(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_tuple_data_float() {
+        use super::annot::Coord;
+
+        let json = "[42.0, \"data\"]";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Data(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_tuple_plot() {
+        use super::annot::Coord;
+
+        let json = "[42.0, \"plot\"]";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Plot(42.0));
+    }
+
+    #[test]
+    fn test_annot_coord_deserialize_tuple_plot_neg() {
+        use super::annot::Coord;
+
+        let json = "[-42.0, \"plot\"]";
+        let coord: Coord = serde_json::from_str(json).unwrap();
+        assert_eq!(coord, Coord::Plot(-42.0));
+    }
 }

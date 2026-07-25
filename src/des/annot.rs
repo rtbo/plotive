@@ -2,6 +2,35 @@
 use crate::des::{Text, axis};
 use crate::style::{self, theme};
 
+/// Coordinates of an annotation either in data, figure, or plot coordinates.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Coord {
+    /// Coordinates in data coordinates.
+    Data(f64),
+    /// Coordinates in plot coordinates.
+    /// The origin is the top-left corner of the plot area, and the coordinates are in points.
+    /// Negative X values will place the annotations with origin on the right,
+    /// and negative Y values will place the annotations with origin on the bottom.
+    Plot(f32),
+}
+
+/// Build a data coordinate
+pub fn data(value: f64) -> Coord {
+    Coord::Data(value)
+}
+
+/// Build a plot coordinate
+pub fn plot(value: f32) -> Coord {
+    Coord::Plot(value)
+}
+
+/// Convert a f64 number to a data coordinate
+impl From<f64> for Coord {
+    fn from(value: f64) -> Self {
+        Coord::Data(value)
+    }
+}
+
 /// An arbitrary graphical annotation placed on the plot area.
 /// The placement is made according to the data coordinates.
 /// By default, lines are plotted under the series, and other annotations are plotted above the series.
@@ -137,29 +166,29 @@ pub struct Line {
 /// This type defines the position and orientation of the line in data coordinates.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LineDir {
-    /// A horizontal line passing by the given y value in data coordinates
-    Horizontal(f64),
-    /// A vertical line passing by the given x value in data coordinates
-    Vertical(f64),
-    /// A line passing by (x, y) with the given slope in data coordinates
+    /// A horizontal line passing by the given y value in the given coordinates
+    Horizontal(Coord),
+    /// A vertical line passing by the given x value in the given coordinates
+    Vertical(Coord),
+    /// A line passing by (x, y) with the given slope in given coordinates
     Slope {
-        /// The x value of the point the line passes by in data coordinates
-        x: f64,
-        /// The y value of the point the line passes by in data coordinates
-        y: f64,
-        /// The slope of the line in data coordinates
+        /// The x value of the point the line passes by in given coordinates
+        x: Coord,
+        /// The y value of the point the line passes by in given coordinates
+        y: Coord,
+        /// The slope of the line in plot coordinates. The slope is defined as the change in y over the change in x.
         slope: f32,
     },
-    /// A line passing by (x1, y1) and (x2, y2) in data coordinates
+    /// A line passing by (x1, y1) and (x2, y2) in the given coordinates
     TwoPoints {
-        /// The x value of the first point in data coordinates
-        x1: f64,
-        /// The y value of the first point in data coordinates
-        y1: f64,
-        /// The x value of the second point in data coordinates
-        x2: f64,
-        /// The y value of the second point in data coordinates
-        y2: f64,
+        /// The x value of the first point in the given coordinates
+        x1: Coord,
+        /// The y value of the first point in the given coordinates
+        y1: Coord,
+        /// The x value of the second point in the given coordinates
+        x2: Coord,
+        /// The y value of the second point in the given coordinates
+        y2: Coord,
     },
 }
 
@@ -188,25 +217,39 @@ impl Line {
     }
 
     /// Plot a vertical line passing by x
-    pub fn vertical(x: f64) -> Self {
-        Line::new(LineDir::Vertical(x))
+    pub fn vertical(x: impl Into<Coord>) -> Self {
+        Line::new(LineDir::Vertical(x.into()))
     }
 
     /// Plot a horizontal line passing by y
-    pub fn horizontal(y: f64) -> Self {
-        Line::new(LineDir::Horizontal(y))
+    pub fn horizontal(y: impl Into<Coord>) -> Self {
+        Line::new(LineDir::Horizontal(y.into()))
     }
 
     /// Plot a line passing by x and y with the given slope.
     /// This is only meaningful on linear scales, and will raise an error
     /// if either X or Y axes are logarithmic.
-    pub fn slope(x: f64, y: f64, slope: f32) -> Self {
-        Line::new(LineDir::Slope { x, y, slope })
+    pub fn slope(x: impl Into<Coord>, y: impl Into<Coord>, slope: f32) -> Self {
+        Line::new(LineDir::Slope {
+            x: x.into(),
+            y: y.into(),
+            slope,
+        })
     }
 
     /// Plot a line passing by (x1, y1) and (x2, y2).
-    pub fn two_points(x1: f64, y1: f64, x2: f64, y2: f64) -> Self {
-        Line::new(LineDir::TwoPoints { x1, y1, x2, y2 })
+    pub fn two_points(
+        x1: impl Into<Coord>,
+        y1: impl Into<Coord>,
+        x2: impl Into<Coord>,
+        y2: impl Into<Coord>,
+    ) -> Self {
+        Line::new(LineDir::TwoPoints {
+            x1: x1.into(),
+            y1: y1.into(),
+            x2: x2.into(),
+            y2: y2.into(),
+        })
     }
 
     /// Set the line to be displayed.
@@ -280,8 +323,8 @@ impl Line {
 /// An arrow plotted on the plot area
 #[derive(Debug, Clone, PartialEq)]
 pub struct Arrow {
-    x: f64,
-    y: f64,
+    x: Coord,
+    y: Coord,
     dx: f32,
     dy: f32,
     head_size: f32,
@@ -293,12 +336,12 @@ pub struct Arrow {
 }
 
 impl Arrow {
-    /// Create a new arrow pointing at (x, y) in data coordinates,
-    /// with the given delta vector in figure units.
-    pub fn new(x: f64, y: f64, dx: f32, dy: f32) -> Self {
+    /// Create a new arrow pointing at (x, y) in the given coordinates,
+    /// with the given delta vector in plot units.
+    pub fn new(x: impl Into<Coord>, y: impl Into<Coord>, dx: f32, dy: f32) -> Self {
         Arrow {
-            x,
-            y,
+            x: x.into(),
+            y: y.into(),
             dx,
             dy,
             head_size: 10.0,
@@ -346,7 +389,7 @@ impl Arrow {
     }
 
     /// Get the target point of the arrow in data coordinates.
-    pub fn target(&self) -> (f64, f64) {
+    pub fn target(&self) -> (Coord, Coord) {
         (self.x, self.y)
     }
 
@@ -387,8 +430,8 @@ impl Arrow {
 /// An arbitrary marker to place on the plot area
 #[derive(Debug, Clone, PartialEq)]
 pub struct Marker {
-    x: f64,
-    y: f64,
+    x: Coord,
+    y: Coord,
     marker: theme::Marker,
 
     x_axis: axis::Ref,
@@ -397,11 +440,11 @@ pub struct Marker {
 }
 
 impl Marker {
-    /// Create a new marker at data coordinates (x, y)
-    pub fn new(x: f64, y: f64) -> Self {
+    /// Create a new marker at the given coordinates (x, y)
+    pub fn new(x: impl Into<Coord>, y: impl Into<Coord>) -> Self {
         Marker {
-            x,
-            y,
+            x: x.into(),
+            y: y.into(),
             marker: Default::default(),
             x_axis: Default::default(),
             y_axis: Default::default(),
@@ -438,7 +481,7 @@ impl Marker {
     }
 
     /// Get the position of the marker in data coordinates.
-    pub fn position(&self) -> (f64, f64) {
+    pub fn position(&self) -> (Coord, Coord) {
         (self.x, self.y)
     }
 
@@ -494,8 +537,8 @@ pub enum Anchor {
 /// An arbitrary label to place on the plot area
 #[derive(Debug, Clone, PartialEq)]
 pub struct Label {
-    x: f64,
-    y: f64,
+    x: Coord,
+    y: Coord,
     text: Text,
     anchor: Anchor,
     frame: (Option<theme::Fill>, Option<theme::Stroke>),
@@ -507,11 +550,11 @@ pub struct Label {
 }
 
 impl Label {
-    /// Create a new label with the given text at data coordinates (x, y)
-    pub fn new(text: Text, x: f64, y: f64) -> Self {
+    /// Create a new label with the given text at coordinates (x, y)
+    pub fn new(text: Text, x: impl Into<Coord>, y: impl Into<Coord>) -> Self {
         Label {
-            x,
-            y,
+            x: x.into(),
+            y: y.into(),
             text,
             anchor: Anchor::default(),
             frame: (None, None),
@@ -567,7 +610,7 @@ impl Label {
     }
 
     /// Get the position of the label in data coordinates.
-    pub fn position(&self) -> (f64, f64) {
+    pub fn position(&self) -> (Coord, Coord) {
         (self.x, self.y)
     }
 

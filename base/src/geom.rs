@@ -41,6 +41,20 @@ impl Size {
             h: self.h + dh,
         }
     }
+
+    /// Scale width and height by a factor
+    pub const fn scale(&self, factor: f32) -> Size {
+        Size {
+            w: self.w * factor,
+            h: self.h * factor,
+        }
+    }
+}
+
+impl From<(f32, f32)> for Size {
+    fn from((w, h): (f32, f32)) -> Self {
+        Size { w, h }
+    }
 }
 
 /// A rectangle in 2D space represented by x, y, width and height

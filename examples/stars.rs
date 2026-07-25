@@ -92,5 +92,5 @@ fn main() {
     )
     .with_title("45 bright stars".into());
 
-    common::save_figure(&fig, &data_source, Default::default(), "stars");
+    common::process_figure(&fig, &data_source, Default::default(), "stars");
 }

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use plotive_base::deserialize_map_fields;
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 
 use crate::des::{Legend, figure, plot};
 use crate::style::{defaults, theme};
@@ -139,28 +139,28 @@ where
         {
             self.pos().serialize(serializer)
         } else {
-            let mut state = serializer.serialize_struct("Legend", 2)?;
-            state.serialize_field("pos", &self.pos())?;
+            let mut state = serializer.serialize_map(None)?;
+            state.serialize_entry("pos", &self.pos())?;
             if !font_default {
-                state.serialize_field("font", self.font())?;
+                state.serialize_entry("font", self.font())?;
             }
             if !fill_default {
-                state.serialize_field("fill", &self.fill())?;
+                state.serialize_entry("fill", &self.fill())?;
             }
             if !border_default {
-                state.serialize_field("border", &self.border())?;
+                state.serialize_entry("border", &self.border())?;
             }
             if !columns_default {
-                state.serialize_field("columns", &self.columns())?;
+                state.serialize_entry("columns", &self.columns())?;
             }
             if !padding_default {
-                state.serialize_field("padding", &self.padding())?;
+                state.serialize_entry("padding", &self.padding())?;
             }
             if !margin_default {
-                state.serialize_field("margin", &self.margin())?;
+                state.serialize_entry("margin", &self.margin())?;
             }
             if !spacing_default {
-                state.serialize_field("spacing", &self.spacing())?;
+                state.serialize_entry("spacing", &self.spacing())?;
             }
             state.end()
         }

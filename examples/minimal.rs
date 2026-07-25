@@ -15,5 +15,5 @@ fn main() {
         .with_f64_column("x".into(), x)
         .with_f64_column("y".into(), y);
 
-    common::save_figure(&fig, &data_source, None, "minimal");
+    common::process_figure(&fig, &data_source, None, "minimal");
 }

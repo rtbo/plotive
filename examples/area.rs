@@ -28,5 +28,5 @@ fn main() {
         .with_f64_column("y1", y1)
         .with_f64_column("y2", y2);
 
-    common::save_figure(&fig, &data_source, Default::default(), "area");
+    common::process_figure(&fig, &data_source, Default::default(), "area");
 }

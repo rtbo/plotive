@@ -1056,8 +1056,18 @@ impl Axis {
     {
         let mut pb = geom::PathBuilder::new();
         for t in ticks {
-            pb.move_to(t, -mark.size_in);
-            pb.line_to(t, mark.size_out);
+            match self.side {
+                Side::Bottom | Side::Top => {
+                    pb.move_to(t, -mark.size_in);
+                    pb.line_to(t, mark.size_out);
+                }
+                Side::Left | Side::Right => {
+                    // For vertical axes, build horizontal marks directly in local coordinates.
+                    // This avoids relying on a rotation transform that can push marks out of view.
+                    pb.move_to(-mark.size_in, -t);
+                    pb.line_to(mark.size_out, -t);
+                }
+            }
         }
         if let Some(path) = pb.finish() {
             let rpath = render::Path {

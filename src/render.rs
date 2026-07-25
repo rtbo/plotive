@@ -98,6 +98,30 @@ pub enum LinePattern<'a> {
     Dash(&'a [f32]),
 }
 
+/// Stroke Line join style defines how the corners of the stroke are drawn
+#[derive(Debug, Clone, Copy, Default)]
+pub enum LineJoin {
+    /// Miter join: the outer edges of the lines are extended to meet at a point
+    #[default]
+    Miter,
+    /// Round join: the outer edges of the lines are joined with a circular arc
+    Round,
+    /// Bevel join: the outer edges of the lines are joined with a straight line
+    Bevel,
+}
+
+/// Stroke Line cap style defines how the ends of the stroke are drawn
+#[derive(Debug, Clone, Copy, Default)]
+pub enum LineCap {
+    /// Butt cap: the line ends exactly at the end point
+    #[default]
+    Butt,
+    /// Round cap: the line ends with a half-circle
+    Round,
+    /// Square cap: the line ends with a square that extends beyond the end point
+    Square,
+}
+
 /// Stroke style definition
 #[derive(Debug, Clone, Copy)]
 pub struct Stroke<'a> {
@@ -107,9 +131,13 @@ pub struct Stroke<'a> {
     pub width: f32,
     /// Line pattern
     pub pattern: LinePattern<'a>,
+    /// Line join style
+    pub join: LineJoin,
+    /// Line cap style
+    pub cap: LineCap,
 }
 
-impl Stroke<'_> {
+impl<'a> Stroke<'a> {
     /// Multiply the line width by the given factor, useful for keeping visual width with scaled paths.
     pub fn with_multiplied_width(mut self, factor: f32) -> Self {
         self.width *= factor;
@@ -122,6 +150,35 @@ impl Stroke<'_> {
             color: rgb.with_a(self.color.a()),
             ..self
         }
+    }
+
+    /// Return a new `Stroke` with the given color, replacing the original color.
+    pub fn with_color(self, color: Rgba8) -> Self {
+        Stroke { color, ..self }
+    }
+
+    /// Return a new `Stroke` with the given width, replacing the original width.
+    pub fn with_width(mut self, width: f32) -> Self {
+        self.width = width;
+        self
+    }
+
+    /// Return a new `Stroke` with the given pattern, replacing the original line pattern.
+    pub fn with_pattern(mut self, pattern: LinePattern<'a>) -> Self {
+        self.pattern = pattern;
+        self
+    }
+
+    /// Return a new `Stroke` with the given line join style, replacing the original line join style.
+    pub fn with_line_join(mut self, join: LineJoin) -> Self {
+        self.join = join;
+        self
+    }
+
+    /// Return a new `Stroke` with the given line cap style, replacing the original line cap style.
+    pub fn with_line_cap(mut self, cap: LineCap) -> Self {
+        self.cap = cap;
+        self
     }
 }
 

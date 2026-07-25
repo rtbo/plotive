@@ -1,7 +1,7 @@
 use std::f32;
 
 use super::Ctx;
-use crate::des::annot::{Anchor, LineDir, ZPos};
+use crate::des::annot::{Anchor, Coord, LineDir, ZPos};
 use crate::des::{self};
 use crate::drawing::axis::{Axis, Orientation};
 use crate::drawing::plot::Axes;
@@ -19,8 +19,8 @@ pub(super) enum Annot {
 
 #[derive(Debug, Clone)]
 pub(super) struct Label {
-    x: f64,
-    y: f64,
+    x: Coord,
+    y: Coord,
     text: Text,
     frame: (Option<theme::Fill>, Option<theme::Stroke>),
     angle: f32,
@@ -84,6 +84,38 @@ where
         annot = annot.with_axes(des::axis::Ref::Idx(x_axis), des::axis::Ref::Idx(y_axis));
 
         Ok(annot)
+    }
+}
+
+fn map_x_annot_coord(coord: Coord, x_axis: &Axis, _y_axis: &Axis, plot_rect: &geom::Rect) -> f32 {
+    match coord {
+        Coord::Data(v) => {
+            let v = x_axis.coord_map().map_coord_num(v);
+            plot_rect.left() + v
+        }
+        Coord::Plot(v) => {
+            if v >= 0.0 {
+                plot_rect.left() + v
+            } else {
+                plot_rect.right() + v
+            }
+        }
+    }
+}
+
+fn map_y_annot_coord(coord: Coord, _x_axis: &Axis, y_axis: &Axis, plot_rect: &geom::Rect) -> f32 {
+    match coord {
+        Coord::Data(v) => {
+            let v = y_axis.coord_map().map_coord_num(v);
+            plot_rect.bottom() - v
+        }
+        Coord::Plot(v) => {
+            if v >= 0.0 {
+                plot_rect.top() + v
+            } else {
+                plot_rect.bottom() + v
+            }
+        }
     }
 }
 
@@ -174,7 +206,7 @@ impl Annot {
     {
         let (p1, p2) = match line.direction() {
             LineDir::Horizontal(y) => {
-                let y = y_axis.coord_map().map_coord_num(y);
+                let y = map_y_annot_coord(y, x_axis, y_axis, plot_rect);
                 let p1 = geom::Point {
                     x: plot_rect.left(),
                     y,
@@ -186,7 +218,7 @@ impl Annot {
                 (p1, p2)
             }
             LineDir::Vertical(x) => {
-                let x = x_axis.coord_map().map_coord_num(x);
+                let x = map_x_annot_coord(x, x_axis, y_axis, plot_rect);
                 let p1 = geom::Point {
                     x,
                     y: plot_rect.top(),
@@ -199,8 +231,8 @@ impl Annot {
             }
             LineDir::Slope { x, y, slope } => {
                 // FIXME: raise error if either X or Y is logarithmic
-                let x1 = x_axis.coord_map().map_coord_num(x);
-                let y1 = y_axis.coord_map().map_coord_num(y);
+                let x1 = map_x_annot_coord(x, x_axis, y_axis, plot_rect);
+                let y1 = map_y_annot_coord(y, x_axis, y_axis, plot_rect);
                 let x2 = x1 + 100.0;
                 let y2 = y1 + 100.0 * slope;
                 let p1 = geom::Point { x: x1, y: y1 };
@@ -208,23 +240,14 @@ impl Annot {
                 (p1, p2)
             }
             LineDir::TwoPoints { x1, y1, x2, y2 } => {
-                let x1 = x_axis.coord_map().map_coord_num(x1);
-                let y1 = y_axis.coord_map().map_coord_num(y1);
-                let x2 = x_axis.coord_map().map_coord_num(x2);
-                let y2 = y_axis.coord_map().map_coord_num(y2);
+                let x1 = map_x_annot_coord(x1, x_axis, y_axis, plot_rect);
+                let y1 = map_y_annot_coord(y1, x_axis, y_axis, plot_rect);
+                let x2 = map_x_annot_coord(x2, x_axis, y_axis, plot_rect);
+                let y2 = map_y_annot_coord(y2, x_axis, y_axis, plot_rect);
                 let p1 = geom::Point { x: x1, y: y1 };
                 let p2 = geom::Point { x: x2, y: y2 };
                 (p1, p2)
             }
-        };
-
-        let p1 = geom::Point {
-            x: p1.x + plot_rect.left(),
-            y: plot_rect.bottom() - p1.y,
-        };
-        let p2 = geom::Point {
-            x: p2.x + plot_rect.left(),
-            y: plot_rect.bottom() - p2.y,
         };
 
         let points = plot_rect_intersections(plot_rect, &p1, &p2);
@@ -257,8 +280,8 @@ impl Annot {
         let (target_x, target_y) = arrow.target();
         let (dx, dy) = arrow.delta();
         let head_size = arrow.head_size();
-        let target_x = x_axis.coord_map().map_coord_num(target_x);
-        let target_y = y_axis.coord_map().map_coord_num(target_y);
+        let target_x = map_x_annot_coord(target_x, x_axis, y_axis, plot_rect);
+        let target_y = map_y_annot_coord(target_y, x_axis, y_axis, plot_rect);
         let len = (dx.powi(2) + dy.powi(2)).sqrt();
         let mut builder = geom::PathBuilder::with_capacity(5, 5);
         builder.move_to(0.0, 0.0);
@@ -268,11 +291,7 @@ impl Annot {
         builder.line_to(head_size / 2.0, head_size);
         let path = builder.finish().expect("Should be a valid path");
         let angle = (dy.atan2(dx) + f32::consts::FRAC_PI_2) * 180.0 / f32::consts::PI;
-        let transform = geom::Transform::from_translate(
-            plot_rect.left() + target_x,
-            plot_rect.bottom() - target_y,
-        )
-        .pre_rotate(angle);
+        let transform = geom::Transform::from_translate(target_x, target_y).pre_rotate(angle);
         let rpath = render::Path {
             path: &path,
             fill: None,
@@ -294,15 +313,13 @@ impl Annot {
         S: render::Surface,
     {
         let (x, y) = marker.position();
-        let x = x_axis.coord_map().map_coord_num(x);
-        let y = y_axis.coord_map().map_coord_num(y);
+        let x = map_x_annot_coord(x, x_axis, y_axis, plot_rect);
+        let y = map_y_annot_coord(y, x_axis, y_axis, plot_rect);
         let marker = marker.marker();
         let path = marker::marker_path(marker.shape);
         let scale = marker.size.to_visual_size();
 
-        let transform =
-            geom::Transform::from_translate(plot_rect.left() + x, plot_rect.bottom() - y)
-                .pre_scale(scale, scale);
+        let transform = geom::Transform::from_translate(x, y).pre_scale(scale, scale);
 
         let rpath = render::Path {
             path: &path,
@@ -327,12 +344,10 @@ impl Annot {
     ) where
         S: render::Surface,
     {
-        let x = x_axis.coord_map().map_coord_num(label.x);
-        let y = y_axis.coord_map().map_coord_num(label.y);
+        let x = map_x_annot_coord(label.x, x_axis, y_axis, plot_rect);
+        let y = map_y_annot_coord(label.y, x_axis, y_axis, plot_rect);
 
-        let transform =
-            geom::Transform::from_translate(plot_rect.left() + x, plot_rect.bottom() - y)
-                .pre_rotate(-label.angle);
+        let transform = geom::Transform::from_translate(x, y).pre_rotate(-label.angle);
 
         if label.frame.0.is_some() || label.frame.1.is_some() {
             let bounds = label.text.bbox.expect("Text bbox should be computed");

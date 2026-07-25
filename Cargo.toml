@@ -73,11 +73,14 @@ required-features = ["data-csv"]
 name = "minimal"
 
 [[example]]
-name = "multiple_axes"
+name = "multiple-axes"
 required-features = ["utils"]
 
 [[example]]
 name = "readme"
+
+[[example]]
+name = "primes"
 
 [[example]]
 name = "sine"

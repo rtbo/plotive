@@ -39,5 +39,5 @@ fn main() {
         .with_legend(des::plot::LegendPos::InTopLeft.into());
     let fig = des::Figure::new(plot.into()).with_title("Bitcoin historical data".into());
 
-    common::save_figure(&fig, &data_source, None, "bitcoin");
+    common::process_figure(&fig, &data_source, None, "bitcoin");
 }

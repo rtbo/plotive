@@ -6,7 +6,7 @@ use crate::{Style, des, drawing, geom, render, style};
 
 #[derive(Debug, Clone)]
 pub enum Shape {
-    Line(style::series::Stroke),
+    Line(style::series::Stroke, Option<style::series::Marker>),
     Marker(style::series::Marker),
     Rect(Option<style::series::Fill>, Option<style::series::Stroke>),
     AreaRect {
@@ -18,7 +18,7 @@ pub enum Shape {
 
 #[derive(Debug, Clone, Copy)]
 pub enum ShapeRef<'a> {
-    Line(&'a style::series::Stroke),
+    Line(&'a style::series::Stroke, Option<&'a style::series::Marker>),
     Marker(&'a style::series::Marker),
     Rect(
         Option<&'a style::series::Fill>,
@@ -34,7 +34,7 @@ pub enum ShapeRef<'a> {
 impl ShapeRef<'_> {
     pub fn to_shape(&self) -> Shape {
         match self {
-            &ShapeRef::Line(line) => Shape::Line(line.clone()),
+            &ShapeRef::Line(line, marker) => Shape::Line(line.clone(), marker.cloned()),
             &ShapeRef::Marker(marker) => Shape::Marker(marker.clone()),
             &ShapeRef::Rect(fill, line) => Shape::Rect(fill.cloned(), line.cloned()),
             &ShapeRef::AreaRect {
@@ -274,7 +274,7 @@ impl LegendEntry {
         let rc = (style, self.index);
 
         match &self.shape {
-            Shape::Line(line) => {
+            Shape::Line(stroke, marker) => {
                 let mut path = geom::PathBuilder::new();
                 path.move_to(shape_rect.left(), shape_rect.center_y());
                 path.line_to(shape_rect.right(), rect.center_y());
@@ -283,10 +283,30 @@ impl LegendEntry {
                 let line = render::Path {
                     path: &path,
                     fill: None,
-                    stroke: Some(line.as_stroke(&rc)),
+                    stroke: Some(stroke.as_stroke(&rc)),
                     transform: None,
                 };
                 surface.draw_path(&line);
+                if let Some(marker) = marker {
+                    let path = crate::drawing::marker::marker_path(marker.shape);
+                    let scale = style::MarkerSize::default().to_visual_size();
+                    let transform = geom::Transform::from_translate(
+                        shape_rect.center_x(),
+                        shape_rect.center_y(),
+                    )
+                    .pre_scale(scale, scale);
+
+                    let path = render::Path {
+                        path: &path,
+                        fill: marker.fill.as_ref().map(|f| f.as_paint(&rc)),
+                        stroke: marker
+                            .stroke
+                            .as_ref()
+                            .map(|s| s.as_stroke(&rc).with_multiplied_width(1.0 / scale)),
+                        transform: Some(&transform),
+                    };
+                    surface.draw_path(&path);
+                }
             }
             Shape::Marker(marker) => {
                 let path = crate::drawing::marker::marker_path(marker.shape);

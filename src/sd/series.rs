@@ -2,12 +2,12 @@ use std::borrow::Cow;
 
 use serde::Serializer;
 use serde::de::MapAccess;
-use serde::ser::SerializeStruct;
+use serde::ser::SerializeMap;
 use serde_value::Value;
 
-use crate::des::sd::deserialize_tagged_map_fields;
-use crate::des::{Series, axis, series};
-use crate::{data, des, style};
+use crate::des::{Series, axis, cmap, series};
+use crate::sd::deserialize_tagged_map_fields;
+use crate::{data, style};
 
 // MARK: series::DataCol
 
@@ -337,33 +337,33 @@ impl serde::Serialize for series::Line {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("LineSeries", 6)?;
-        state.serialize_field("type", "line")?;
-        state.serialize_field("x", self.x_data())?;
-        state.serialize_field("y", self.y_data())?;
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("type", "line")?;
+        state.serialize_entry("x", self.x_data())?;
+        state.serialize_entry("y", self.y_data())?;
 
         if let Some(name) = self.name() {
-            state.serialize_field("name", name)?;
+            state.serialize_entry("name", name)?;
         }
 
         if self.x_axis() != &axis::Ref::default() {
-            state.serialize_field("xAxis", self.x_axis())?;
+            state.serialize_entry("xAxis", self.x_axis())?;
         }
 
         if self.y_axis() != &axis::Ref::default() {
-            state.serialize_field("yAxis", self.y_axis())?;
+            state.serialize_entry("yAxis", self.y_axis())?;
         }
 
         if self.stroke() != &style::series::Stroke::default() {
-            state.serialize_field("stroke", self.stroke())?;
+            state.serialize_entry("stroke", self.stroke())?;
         }
 
         if let Some(marker) = self.marker() {
-            state.serialize_field("marker", marker)?;
+            state.serialize_entry("marker", marker)?;
         }
 
         if self.interpolation() != series::Interpolation::default() {
-            state.serialize_field("interpolation", &self.interpolation())?;
+            state.serialize_entry("interpolation", &self.interpolation())?;
         }
 
         state.end()
@@ -422,35 +422,35 @@ impl serde::Serialize for series::Scatter {
     where
         S: Serializer,
     {
-        let mut state = serializer.serialize_struct("ScatterSeries", 6)?;
-        state.serialize_field("type", "scatter")?;
-        state.serialize_field("x", self.x_data())?;
-        state.serialize_field("y", self.y_data())?;
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("type", "scatter")?;
+        state.serialize_entry("x", self.x_data())?;
+        state.serialize_entry("y", self.y_data())?;
 
         if let Some(name) = self.name() {
-            state.serialize_field("name", name)?;
+            state.serialize_entry("name", name)?;
         }
 
         if self.x_axis() != &axis::Ref::default() {
-            state.serialize_field("xAxis", self.x_axis())?;
+            state.serialize_entry("xAxis", self.x_axis())?;
         }
 
         if self.y_axis() != &axis::Ref::default() {
-            state.serialize_field("yAxis", self.y_axis())?;
+            state.serialize_entry("yAxis", self.y_axis())?;
         }
 
         if self.marker() != &style::series::Marker::default() {
-            state.serialize_field("marker", self.marker())?;
+            state.serialize_entry("marker", self.marker())?;
         }
 
         if let Some(sizes) = self.size_data() {
-            state.serialize_field("sizes", sizes)?;
+            state.serialize_entry("sizes", sizes)?;
         }
 
         if let Some((colors, cmap)) = self.color_data() {
-            state.serialize_field("colors", colors)?;
+            state.serialize_entry("colors", colors)?;
             if cmap.name() != Some("viridis") {
-                state.serialize_field("cmap", cmap)?;
+                state.serialize_entry("cmap", cmap)?;
             }
         }
 
@@ -473,7 +473,7 @@ where
         "marker" => marker: Option<style::series::Marker>,
         "sizes" => sizes: Option<series::DataCol>,
         "colors" => colors: Option<series::DataCol>,
-        "cmap" => cmap: Option<des::cmap::LerpColorMap>,
+        "cmap" => cmap: Option<cmap::LerpColorMap>,
 
         "name" => name: Option<String>,
         "xAxis" => x_axis: Option<axis::Ref>,
@@ -566,50 +566,50 @@ impl serde::Serialize for series::Area {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("AreaSeries", 8)?;
-        state.serialize_field("type", "area")?;
-        state.serialize_field("x", self.x_data())?;
-        state.serialize_field("y1", self.y1_data())?;
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("type", "area")?;
+        state.serialize_entry("x", self.x_data())?;
+        state.serialize_entry("y1", self.y1_data())?;
 
         match self.y2_data() {
             series::AreaY2::Baseline(v) if *v != 0.0 => {
-                state.serialize_field("y2", v)?;
+                state.serialize_entry("y2", v)?;
             }
             series::AreaY2::DataCol(col, interp) => {
-                state.serialize_field("y2", col)?;
+                state.serialize_entry("y2", col)?;
                 if *interp != series::Interpolation::default() {
-                    state.serialize_field("y2Interp", interp)?;
+                    state.serialize_entry("y2Interp", interp)?;
                 }
             }
             _ => {} // default Baseline(0.0) — skip
         }
 
         if let Some(name) = self.name() {
-            state.serialize_field("name", name)?;
+            state.serialize_entry("name", name)?;
         }
 
         if self.x_axis() != &axis::Ref::default() {
-            state.serialize_field("xAxis", self.x_axis())?;
+            state.serialize_entry("xAxis", self.x_axis())?;
         }
 
         if self.y_axis() != &axis::Ref::default() {
-            state.serialize_field("yAxis", self.y_axis())?;
+            state.serialize_entry("yAxis", self.y_axis())?;
         }
 
         if self.fill() != &style::series::Fill::default() {
-            state.serialize_field("fill", self.fill())?;
+            state.serialize_entry("fill", self.fill())?;
         }
 
         if let Some(stroke) = self.y1_stroke() {
-            state.serialize_field("y1Stroke", stroke)?;
+            state.serialize_entry("y1Stroke", stroke)?;
         }
 
         if let Some(stroke) = self.y2_stroke() {
-            state.serialize_field("y2Stroke", stroke)?;
+            state.serialize_entry("y2Stroke", stroke)?;
         }
 
         if self.interpolation() != series::Interpolation::default() {
-            state.serialize_field("y1Interp", &self.interpolation())?;
+            state.serialize_entry("y1Interp", &self.interpolation())?;
         }
 
         state.end()
@@ -682,36 +682,36 @@ impl serde::Serialize for series::Histogram {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("HistogramSeries", 6)?;
-        state.serialize_field("type", "hist")?;
-        state.serialize_field("x", self.x_data())?;
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("type", "hist")?;
+        state.serialize_entry("x", self.x_data())?;
 
         if let Some(name) = self.name() {
-            state.serialize_field("name", name)?;
+            state.serialize_entry("name", name)?;
         }
 
         if self.x_axis() != &axis::Ref::default() {
-            state.serialize_field("xAxis", self.x_axis())?;
+            state.serialize_entry("xAxis", self.x_axis())?;
         }
 
         if self.y_axis() != &axis::Ref::default() {
-            state.serialize_field("yAxis", self.y_axis())?;
+            state.serialize_entry("yAxis", self.y_axis())?;
         }
 
         if self.fill() != &style::series::Fill::default() {
-            state.serialize_field("fill", self.fill())?;
+            state.serialize_entry("fill", self.fill())?;
         }
 
         if let Some(stroke) = self.stroke() {
-            state.serialize_field("stroke", stroke)?;
+            state.serialize_entry("stroke", stroke)?;
         }
 
         if self.bins() != 10 {
-            state.serialize_field("bins", &self.bins())?;
+            state.serialize_entry("bins", &self.bins())?;
         }
 
         if self.density() {
-            state.serialize_field("density", &true)?;
+            state.serialize_entry("density", &true)?;
         }
 
         state.end()
@@ -774,12 +774,12 @@ impl serde::Serialize for series::BarsPosition {
         S: serde::Serializer,
     {
         let default = series::BarsPosition::default();
-        let mut state = serializer.serialize_struct("BarsPosition", 2)?;
+        let mut state = serializer.serialize_map(None)?;
         if self.offset != default.offset {
-            state.serialize_field("offset", &self.offset)?;
+            state.serialize_entry("offset", &self.offset)?;
         }
         if self.width != default.width {
-            state.serialize_field("width", &self.width)?;
+            state.serialize_entry("width", &self.width)?;
         }
         state.end()
     }
@@ -840,36 +840,36 @@ impl serde::Serialize for series::Bars {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("BarsSeries", 6)?;
-        state.serialize_field("type", "bars")?;
-        state.serialize_field("x", self.x_data())?;
-        state.serialize_field("y", self.y_data())?;
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("type", "bars")?;
+        state.serialize_entry("x", self.x_data())?;
+        state.serialize_entry("y", self.y_data())?;
 
         if let Some(name) = self.name() {
-            state.serialize_field("name", name)?;
+            state.serialize_entry("name", name)?;
         }
 
         if self.x_axis() != &axis::Ref::default() {
-            state.serialize_field("xAxis", self.x_axis())?;
+            state.serialize_entry("xAxis", self.x_axis())?;
         }
 
         if self.y_axis() != &axis::Ref::default() {
-            state.serialize_field("yAxis", self.y_axis())?;
+            state.serialize_entry("yAxis", self.y_axis())?;
         }
 
         if self.fill() != &style::series::Fill::default() {
-            state.serialize_field("fill", self.fill())?;
+            state.serialize_entry("fill", self.fill())?;
         }
 
         if let Some(stroke) = self.stroke() {
-            state.serialize_field("stroke", stroke)?;
+            state.serialize_entry("stroke", stroke)?;
         }
 
         let default_pos = series::BarsPosition::default();
         if self.position().offset != default_pos.offset
             || self.position().width != default_pos.width
         {
-            state.serialize_field("position", self.position())?;
+            state.serialize_entry("position", self.position())?;
         }
 
         state.end()
@@ -968,16 +968,16 @@ impl serde::Serialize for series::BarsArrangement {
                 {
                     "aside".serialize(serializer)
                 } else {
-                    let mut state = serializer.serialize_struct("BarsAsideArrangement", 4)?;
-                    state.serialize_field("type", "aside")?;
+                    let mut state = serializer.serialize_map(None)?;
+                    state.serialize_entry("type", "aside")?;
                     if arr.offset != default.offset {
-                        state.serialize_field("offset", &arr.offset)?;
+                        state.serialize_entry("offset", &arr.offset)?;
                     }
                     if arr.width != default.width {
-                        state.serialize_field("width", &arr.width)?;
+                        state.serialize_entry("width", &arr.width)?;
                     }
                     if arr.gap != default.gap {
-                        state.serialize_field("gap", &arr.gap)?;
+                        state.serialize_entry("gap", &arr.gap)?;
                     }
                     state.end()
                 }
@@ -987,13 +987,13 @@ impl serde::Serialize for series::BarsArrangement {
                 if arr.offset == default.offset && arr.width == default.width {
                     "stack".serialize(serializer)
                 } else {
-                    let mut state = serializer.serialize_struct("BarsStackArrangement", 3)?;
-                    state.serialize_field("type", "stack")?;
+                    let mut state = serializer.serialize_map(None)?;
+                    state.serialize_entry("type", "stack")?;
                     if arr.offset != default.offset {
-                        state.serialize_field("offset", &arr.offset)?;
+                        state.serialize_entry("offset", &arr.offset)?;
                     }
                     if arr.width != default.width {
-                        state.serialize_field("width", &arr.width)?;
+                        state.serialize_entry("width", &arr.width)?;
                     }
                     state.end()
                 }
@@ -1089,16 +1089,16 @@ impl serde::Serialize for series::BarSeries {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("BarSeries", 4)?;
-        state.serialize_field("data", self.data())?;
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("data", self.data())?;
         if let Some(name) = self.name() {
-            state.serialize_field("name", name)?;
+            state.serialize_entry("name", name)?;
         }
         if self.fill() != &style::series::Fill::default() {
-            state.serialize_field("fill", self.fill())?;
+            state.serialize_entry("fill", self.fill())?;
         }
         if let Some(stroke) = self.outline() {
-            state.serialize_field("stroke", stroke)?;
+            state.serialize_entry("stroke", stroke)?;
         }
         state.end()
     }
@@ -1156,21 +1156,21 @@ impl serde::Serialize for series::BarsGroup {
     where
         S: serde::Serializer,
     {
-        let mut state = serializer.serialize_struct("BarsGroup", 6)?;
-        state.serialize_field("type", "bars-group")?;
-        state.serialize_field("categories", self.categories())?;
-        state.serialize_field("series", self.series())?;
+        let mut state = serializer.serialize_map(None)?;
+        state.serialize_entry("type", "bars-group")?;
+        state.serialize_entry("categories", self.categories())?;
+        state.serialize_entry("series", self.series())?;
 
         if self.x_axis() != &axis::Ref::default() {
-            state.serialize_field("xAxis", self.x_axis())?;
+            state.serialize_entry("xAxis", self.x_axis())?;
         }
 
         if self.y_axis() != &axis::Ref::default() {
-            state.serialize_field("yAxis", self.y_axis())?;
+            state.serialize_entry("yAxis", self.y_axis())?;
         }
 
         if !matches!(self.orientation(), series::BarsOrientation::Vertical) {
-            state.serialize_field("orientation", self.orientation())?;
+            state.serialize_entry("orientation", self.orientation())?;
         }
 
         if !matches!(
@@ -1180,7 +1180,7 @@ impl serde::Serialize for series::BarsGroup {
                 arr.offset == d.offset && arr.width == d.width && arr.gap == d.gap
             }
         ) {
-            state.serialize_field("arrangement", self.arrangement())?;
+            state.serialize_entry("arrangement", self.arrangement())?;
         }
 
         state.end()
