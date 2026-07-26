@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use plotive_base::Rgb8;
 use serde::Deserializer;
-use serde::de::{Error, IntoDeserializer, SeqAccess};
+use serde::de::{Error, SeqAccess};
 use serde::ser::{SerializeMap, SerializeSeq};
 
 use crate::des::cmap::{self, CatColorMap, ColorMap, LerpColorMap, LerpMethod};
@@ -63,11 +63,15 @@ where
             where
                 E: serde::de::Error,
             {
-                if let Ok(color) = value.parse::<style::series::Color>() {
+                if let Ok(t) = T::deserialize(serde::de::value::StrDeserializer::<E>::new(value)) {
+                    Ok(ColorNoneT::T(t))
+                } else if let Ok(color) = value.parse::<style::series::Color>() {
                     Ok(ColorNoneT::Color(color))
                 } else {
-                    let t = T::deserialize(value.into_deserializer())?;
-                    Ok(ColorNoneT::T(t))
+                    Err(E::custom(format!(
+                        "expected a color or one of the LerpColorMap fields, got: {}",
+                        value
+                    )))
                 }
             }
 
