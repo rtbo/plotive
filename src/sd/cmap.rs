@@ -94,14 +94,6 @@ where
     }
 }
 
-/// Helper type deserialize either a string or an integer as a key for a categorical color map.
-#[derive(Debug, serde::Deserialize)]
-#[serde(untagged)]
-enum CatKey {
-    String(String),
-    Integer(i64),
-}
-
 impl<'de> serde::de::Deserialize<'de> for ColorMap {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -158,19 +150,9 @@ impl<'de> serde::de::Deserialize<'de> for ColorMap {
 
                 let mut is_cats = false;
                 let mut cats: HashMap<String, style::series::Color> = HashMap::new();
-                let mut icats: HashMap<i64, style::series::Color> = HashMap::new();
 
-                while let Some(key) = map.next_key::<CatKey>()? {
-                    let str_key = match key {
-                        CatKey::String(s) => s,
-                        CatKey::Integer(i) => {
-                            let val = map.next_value()?;
-                            icats.insert(i, val);
-                            is_cats = true;
-                            continue;
-                        }
-                    };
-                    match str_key.as_str() {
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
                         "method" if !is_cats => {
                             let val: ColorNoneT<LerpMethod> = map.next_value()?;
                             match val {
@@ -241,35 +223,30 @@ impl<'de> serde::de::Deserialize<'de> for ColorMap {
                         }
                         _ => {
                             let val: style::series::Color = map.next_value()?;
-                            cats.insert(str_key, val);
+                            cats.insert(key, val);
                             is_cats = true;
                         }
                     }
                 }
 
+                if is_cats && is_lerp {
+                    println!("method: {:?}", method);
+                    println!("cmap: {:?}", cmap);
+                    println!("scale: {:?}", scale);
+                    println!("stops: {:?}", stops);
+                    println!("cats: {:?}", cats);
+                    return Err(A::Error::custom(
+                        "Can't mix categorical and lerp color map fields",
+                    ));
+                }
+
                 if is_cats {
-                    if is_lerp {
-                        return Err(A::Error::custom(
-                            "Can't mix categorical and lerp color map fields",
-                        ));
-                    }
-                    if !icats.is_empty() && !cats.is_empty() {
-                        return Err(A::Error::custom(
-                            "Can't mix integer and string keys in categorical color map",
-                        ));
-                    }
-                    if !icats.is_empty() {
-                        return Ok(CatColorMap::Integers(icats).into());
-                    } else {
-                        return Ok(CatColorMap::Strings(cats).into());
-                    }
+                    Ok(CatColorMap::Strings(cats).into())
+                } else if is_lerp {
+                    Ok(lerp_color_map_from_fields::<A::Error>(method, cmap, stops, scale)?.into())
+                } else {
+                    Err(A::Error::custom("Missing fields for ColorMap"))
                 }
-                if is_lerp {
-                    return Ok(
-                        lerp_color_map_from_fields::<A::Error>(method, cmap, stops, scale)?.into(),
-                    );
-                }
-                Err(A::Error::custom("Missing fields for ColorMap"))
             }
         }
 
@@ -610,13 +587,6 @@ impl serde::Serialize for CatColorMap {
                 let mut state = serializer.serialize_map(Some(cmap.len() + 1))?;
                 for (key, value) in cmap {
                     state.serialize_entry(key, value)?;
-                }
-                state.end()
-            }
-            CatColorMap::Integers(cmap) => {
-                let mut state = serializer.serialize_map(Some(cmap.len() + 1))?;
-                for (key, value) in cmap {
-                    state.serialize_entry(&key.to_string(), value)?;
                 }
                 state.end()
             }

@@ -305,8 +305,6 @@ pub enum CatColorMap {
     Auto,
     /// A categorical color map that uses a predefined set of colors indexed by string categories
     Strings(HashMap<String, style::series::Color>),
-    /// A categorical color map that uses a predefined set of colors indexed by integer categories
-    Integers(HashMap<i64, style::series::Color>),
 }
 
 /// A colormap that interpret string values as literal colors using `Rgb8::parse` and integer values as RGBA 32 bit colors.
