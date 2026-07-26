@@ -1,0 +1,177 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "area example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "area",
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "bars example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "bars"
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "bode_rlc example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "bode_rlc",
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "bouncing_ball example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "bouncing_ball"
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "gauss example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "gauss"
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "iris example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "iris"
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "multiple_axes example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "multiple_axes"
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "sine example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "sine"
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "stars example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "stars",
+                    "--features", "data-csv"
+                ]
+            },
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "subplots example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "subplots",
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "time_series example",
+            "cargo": {
+                "args": [
+                    "build", "--example", "time_series",
+                ]
+            },
+            "args": ["png", "svg"]
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "bidi_layout example",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example",
+                    "bidi_layout"
+                ]
+            },
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "text_line example",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example",
+                    "text_line"
+                ]
+            },
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "text_rich example",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example",
+                    "text_rich"
+                ]
+            },
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "text_rich_parse example",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example",
+                    "text_rich_parse"
+                ]
+            },
+        },
+    ]
+}
