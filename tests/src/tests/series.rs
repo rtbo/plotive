@@ -1,5 +1,5 @@
 use plotive::des::cmap;
-use plotive::{data, des, style};
+use plotive::{Style, data, des, style};
 
 use crate::tests::fig_small;
 use crate::{TestHarness, assert_fig_eq_ref};
@@ -202,4 +202,10 @@ fn series_area_double_legend() {
     let fig = fig_small(plot).with_legend(Default::default());
 
     assert_fig_eq_ref!(&fig, "series/area-double-legend");
+}
+
+#[test]
+fn series_color_cats_to_legend() {
+    let fig: des::Figure = crate::json_figure("series/color-cats-to-legend");
+    assert_fig_eq_ref!(&fig, "series/color-cats-to-legend", &Style::light());
 }

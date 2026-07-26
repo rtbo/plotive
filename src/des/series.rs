@@ -344,6 +344,7 @@ impl Line {
 /// | i64         | [`ColorMap::Literal`] | Interpreted as a color, where the integer is treated as a 32-bit RGBA value (e.g. 0xRRGGBBAA). See [`Rgba8::to_rgba_int`](crate::Rgba8::to_rgba_int). |
 /// Other combinations of data type and color map will result in an error when rendering the plot.
 /// If the plot's colorbar is set, the colorbar will be automatically configured based on the color data column and color map.
+/// Color categories can be added to the legend if [`color_cats_to_legend`](Scatter::color_cats_to_legend) is true.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scatter {
     x_data: DataCol,
@@ -355,6 +356,7 @@ pub struct Scatter {
     marker: style::series::Marker,
     size_data: Option<DataCol>,
     color_data: Option<(DataCol, ColorMap)>,
+    color_cats_to_legend: bool,
 }
 
 impl Scatter {
@@ -370,6 +372,7 @@ impl Scatter {
             marker: style::series::Marker::default(),
             size_data: None,
             color_data: None,
+            color_cats_to_legend: false,
         }
     }
 
@@ -413,6 +416,13 @@ impl Scatter {
         self
     }
 
+    /// Configure this series so that the each category in the color data contributes
+    /// to legend entries
+    pub fn with_color_cats_to_legend(mut self) -> Self {
+        self.color_cats_to_legend = true;
+        self
+    }
+
     /// Get the x data column
     pub fn x_data(&self) -> &DataCol {
         &self.x_data
@@ -453,6 +463,11 @@ impl Scatter {
         self.color_data.as_ref().map(|(data, cmap)| (data, cmap))
     }
 
+    /// Check whether the color categories contribute to the legend
+    pub fn color_cats_to_legend(&self) -> bool {
+        self.color_cats_to_legend
+    }
+
     /// Chaining helper to build a plot from this series
     /// This can only be used if your plot contains a single series.
     /// This is equivalent to `Plot::new(vec![self.into()])`
@@ -462,8 +477,8 @@ impl Scatter {
     /// use plotive::des;
     /// use plotive::des::series::{self, data_src_ref};
     ///
-    /// let fig: des::Figure = series::Line::new(data_src_ref("x_values"), data_src_ref("y_values"))
-    ///     .with_name("Line Series")
+    /// let fig: des::Figure = series::Scatter::new(data_src_ref("x_values"), data_src_ref("y_values"))
+    ///     .with_name("Scatter Series")
     ///     .into_plot()
     ///     .with_x_axis(des::Axis::new().with_ticks(Default::default()))
     ///     .with_y_axis(des::Axis::new().with_ticks(Default::default()).with_grid(Default::default()))
