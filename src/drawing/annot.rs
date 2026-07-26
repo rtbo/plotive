@@ -234,7 +234,8 @@ impl Annot {
                 let x1 = map_x_annot_coord(x, x_axis, y_axis, plot_rect);
                 let y1 = map_y_annot_coord(y, x_axis, y_axis, plot_rect);
                 let x2 = x1 + 100.0;
-                let y2 = y1 + 100.0 * slope;
+                // negative slope because Y axis is inverted in screen coordinates
+                let y2 = y1 - 100.0 * slope;
                 let p1 = geom::Point { x: x1, y: y1 };
                 let p2 = geom::Point { x: x2, y: y2 };
                 (p1, p2)
