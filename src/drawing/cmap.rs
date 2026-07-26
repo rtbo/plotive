@@ -97,9 +97,6 @@ impl ColorMapBuild for des::cmap::ColorMap {
                         .iter()
                         .map(|(cat_val, color)| (cat_val.clone(), *color))
                         .collect(),
-                    des::cmap::CatColorMap::Integers(..) => {
-                        todo!("Integer category color map is not implemented yet")
-                    }
                 };
                 Some(Arc::new(CatColorMapImpl {
                     hash: self.hash(bounds),
@@ -133,9 +130,6 @@ impl ColorMapBuild for des::cmap::ColorMap {
                         .iter()
                         .map(|(cat_val, color)| (cat_val.clone(), *color))
                         .collect(),
-                    des::cmap::CatColorMap::Integers(..) => {
-                        todo!("Integer category color map is not implemented yet")
-                    }
                 };
                 Ok(Arc::new(CatColorMapImpl {
                     hash: self.hash(bounds),
@@ -410,14 +404,6 @@ fn hash_cat_cmap(cat: &des::cmap::CatColorMap) -> u64 {
     match cat {
         des::cmap::CatColorMap::Auto => auto_cat_hash(),
         des::cmap::CatColorMap::Strings(map) => {
-            let mut hasher = DefaultHasher::new();
-            for (cat_val, color) in map.iter() {
-                cat_val.hash(&mut hasher);
-                color.hash(&mut hasher);
-            }
-            hasher.finish()
-        }
-        des::cmap::CatColorMap::Integers(map) => {
             let mut hasher = DefaultHasher::new();
             for (cat_val, color) in map.iter() {
                 cat_val.hash(&mut hasher);

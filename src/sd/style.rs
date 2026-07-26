@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 
 use plotive_base::deserialize_map_fields;
+use serde::de::IntoDeserializer;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Serialize};
 
@@ -203,6 +204,85 @@ where
     }
 }
 
+#[derive(Debug)]
+enum AutoOrT<T> {
+    Auto,
+    T(T),
+}
+
+impl<'de, T> serde::de::Deserialize<'de> for AutoOrT<T>
+where
+    T: serde::de::Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct AutoOrTVisitor<T> {
+            _phantom: PhantomData<T>,
+        }
+
+        impl<'de, T> serde::de::Visitor<'de> for AutoOrTVisitor<T>
+        where
+            T: serde::de::Deserialize<'de>,
+        {
+            type Value = AutoOrT<T>;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a series color string or an index or a color")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                if value == "auto" {
+                    Ok(AutoOrT::Auto)
+                } else {
+                    let t = T::deserialize(value.into_deserializer())?;
+                    Ok(AutoOrT::T(t))
+                }
+            }
+
+            fn visit_f64<E>(self, v: f64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let t = T::deserialize(v.into_deserializer())?;
+                Ok(AutoOrT::T(t))
+            }
+
+            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let t = T::deserialize(v.into_deserializer())?;
+                Ok(AutoOrT::T(t))
+            }
+
+            fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let t = T::deserialize(serde::de::value::MapAccessDeserializer::new(map))?;
+                Ok(AutoOrT::T(t))
+            }
+
+            fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let t = T::deserialize(serde::de::value::SeqAccessDeserializer::new(seq))?;
+                Ok(AutoOrT::T(t))
+            }
+        }
+
+        deserializer.deserialize_any(AutoOrTVisitor {
+            _phantom: PhantomData,
+        })
+    }
+}
+
 struct MarkerVisitor<C> {
     _phantom: PhantomData<C>,
 }
@@ -252,29 +332,41 @@ where
             'de, map,
             "shape" => shape: Option<style::MarkerShape>,
             "size" => size: Option<style::MarkerSize>,
-            "fill" => fill: Option<Option<style::Fill<C>>>,
-            "stroke" => stroke: Option<Option<style::Stroke<C>>>,
+            "fill" => fill: Option<Option<AutoOrT<style::Fill<C>>>>,
+            "stroke" => stroke: Option<Option<AutoOrT<style::Stroke<C>>>>,
             "color" => color: Option<C>,
             "fillOpacity" => fill_opacity: Option<f32>,
         );
 
-        let mut marker = style::Marker {
-            shape: shape.unwrap_or_default(),
-            size: size.unwrap_or_default(),
-            fill: fill.unwrap_or_else(|| {
+        let fill = match fill {
+            None | Some(Some(AutoOrT::Auto)) => {
                 C::default_stroke_color().map(|color| style::Fill::Solid {
                     color,
                     opacity: None,
                 })
-            }),
-            stroke: stroke.unwrap_or_else(|| {
+            }
+            Some(Some(AutoOrT::T(fill))) => Some(fill),
+            Some(None) => None,
+        };
+
+        let stroke = match stroke {
+            None | Some(Some(AutoOrT::Auto)) => {
                 C::default_stroke_color().map(|color| style::Stroke {
                     color,
                     width: C::default_stroke_width(),
                     pattern: style::LinePattern::default(),
                     opacity: None,
                 })
-            }),
+            }
+            Some(Some(AutoOrT::T(stroke))) => Some(stroke),
+            Some(None) => None,
+        };
+
+        let mut marker = style::Marker {
+            shape: shape.unwrap_or_default(),
+            size: size.unwrap_or_default(),
+            fill,
+            stroke,
         };
 
         if let Some(color) = color {
@@ -377,6 +469,8 @@ impl<'de> Deserialize<'de> for style::MarkerSize {
 
 #[cfg(test)]
 mod tests {
+    use plotive_base::Rgb8;
+
     use super::*;
 
     #[test]
@@ -470,5 +564,125 @@ mod tests {
 
         assert_eq!(json, "\"dash-dot\"");
         assert_eq!(deserialized, stroke);
+    }
+
+    #[test]
+    fn deserialize_marker_without_fill_and_stroke() {
+        let json = r##"{
+            "shape": "circle",
+            "size": 5.0
+        }"##;
+
+        let marker: style::Marker<style::series::Color> = serde_json::from_str(json).unwrap();
+
+        assert_eq!(marker.shape, style::MarkerShape::Circle);
+        assert_eq!(marker.size, style::MarkerSize(5.0));
+        assert_eq!(marker.fill, Some(style::series::Fill::default()));
+        assert_eq!(marker.stroke, Some(style::series::Stroke::default()));
+    }
+
+    #[test]
+    fn deserialize_marker_with_auto_fill_and_stroke() {
+        let json = r##"{
+            "shape": "circle",
+            "size": 5.0,
+            "fill": "auto",
+            "stroke": "auto"
+        }"##;
+
+        let marker: style::Marker<style::series::Color> = serde_json::from_str(json).unwrap();
+
+        assert_eq!(marker.shape, style::MarkerShape::Circle);
+        assert_eq!(marker.size, style::MarkerSize(5.0));
+        assert_eq!(marker.fill, Some(style::series::Fill::default()));
+        assert_eq!(marker.stroke, Some(style::series::Stroke::default()));
+    }
+
+    #[test]
+    fn deserialize_theme_marker_with_auto_fill_and_stroke() {
+        let json = r##"{
+            "shape": "circle",
+            "size": 5.0,
+            "fill": "auto",
+            "stroke": "auto"
+        }"##;
+
+        let marker: style::Marker<style::theme::Color> = serde_json::from_str(json).unwrap();
+
+        let foreground_fill = Some(style::theme::Fill::Solid {
+            color: style::theme::Color::Theme(style::theme::Col::Foreground),
+            opacity: None,
+        });
+        let foreground_stroke = Some(style::theme::Stroke {
+            color: style::theme::Color::Theme(style::theme::Col::Foreground),
+            width: 1.0,
+            pattern: style::LinePattern::default(),
+            opacity: None,
+        });
+
+        assert_eq!(marker.shape, style::MarkerShape::Circle);
+        assert_eq!(marker.size, style::MarkerSize(5.0));
+        assert_eq!(marker.fill, foreground_fill);
+        assert_eq!(marker.stroke, foreground_stroke);
+    }
+
+    #[test]
+    fn deserialize_marker_with_null_fill_some_stroke() {
+        let json = r##"{
+            "shape": "circle",
+            "size": 5.0,
+            "fill": null,
+            "stroke": {
+                "color": "#ff0000",
+                "width": 1.0
+            }
+        }"##;
+
+        let marker: style::Marker<style::series::Color> = serde_json::from_str(json).unwrap();
+
+        assert_eq!(marker.shape, style::MarkerShape::Circle);
+        assert_eq!(marker.size, style::MarkerSize(5.0));
+        assert_eq!(marker.fill, None);
+        assert_eq!(
+            marker.stroke,
+            Some(style::Stroke {
+                color: style::series::Color::Fixed(Rgb8::new(255, 0, 0).opaque()),
+                width: 1.0,
+                pattern: style::LinePattern::default(),
+                opacity: None,
+            })
+        );
+    }
+
+    #[test]
+    fn deserialize_marker_with_purple_color() {
+        let json = r##"{
+            "shape": "circle",
+            "size": 5.0,
+            "color": "purple"
+        }"##;
+
+        let marker: style::Marker<style::series::Color> = serde_json::from_str(json).unwrap();
+
+        let purple: style::series::Color = "purple".parse().unwrap();
+
+        assert_eq!(marker.shape, style::MarkerShape::Circle);
+        assert_eq!(marker.size, style::MarkerSize(5.0));
+        assert_eq!(
+            marker.fill,
+            Some(style::Fill::Solid {
+                color: purple,
+                opacity: None,
+            })
+        );
+        assert_eq!(
+            marker.stroke,
+            Some(style::Stroke {
+                color: purple,
+                width: 1.5,
+                pattern: style::LinePattern::default(),
+                opacity: None,
+            })
+        );
     }
 }
