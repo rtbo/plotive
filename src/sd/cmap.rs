@@ -25,12 +25,13 @@ impl serde::Serialize for ColorMap {
 /// Helper type to deserialize a value that can be either a color or another type.
 /// This is the disambiguation used to differentiate between a categorical color map and a lerp color map when deserializing.
 #[derive(Debug)]
-enum ColorOr<T> {
+enum ColorNoneT<T> {
     Color(style::series::Color),
+    None,
     T(T),
 }
 
-impl<'de, T> serde::de::Deserialize<'de> for ColorOr<T>
+impl<'de, T> serde::de::Deserialize<'de> for ColorNoneT<T>
 where
     T: serde::de::Deserialize<'de>,
 {
@@ -46,9 +47,16 @@ where
         where
             T: serde::de::Deserialize<'de>,
         {
-            type Value = ColorOr<T>;
+            type Value = ColorNoneT<T>;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a color or one of the LerpColorMap fields")
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(ColorNoneT::None)
             }
 
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
@@ -56,10 +64,10 @@ where
                 E: serde::de::Error,
             {
                 if let Ok(color) = value.parse::<style::series::Color>() {
-                    Ok(ColorOr::Color(color))
+                    Ok(ColorNoneT::Color(color))
                 } else {
                     let t = T::deserialize(value.into_deserializer())?;
-                    Ok(ColorOr::T(t))
+                    Ok(ColorNoneT::T(t))
                 }
             }
 
@@ -68,7 +76,7 @@ where
                 A: serde::de::MapAccess<'de>,
             {
                 let t = T::deserialize(serde::de::value::MapAccessDeserializer::new(map))?;
-                Ok(ColorOr::T(t))
+                Ok(ColorNoneT::T(t))
             }
 
             fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
@@ -76,7 +84,7 @@ where
                 A: SeqAccess<'de>,
             {
                 let t = T::deserialize(serde::de::value::SeqAccessDeserializer::new(seq))?;
-                Ok(ColorOr::T(t))
+                Ok(ColorNoneT::T(t))
             }
         }
 
@@ -164,53 +172,69 @@ impl<'de> serde::de::Deserialize<'de> for ColorMap {
                     };
                     match str_key.as_str() {
                         "method" if !is_cats => {
-                            let val: ColorOr<LerpMethod> = map.next_value()?;
+                            let val: ColorNoneT<LerpMethod> = map.next_value()?;
                             match val {
-                                ColorOr::Color(val) => {
+                                ColorNoneT::Color(val) => {
                                     cats.insert("method".to_string(), val);
                                     is_cats = true;
                                 }
-                                ColorOr::T(val) => {
+                                ColorNoneT::T(val) => {
                                     method = Some(val);
+                                    is_lerp = true;
+                                }
+                                ColorNoneT::None => {
+                                    method = None;
                                     is_lerp = true;
                                 }
                             }
                         }
                         "cmap" if !is_cats => {
-                            let val: ColorOr<String> = map.next_value()?;
+                            let val: ColorNoneT<String> = map.next_value()?;
                             match val {
-                                ColorOr::Color(val) => {
+                                ColorNoneT::Color(val) => {
                                     cats.insert("cmap".to_string(), val);
                                     is_cats = true;
                                 }
-                                ColorOr::T(val) => {
+                                ColorNoneT::T(val) => {
                                     cmap = Some(val);
+                                    is_lerp = true;
+                                }
+                                ColorNoneT::None => {
+                                    cmap = None;
                                     is_lerp = true;
                                 }
                             }
                         }
                         "stops" => {
-                            let val: ColorOr<DeStops> = map.next_value()?;
+                            let val: ColorNoneT<DeStops> = map.next_value()?;
                             match val {
-                                ColorOr::Color(val) => {
+                                ColorNoneT::Color(val) => {
                                     cats.insert("stops".to_string(), val);
                                     is_cats = true;
                                 }
-                                ColorOr::T(val) => {
+                                ColorNoneT::T(val) => {
                                     stops = Some(val);
+                                    is_lerp = true;
+                                }
+                                ColorNoneT::None => {
+                                    stops = None;
                                     is_lerp = true;
                                 }
                             }
                         }
                         "scale" => {
-                            let val: ColorOr<des::axis::Scale> = map.next_value()?;
+                            let val: ColorNoneT<des::axis::Scale> = map.next_value()?;
                             match val {
-                                ColorOr::Color(val) => {
+                                ColorNoneT::Color(val) => {
                                     cats.insert("scale".to_string(), val);
                                     is_cats = true;
                                 }
-                                ColorOr::T(val) => {
+                                ColorNoneT::T(val) => {
                                     scale = Some(val);
+                                    is_lerp = true;
+                                }
+                                ColorNoneT::None => {
+                                    scale = None;
                                     is_lerp = true;
                                 }
                             }
