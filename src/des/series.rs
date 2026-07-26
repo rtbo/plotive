@@ -402,13 +402,13 @@ impl Scatter {
     }
 
     /// Set the sizes data column and return self for chaining
-    pub fn with_size_data(mut self, size_data: DataCol) -> Self {
+    pub fn with_sizes(mut self, size_data: DataCol) -> Self {
         self.size_data = Some(size_data);
         self
     }
 
     /// Set the color data column and color map, and return self for chaining
-    pub fn with_color_data(mut self, color_data: DataCol, cmap: ColorMap) -> Self {
+    pub fn with_colors(mut self, color_data: DataCol, cmap: ColorMap) -> Self {
         self.color_data = Some((color_data, cmap));
         self
     }
@@ -451,6 +451,28 @@ impl Scatter {
     /// Get the color data column and color map, if any
     pub fn color_data(&self) -> Option<(&DataCol, &ColorMap)> {
         self.color_data.as_ref().map(|(data, cmap)| (data, cmap))
+    }
+
+    /// Chaining helper to build a plot from this series
+    /// This can only be used if your plot contains a single series.
+    /// This is equivalent to `Plot::new(vec![self.into()])`
+    ///
+    /// # Example
+    /// ```
+    /// use plotive::des;
+    /// use plotive::des::series::{self, data_src_ref};
+    ///
+    /// let fig: des::Figure = series::Line::new(data_src_ref("x_values"), data_src_ref("y_values"))
+    ///     .with_name("Line Series")
+    ///     .into_plot()
+    ///     .with_x_axis(des::Axis::new().with_ticks(Default::default()))
+    ///     .with_y_axis(des::Axis::new().with_ticks(Default::default()).with_grid(Default::default()))
+    ///     .into_figure()
+    ///     .with_title("Line Plot Example".into());
+    ///
+    /// ```
+    pub fn into_plot(self) -> super::Plot {
+        super::Plot::new(vec![self.into()])
     }
 }
 

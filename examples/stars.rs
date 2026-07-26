@@ -78,8 +78,8 @@ fn main() {
     let fig = des::Figure::new(
         des::Plot::new(vec![
             des::series::Scatter::new("x".into(), "y".into())
-                .with_size_data("mag_sizes".into())
-                .with_color_data("temp".into(), cmap::stellar().into())
+                .with_sizes("mag_sizes".into())
+                .with_colors("temp".into(), cmap::stellar().into())
                 .with_marker(style::series::Marker::default().with_fill_opacity(0.85))
                 .into(),
         ])

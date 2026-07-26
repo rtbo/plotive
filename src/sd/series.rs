@@ -486,12 +486,12 @@ where
         scatter = scatter.with_marker(marker);
     }
     if let Some(sizes) = sizes {
-        scatter = scatter.with_size_data(sizes);
+        scatter = scatter.with_sizes(sizes);
     }
     match (colors, cmap) {
         (Some(colors), cmap) => {
             let cmap = cmap.unwrap_or_default();
-            scatter = scatter.with_color_data(colors, cmap);
+            scatter = scatter.with_colors(colors, cmap);
         }
         _ => {}
     }
