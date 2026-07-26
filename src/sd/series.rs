@@ -449,7 +449,7 @@ impl serde::Serialize for series::Scatter {
 
         if let Some((colors, cmap)) = self.color_data() {
             state.serialize_entry("colors", colors)?;
-            if cmap.name() != Some("viridis") {
+            if cmap != &cmap::ColorMap::default() {
                 state.serialize_entry("cmap", cmap)?;
             }
         }
@@ -473,7 +473,7 @@ where
         "marker" => marker: Option<style::series::Marker>,
         "sizes" => sizes: Option<series::DataCol>,
         "colors" => colors: Option<series::DataCol>,
-        "cmap" => cmap: Option<cmap::LerpColorMap>,
+        "cmap" => cmap: Option<cmap::ColorMap>,
 
         "name" => name: Option<String>,
         "xAxis" => x_axis: Option<axis::Ref>,

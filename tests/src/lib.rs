@@ -1,5 +1,7 @@
 #![cfg(test)]
 
+use std::path::{Path, PathBuf};
+
 use plotive::Style;
 
 mod harness;
@@ -7,6 +9,19 @@ mod pixelmatch;
 mod tests;
 
 use harness::{PxlHarness, SvgHarness, TestHarness};
+
+fn json_figure(path: &str) -> plotive::des::Figure {
+    let tests_dir = env!("CARGO_MANIFEST_DIR");
+    let path: PathBuf = Path::new(tests_dir)
+        .join("figs")
+        .join(path)
+        .with_extension("json")
+        .try_into()
+        .unwrap();
+    let fig: plotive::des::Figure =
+        serde_json::from_reader(std::fs::File::open(path).unwrap()).unwrap();
+    fig
+}
 
 fn bw_theme() -> Style {
     Style::black_white()

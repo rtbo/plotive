@@ -16,6 +16,14 @@ impl Rgba8 {
         Self(r, g, b, a)
     }
 
+    pub const fn from_u32(rgba: u32) -> Self {
+        let r = ((rgba >> 24) & 0xff) as u8;
+        let g = ((rgba >> 16) & 0xff) as u8;
+        let b = ((rgba >> 8) & 0xff) as u8;
+        let a = (rgba & 0xff) as u8;
+        Self(r, g, b, a)
+    }
+
     /// Get the red component of the color.
     pub const fn r(&self) -> u8 {
         self.0
@@ -34,6 +42,20 @@ impl Rgba8 {
     /// Get the alpha channel of the color.
     pub const fn a(&self) -> u8 {
         self.3
+    }
+
+    /// Pack the color into a single u32 value in RGBA order.
+    pub const fn to_u32(&self) -> u32 {
+        ((self.r() as u32) << 24)
+            | ((self.g() as u32) << 16)
+            | ((self.b() as u32) << 8)
+            | (self.a() as u32)
+    }
+
+    /// Pack the color to a single i64 value in RGBA order.
+    /// This is useful to send colors in data sources for plotting, as i64 is the only integer type supported in data sources.
+    pub const fn to_rgba_int(&self) -> i64 {
+        self.to_u32() as i64
     }
 
     /// Get the HTML hex string representation of the color, e.g. `#ff0000` for red.
@@ -137,6 +159,14 @@ impl Rgb8 {
         Self(r, g, b)
     }
 
+    /// Create a Rgb8 from a u32 value in RGBA order, ignoring the alpha channel.
+    pub const fn from_u32(rgb: u32) -> Self {
+        let r = ((rgb >> 24) & 0xff) as u8;
+        let g = ((rgb >> 16) & 0xff) as u8;
+        let b = ((rgb >> 8) & 0xff) as u8;
+        Self(r, g, b)
+    }
+
     /// Get the red component of the color.
     pub const fn r(&self) -> u8 {
         self.0
@@ -150,6 +180,17 @@ impl Rgb8 {
     /// Get the blue component of the color.
     pub const fn b(&self) -> u8 {
         self.2
+    }
+
+    /// Pack the color into a single u32 value in RGBA order.
+    pub const fn to_u32(&self) -> u32 {
+        ((self.r() as u32) << 24) | ((self.g() as u32) << 16) | ((self.b() as u32) << 8) | 0xff
+    }
+
+    /// Pack the color to a single i64 value in RGBA order.
+    /// This is useful to send colors in data sources for plotting, as i64 is the only integer type supported in data sources.
+    pub const fn to_rgba_int(&self) -> i64 {
+        self.to_u32() as i64
     }
 
     /// Get the HTML hex string representation of the color, e.g. `#ff0000` for red.

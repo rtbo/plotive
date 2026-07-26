@@ -1,11 +1,10 @@
 use axis::AsBoundRef;
-use plotive_base::Rgb8;
 use plotive_base::geom::PathSegment;
+use plotive_base::style::Color;
 use scale::{CoordMap, CoordMapXy};
 
 use crate::drawing::axis::{Bounds, Orientation};
-use crate::drawing::cmap::AsColorMap;
-use crate::drawing::colorbar::ColorScale;
+use crate::drawing::cmap::{ColorMap, ColorMapBuild};
 use crate::drawing::{
     Categories, ColumnExt, Error, F64ColumnExt, axis, colorbar, get_column, legend, marker,
     plot_to_fig, scale,
@@ -43,7 +42,10 @@ impl SeriesExt for des::series::Scatter {
 
     fn colorbar_entry(&self) -> Option<colorbar::Entry<'_>> {
         self.color_data()
-            .map(|(data_col, cmap)| colorbar::Entry { data_col, cmap })
+            .map(|(data_col, cmap_build)| colorbar::Entry {
+                data_col,
+                cmap_build,
+            })
     }
 }
 
@@ -286,7 +288,7 @@ impl Series {
         data_source: &D,
         rect: &geom::Rect,
         cm: &CoordMapXy,
-        cmap: Option<&ColorScale>,
+        cmap: Option<&dyn ColorMap>,
     ) -> Result<(), Error>
     where
         D: data::Source + ?Sized,
@@ -595,7 +597,7 @@ fn calc_xy_line_path(
 struct MarkerPoint {
     pos: geom::Point,
     scale: f32,
-    color: Option<Rgb8>,
+    color: Option<style::series::Color>,
 }
 
 impl Default for MarkerPoint {
@@ -646,8 +648,9 @@ impl MarkerData {
 
             let fill = self.marker.fill.as_ref().map(|f| {
                 let f = f.as_paint(&rc);
-                if let Some(rgb) = p.color {
-                    f.with_rgb(rgb)
+                if let Some(col) = p.color {
+                    let rgb = col.resolve(&rc);
+                    f.with_rgb(rgb.rgb())
                 } else {
                     f
                 }
@@ -655,8 +658,9 @@ impl MarkerData {
 
             let stroke = self.marker.stroke.as_ref().map(|s| {
                 let s = s.as_stroke(&rc).with_multiplied_width(1.0 / scale);
-                if let Some(rgb) = p.color {
-                    s.with_rgb(rgb)
+                if let Some(col) = p.color {
+                    let rgb = col.resolve(&rc);
+                    s.with_rgb(rgb.rgb())
                 } else {
                     s
                 }
@@ -795,11 +799,20 @@ impl Scatter {
     {
         let cols = (des.x_data().clone(), des.y_data().clone());
         let size_col = des.size_data().cloned();
-        let color_data = des.color_data().map(|(col, cmap)| {
-            let col = col.clone();
-            let hash = cmap.hash();
-            (col, hash)
-        });
+        let color_data = des
+            .color_data()
+            .map(|(col, cmap)| -> Result<_, Error> {
+                let col = col.clone();
+                let col_bounds = get_column(&col, data_source)
+                    .expect("Should be able to get color column")
+                    .bounds()
+                    .ok_or_else(|| {
+                        Error::InconsistentData(format!("Color column {:?} has no bounds", col))
+                    })?;
+                let hash = cmap.hash(col_bounds.as_bound_ref());
+                Ok((col, hash))
+            })
+            .transpose()?;
         let xy_bounds = calc_xy_bounds(data_source, &cols.0, &cols.1)?;
         let marker_data = MarkerData::new(des.marker().clone());
         Ok(Scatter {
@@ -818,7 +831,7 @@ impl Scatter {
         data_source: &D,
         rect: &geom::Rect,
         cm: &CoordMapXy,
-        cmap: Option<&ColorScale>,
+        cmap: Option<&dyn ColorMap>,
     ) where
         D: data::Source + ?Sized,
     {

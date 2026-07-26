@@ -1,0 +1,12 @@
+{
+    "size": [400, 300],
+    "plot": {
+        "series": {
+            "type": "scatter",
+            "x": [1, 2, 3, 4, 5],
+            "y": [1, 4, 9, 16, 25],
+            "colors": ["cat1", "cat2", "cat1", "cat3", "cat2"]
+        },
+        "colorbar": "auto"
+    }    
+}

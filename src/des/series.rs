@@ -1,5 +1,6 @@
 //! Data series definitions for plots.
-use crate::des::{axis, cmap};
+use crate::des::axis;
+use crate::des::cmap::ColorMap;
 #[cfg(feature = "time")]
 use crate::time;
 use crate::{data, style};
@@ -7,7 +8,7 @@ use crate::{data, style};
 /// A data column, either inline or a reference to a data source.
 ///
 /// Data columns can contain either inline data (vectors of values) or references
-/// to columns in a data source. This allows for flexible data handling in series.
+/// to columns in a data source. This allows flexible data handling in series.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DataCol {
     /// The data is provided inline, directly in the series
@@ -328,6 +329,21 @@ impl Line {
 /// Marker size is interpreted as an area, so the actual size of the marker will be proportional to the square root of the sizes data value
 /// (e.g. for circle marker: diameter = sqrt(marker size * size column data)).
 /// The sizes data column must have the same length as the x and y data columns.
+///
+/// Optional color data column can be used to specify the color of each marker, for colored scatter plots.
+/// Interpretation of the color data depends on the type of data and on the type of the associated [`ColorMap`] field.
+/// |  data type  | [`ColorMap`] variant  |  color interpretation                                                                                                                                 |
+/// |-------------|-----------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+/// | f64         | [`ColorMap::Auto`]    | Mapped to color by the [`cmap::viridis`] color map                                                                                                    |
+/// | f64         | [`ColorMap::Lerp`]    | Mapped to color by the provided color map                                                                                                             |
+/// | String      | [`ColorMap::Auto`]    | Each unique string is interpreted as a category and assigned a color in order of series colors                                                        |
+/// | String      | [`ColorMap::Cat`]     | Each unique string is interpreted as a category and mapped to color by the provided color map                                                         |
+/// | String      | [`ColorMap::Literal`] | Each string is parsed as a [`Rgba8`](crate::Rgba8) value                                                                                              |
+/// | i64         | [`ColorMap::Auto`]    | Cast to f64 and mapped to color by the [`cmap::viridis`] color map                                                                                    |
+/// | i64         | [`ColorMap::Lerp`]    | Cast to f64 and mapped to color by the provided color map                                                                                             |
+/// | i64         | [`ColorMap::Literal`] | Interpreted as a color, where the integer is treated as a 32-bit RGBA value (e.g. 0xRRGGBBAA). See [`Rgba8::to_rgba_int`](crate::Rgba8::to_rgba_int). |
+/// Other combinations of data type and color map will result in an error when rendering the plot.
+/// If the plot's colorbar is set, the colorbar will be automatically configured based on the color data column and color map.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Scatter {
     x_data: DataCol,
@@ -338,7 +354,7 @@ pub struct Scatter {
     y_axis: axis::Ref,
     marker: style::series::Marker,
     size_data: Option<DataCol>,
-    color_data: Option<(DataCol, cmap::LerpColorMap)>,
+    color_data: Option<(DataCol, ColorMap)>,
 }
 
 impl Scatter {
@@ -392,8 +408,8 @@ impl Scatter {
     }
 
     /// Set the color data column and color map, and return self for chaining
-    pub fn with_color_data(mut self, color_data: DataCol, color_map: cmap::LerpColorMap) -> Self {
-        self.color_data = Some((color_data, color_map));
+    pub fn with_color_data(mut self, color_data: DataCol, cmap: ColorMap) -> Self {
+        self.color_data = Some((color_data, cmap));
         self
     }
 
@@ -433,8 +449,8 @@ impl Scatter {
     }
 
     /// Get the color data column and color map, if any
-    pub fn color_data(&self) -> Option<&(DataCol, cmap::LerpColorMap)> {
-        self.color_data.as_ref()
+    pub fn color_data(&self) -> Option<(&DataCol, &ColorMap)> {
+        self.color_data.as_ref().map(|(data, cmap)| (data, cmap))
     }
 }
 

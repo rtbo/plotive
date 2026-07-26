@@ -63,8 +63,8 @@ impl Bounds {
         }
     }
 
-    pub fn contains(&self, point: data::SampleRef<'_>) -> bool {
-        match (self, point) {
+    pub fn contains(&self, sample: data::SampleRef<'_>) -> bool {
+        match (self, sample) {
             (Bounds::Num(nb), data::SampleRef::Num(n)) => nb.contains(n),
             (Bounds::Cat(c), data::SampleRef::Cat(s)) => c.contains(s),
             #[cfg(feature = "time")]
