@@ -55,12 +55,15 @@ name = "bitcoin"
 required-features = ["data-csv", "time"]
 
 [[example]]
-name = "bode_rlc"
+name = "bode-rlc"
 required-features = ["noto-serif-italic", "utils"]
 
 [[example]]
 name = "bouncing_ball"
 required-features = ["time"]
+
+[[example]]
+name = "colormap"
 
 [[example]]
 name = "gauss"

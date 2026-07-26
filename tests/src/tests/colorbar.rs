@@ -32,7 +32,7 @@ fn colorbar_lerp_auto() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), Default::default())
+            .with_colors(des::data_inline(col), Default::default())
             .into(),
     ])
     .with_colorbar(Default::default());
@@ -48,7 +48,7 @@ fn colorbar_locator() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(
+            .with_colors(
                 des::data_inline(col),
                 cmap::viridis().with_scale((0.0, 1.0).into()).into(),
             )
@@ -66,7 +66,7 @@ fn colorbar_default_with_axes() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis().into())
+            .with_colors(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_x_axis(
@@ -94,7 +94,7 @@ fn colorbar_auto_range() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis().into())
+            .with_colors(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_colorbar(Default::default());
@@ -109,7 +109,7 @@ fn colorbar_cmap_scale() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(
+            .with_colors(
                 des::data_inline(col),
                 cmap::viridis().with_scale((0.0, 2.0).into()).into(),
             )
@@ -127,7 +127,7 @@ fn colorbar_left() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis().into())
+            .with_colors(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_colorbar(colorbar::Pos::Left.into());
@@ -142,7 +142,7 @@ fn colorbar_top() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis().into())
+            .with_colors(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_colorbar(colorbar::Pos::Top.into());
@@ -157,7 +157,7 @@ fn colorbar_bottom() {
 
     let plot = des::Plot::new(vec![
         scatter(x, y)
-            .with_color_data(des::data_inline(col), cmap::viridis().into())
+            .with_colors(des::data_inline(col), cmap::viridis().into())
             .into(),
     ])
     .with_colorbar(colorbar::Pos::Bottom.into());

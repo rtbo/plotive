@@ -98,7 +98,7 @@ fn series_scatter_sizes() {
 
     let plot = des::Plot::new(vec![
         des::series::Scatter::new(des::data_inline(x), des::data_inline(y))
-            .with_size_data(des::data_inline(sizes))
+            .with_sizes(des::data_inline(sizes))
             .with_marker(
                 style::series::Marker::default()
                     .with_color(color.into())
@@ -120,7 +120,7 @@ fn series_scatter_colors() {
 
     let plot = des::Plot::new(vec![
         des::series::Scatter::new(des::data_inline(x), des::data_inline(y))
-            .with_color_data(des::data_inline(colors), cmap::viridis().into())
+            .with_colors(des::data_inline(colors), cmap::viridis().into())
             .with_marker(
                 style::series::Marker::default()
                     .with_fill_opacity(0.6)
