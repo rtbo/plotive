@@ -222,14 +222,6 @@ fn theme_plotive_to_iced(pv_style: &plotive::Style) -> iced::Theme {
     }
 }
 
-fn system_theme() -> Option<plotive::Style> {
-    match dark_light::detect() {
-        Ok(dark_light::Mode::Light) => Some(plotive::Style::light()),
-        Ok(dark_light::Mode::Dark) => Some(plotive::Style::dark()),
-        _ => None,
-    }
-}
-
 fn theme_from_show<D>(show: &FigureShow<D>) -> Option<iced::Theme>
 where
     D: data::Source + ?Sized + 'static,
@@ -237,9 +229,7 @@ where
     if let Some(style) = &show.style {
         return Some(theme_plotive_to_iced(style));
     }
-    if let Some(style) = system_theme() {
-        return Some(theme_plotive_to_iced(&style));
-    }
+
     None
 }
 
