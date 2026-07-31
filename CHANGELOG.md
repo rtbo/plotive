@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [0.6.0] - 2026-07-31
+
+### Added
+
+ - Support for serde, fully customized implementation to accept flexible hand-written definitions
+    - This is also used by JS and PY bindings for consistent API across 3 languages
+ - Color categories, improvement in colormaps
+ - Improvement in Rich Text support
+ - Annotations can mix data and plot coordinates
+ - Many, Many, Many small improvements
+
+
 # [0.5.0] - 2026-05-27
 
 ### Added
