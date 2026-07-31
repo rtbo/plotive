@@ -135,7 +135,7 @@ where
             rect.width(),
             self.fontdb(),
         );
-        
+
         let data_source = self.data_source();
         for plot in fig.plots().iter().filter_map(|p| p) {
             let mut idx = 0;

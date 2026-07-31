@@ -166,4 +166,3 @@ fn series_area_double() {
 
     assert_fig_eq_ref!(&fig, "series/area-double");
 }
-

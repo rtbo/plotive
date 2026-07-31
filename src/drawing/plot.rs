@@ -970,7 +970,11 @@ where
     }
 }
 
-pub fn for_each_legend_entries<D, F>(plot: &des::Plot, data_source: &D, mut f: F) -> Result<(), Error>
+pub fn for_each_legend_entries<D, F>(
+    plot: &des::Plot,
+    data_source: &D,
+    mut f: F,
+) -> Result<(), Error>
 where
     D: data::Source + ?Sized,
     F: FnMut(legend::Entries) -> Result<(), Error>,

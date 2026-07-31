@@ -157,7 +157,6 @@ fn legend_area_double() {
     assert_fig_eq_ref!(&fig, "legend/area-double");
 }
 
-
 #[test]
 fn legend_scatter_color_cats() {
     let fig: des::Figure = crate::json_figure("legend/scatter-color-cats");
