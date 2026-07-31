@@ -15,29 +15,101 @@ use crate::{Style, data, des, geom, render, style};
 /// trait implemented by series, or any other item that
 /// has to populate the legend
 pub trait SeriesExt {
-    fn legend_entry(&self) -> Option<legend::Entry<'_>>;
+    fn legend_entries<D>(&self, data_source: &D) -> Result<legend::Entries, Error>
+    where
+        D: data::Source + ?Sized;
+
     fn colorbar_entry(&self) -> Option<colorbar::Entry<'_>> {
         None
     }
 }
 
 impl SeriesExt for des::series::Line {
-    fn legend_entry(&self) -> Option<legend::Entry<'_>> {
-        self.name().map(|n| legend::Entry {
-            label: n.as_ref(),
-            txt_props: None,
-            shape: legend::ShapeRef::Line(self.stroke(), self.marker()),
-        })
+    fn legend_entries<D>(&self, _data_source: &D) -> Result<legend::Entries, Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        Ok(self
+            .name()
+            .map(|n| {
+                legend::Entry {
+                    label: n.to_string(),
+                    txt_props: None,
+                    shape: legend::Shape::Line(self.stroke().clone(), self.marker().cloned()),
+                }
+                .into()
+            })
+            .unwrap_or_default())
     }
 }
 
 impl SeriesExt for des::series::Scatter {
-    fn legend_entry(&self) -> Option<legend::Entry<'_>> {
-        self.name().map(|n| legend::Entry {
-            label: n.as_ref(),
-            txt_props: None,
-            shape: legend::ShapeRef::Marker(self.marker()),
-        })
+    fn legend_entries<D>(&self, data_source: &D) -> Result<legend::Entries, Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        if self.color_cats_to_legend() {
+            if let Some((color_col, cmap)) = self.color_data() {
+                match cmap {
+                    des::cmap::ColorMap::Auto
+                    | des::cmap::ColorMap::Cat(des::cmap::CatColorMap::Auto) => {
+                        let col = get_column(color_col, data_source)?;
+                        if let Some(col) = col.str() {
+                            let cats: super::Categories = col.into();
+                            let entries = cats
+                                .into_iter()
+                                .enumerate()
+                                .map(|(i, cat)| {
+                                    let color: style::series::Color =
+                                        style::series::IndexColor(i).into();
+                                    legend::Entry {
+                                        label: cat,
+                                        txt_props: None,
+                                        shape: legend::Shape::Marker(
+                                            self.marker().clone().with_color(color),
+                                        ),
+                                    }
+                                })
+                                .collect();
+                            return Ok(legend::Entries::Multi(entries));
+                        }
+                    }
+                    des::cmap::ColorMap::Cat(des::cmap::CatColorMap::Strings(cmap)) => {
+                        let col = get_column(color_col, data_source)?;
+                        if let Some(col) = col.str() {
+                            let cats: super::Categories = col.into();
+                            let entries = cats
+                                .into_iter()
+                                .filter_map(|cat| {
+                                    let color = cmap.get(&cat)?;
+                                    Some(legend::Entry {
+                                        label: cat,
+                                        txt_props: None,
+                                        shape: legend::Shape::Marker(
+                                            self.marker().clone().with_color(*color),
+                                        ),
+                                    })
+                                })
+                                .collect();
+                            return Ok(legend::Entries::Multi(entries));
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+
+        Ok(self
+            .name()
+            .map(|n| {
+                legend::Entry {
+                    label: n.to_string(),
+                    txt_props: None,
+                    shape: legend::Shape::Marker(self.marker().clone()),
+                }
+                .into()
+            })
+            .unwrap_or_default())
     }
 
     fn colorbar_entry(&self) -> Option<colorbar::Entry<'_>> {
@@ -50,46 +122,82 @@ impl SeriesExt for des::series::Scatter {
 }
 
 impl SeriesExt for des::series::Area {
-    fn legend_entry(&self) -> Option<legend::Entry<'_>> {
-        self.name().map(|n| legend::Entry {
-            label: n.as_ref(),
-            txt_props: None,
-            shape: legend::ShapeRef::AreaRect {
-                fill: Some(self.fill()),
-                y1_stroke: self.y1_stroke(),
-                y2_stroke: self.y2_stroke(),
-            },
-        })
+    fn legend_entries<D>(&self, _data_source: &D) -> Result<legend::Entries, Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        Ok(self
+            .name()
+            .map(|n| {
+                legend::Entry {
+                    label: n.to_string(),
+                    txt_props: None,
+                    shape: legend::Shape::AreaRect {
+                        fill: Some(self.fill().clone()),
+                        y1_stroke: self.y1_stroke().cloned(),
+                        y2_stroke: self.y2_stroke().cloned(),
+                    },
+                }
+                .into()
+            })
+            .unwrap_or_default())
     }
 }
 
 impl SeriesExt for des::series::Histogram {
-    fn legend_entry(&self) -> Option<legend::Entry<'_>> {
-        self.name().map(|n| legend::Entry {
-            label: n.as_ref(),
-            txt_props: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.stroke()),
-        })
+    fn legend_entries<D>(&self, _data_source: &D) -> Result<legend::Entries, Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        Ok(self
+            .name()
+            .map(|n| {
+                legend::Entry {
+                    label: n.to_string(),
+                    txt_props: None,
+                    shape: legend::Shape::Rect(Some(self.fill().clone()), self.stroke().cloned()),
+                }
+                .into()
+            })
+            .unwrap_or_default())
     }
 }
 
 impl SeriesExt for des::series::Bars {
-    fn legend_entry(&self) -> Option<legend::Entry<'_>> {
-        self.name().map(|n| legend::Entry {
-            label: n.as_ref(),
-            txt_props: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.stroke()),
-        })
+    fn legend_entries<D>(&self, _data_source: &D) -> Result<legend::Entries, Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        Ok(self
+            .name()
+            .map(|n| {
+                legend::Entry {
+                    label: n.to_string(),
+                    txt_props: None,
+                    shape: legend::Shape::Rect(Some(self.fill().clone()), self.stroke().cloned()),
+                }
+                .into()
+            })
+            .unwrap_or_default())
     }
 }
 
 impl SeriesExt for des::series::BarSeries {
-    fn legend_entry(&self) -> Option<legend::Entry<'_>> {
-        self.name().map(|n| legend::Entry {
-            label: n.as_ref(),
-            txt_props: None,
-            shape: legend::ShapeRef::Rect(Some(self.fill()), self.outline()),
-        })
+    fn legend_entries<D>(&self, _data_source: &D) -> Result<legend::Entries, Error>
+    where
+        D: data::Source + ?Sized,
+    {
+        Ok(self
+            .name()
+            .map(|n| {
+                legend::Entry {
+                    label: n.to_string(),
+                    txt_props: None,
+                    shape: legend::Shape::Rect(Some(self.fill().clone()), self.outline().cloned()),
+                }
+                .into()
+            })
+            .unwrap_or_default())
     }
 }
 

@@ -16,46 +16,26 @@ pub enum Shape {
     },
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum ShapeRef<'a> {
-    Line(&'a style::series::Stroke, Option<&'a style::series::Marker>),
-    Marker(&'a style::series::Marker),
-    Rect(
-        Option<&'a style::series::Fill>,
-        Option<&'a style::series::Stroke>,
-    ),
-    AreaRect {
-        fill: Option<&'a style::series::Fill>,
-        y1_stroke: Option<&'a style::series::Stroke>,
-        y2_stroke: Option<&'a style::series::Stroke>,
-    },
-}
-
-impl ShapeRef<'_> {
-    pub fn to_shape(&self) -> Shape {
-        match self {
-            &ShapeRef::Line(line, marker) => Shape::Line(line.clone(), marker.cloned()),
-            &ShapeRef::Marker(marker) => Shape::Marker(marker.clone()),
-            &ShapeRef::Rect(fill, line) => Shape::Rect(fill.cloned(), line.cloned()),
-            &ShapeRef::AreaRect {
-                fill,
-                y1_stroke,
-                y2_stroke,
-            } => Shape::AreaRect {
-                fill: fill.cloned(),
-                y1_stroke: y1_stroke.cloned(),
-                y2_stroke: y2_stroke.cloned(),
-            },
-        }
-    }
-}
-
 /// A legend entry, used to populate the legend
 #[derive(Debug, Clone)]
-pub struct Entry<'a> {
-    pub label: &'a str,
-    pub txt_props: Option<&'a text::TextProps<theme::Color>>,
-    pub shape: ShapeRef<'a>,
+pub struct Entry {
+    pub label: String,
+    pub txt_props: Option<text::TextProps<theme::Color>>,
+    pub shape: Shape,
+}
+
+#[derive(Debug, Clone, Default)]
+pub enum Entries {
+    #[default]
+    None,
+    Single(Entry),
+    Multi(Vec<Entry>),
+}
+
+impl From<Entry> for Entries {
+    fn from(entry: Entry) -> Self {
+        Entries::Single(entry)
+    }
 }
 
 /// A legend entry, as built during setup phase
@@ -127,8 +107,8 @@ impl<'a> LegendBuilder<'a> {
     }
 
     pub fn add_entry(&mut self, index: usize, entry: Entry) -> Result<(), drawing::Error> {
-        let shape = entry.shape.to_shape();
-        let txt_props = entry.txt_props.unwrap_or(&self.txt_props);
+        let shape = entry.shape;
+        let txt_props = entry.txt_props.as_ref().unwrap_or_else(|| &self.txt_props);
         let font = super::resolve_line_font(txt_props, Default::default());
         let font_size = txt_props.size.unwrap_or(defaults::LEGEND_LABEL_FONT_SIZE);
         let fill = txt_props

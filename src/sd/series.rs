@@ -454,6 +454,10 @@ impl serde::Serialize for series::Scatter {
             }
         }
 
+        if self.color_cats_to_legend() {
+            state.serialize_entry("colorCatsToLegend", &true)?;
+        }
+
         state.end()
     }
 }
@@ -478,6 +482,7 @@ where
         "name" => name: Option<String>,
         "xAxis" => x_axis: Option<axis::Ref>,
         "yAxis" => y_axis: Option<axis::Ref>,
+        "colorCatsToLegend" => color_cats_to_legend: Option<bool>,
     }
 
     let mut scatter = series::Scatter::new(x_data, y_data);
@@ -504,6 +509,9 @@ where
     }
     if let Some(y_axis) = y_axis {
         scatter = scatter.with_y_axis(y_axis);
+    }
+    if color_cats_to_legend == Some(true) {
+        scatter = scatter.with_color_cats_to_legend();
     }
 
     Ok(scatter)

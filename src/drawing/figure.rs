@@ -136,12 +136,22 @@ where
             self.fontdb(),
         );
 
+        let data_source = self.data_source();
         for plot in fig.plots().iter().filter_map(|p| p) {
             let mut idx = 0;
-            plot::for_each_series(plot, |s| {
-                if let Some(entry) = s.legend_entry() {
-                    builder.add_entry(idx, entry)?;
-                    idx += 1;
+            plot::for_each_legend_entries(plot, data_source, |entries| {
+                match entries {
+                    legend::Entries::Single(entry) => {
+                        builder.add_entry(idx, entry)?;
+                        idx += 1;
+                    }
+                    legend::Entries::Multi(entries) => {
+                        for entry in entries {
+                            builder.add_entry(idx, entry)?;
+                            idx += 1;
+                        }
+                    }
+                    legend::Entries::None => {}
                 }
                 Ok(())
             })?;

@@ -4,14 +4,14 @@ use std::f32;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use crate::des::{PlotIdx, annot, colorbar};
+use crate::des::{PlotIdx, annot};
 use crate::drawing::annot::Annot;
 use crate::drawing::axis::{
     AsBoundRef, Axis, AxisCacheKey, AxisCacheMap, AxisScale, Bounds, Orientation, Side,
 };
 use crate::drawing::cmap::ColorMap;
-use crate::drawing::colorbar::{ColorBar, ColorBarBuilder};
-use crate::drawing::legend::{Legend, LegendBuilder};
+use crate::drawing::colorbar::{self, ColorBar, ColorBarBuilder};
+use crate::drawing::legend::{self, Legend, LegendBuilder};
 use crate::drawing::scale::CoordMapXy;
 use crate::drawing::series::{self, Series, SeriesExt};
 use crate::drawing::{ColumnExt, Ctx, Error, get_column};
@@ -595,11 +595,21 @@ where
             self.fontdb(),
         );
 
+        let data_source = self.data_source();
         let mut idx = 0;
-        for_each_series(des_plot, |s| {
-            if let Some(entry) = s.legend_entry() {
-                builder.add_entry(idx, entry)?;
-                idx += 1;
+        for_each_legend_entries(des_plot, data_source, |entries| {
+            match entries {
+                legend::Entries::Single(entry) => {
+                    builder.add_entry(idx, entry)?;
+                    idx += 1;
+                }
+                legend::Entries::Multi(entries) => {
+                    for entry in entries {
+                        builder.add_entry(idx, entry)?;
+                        idx += 1;
+                    }
+                }
+                legend::Entries::None => {}
             }
             Ok(())
         })?;
@@ -615,30 +625,28 @@ where
 
         let mut builders: Vec<ColorBarBuilder> = Vec::new();
 
-        for_each_series(des_plot, |s| {
-            if let Some(entry) = s.colorbar_entry() {
-                let col = get_column(entry.data_col, self.data_source())?;
-                let bounds = col
-                    .bounds()
-                    .expect("Should get bounds for colormap data column");
+        for_each_colorbar_entry(des_plot, |entry| {
+            let col = get_column(entry.data_col, self.data_source())?;
+            let bounds = col
+                .bounds()
+                .expect("Should get bounds for colormap data column");
 
-                let locator = des_colorbar
-                    .map(|cb| cb.ticks_locator())
-                    .cloned()
-                    .unwrap_or_default();
+            let locator = des_colorbar
+                .map(|cb| cb.ticks_locator())
+                .cloned()
+                .unwrap_or_default();
 
-                let hash = entry.cmap_build.hash(bounds.as_bound_ref());
+            let hash = entry.cmap_build.hash(bounds.as_bound_ref());
 
-                if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
-                    cbb.unite_bounds(bounds.as_bound_ref())?;
-                } else {
-                    builders.push(ColorBarBuilder::new(
-                        entry.cmap_build,
-                        hash,
-                        bounds,
-                        locator,
-                    )?);
-                }
+            if let Some(cbb) = builders.iter_mut().find(|b| b.hash() == hash) {
+                cbb.unite_bounds(bounds.as_bound_ref())?;
+            } else {
+                builders.push(ColorBarBuilder::new(
+                    entry.cmap_build,
+                    hash,
+                    bounds,
+                    locator,
+                )?);
             }
             Ok(())
         })?;
@@ -962,20 +970,68 @@ where
     }
 }
 
-pub fn for_each_series<F>(plot: &des::Plot, mut f: F) -> Result<(), Error>
+pub fn for_each_legend_entries<D, F>(
+    plot: &des::Plot,
+    data_source: &D,
+    mut f: F,
+) -> Result<(), Error>
 where
-    F: FnMut(&dyn SeriesExt) -> Result<(), Error>,
+    D: data::Source + ?Sized,
+    F: FnMut(legend::Entries) -> Result<(), Error>,
 {
     for s in plot.series() {
         match &s {
-            des::Series::Line(line) => f(line)?,
-            des::Series::Scatter(scatter) => f(scatter)?,
-            des::Series::Area(area) => f(area)?,
-            des::Series::Histogram(hist) => f(hist)?,
-            des::Series::Bars(bars) => f(bars)?,
+            des::Series::Line(line) => f(line.legend_entries(data_source)?)?,
+            des::Series::Scatter(scatter) => f(scatter.legend_entries(data_source)?)?,
+            des::Series::Area(area) => f(area.legend_entries(data_source)?)?,
+            des::Series::Histogram(hist) => f(hist.legend_entries(data_source)?)?,
+            des::Series::Bars(bars) => f(bars.legend_entries(data_source)?)?,
             des::Series::BarsGroup(bars_group) => {
                 for bs in bars_group.series() {
-                    f(bs)?
+                    f(bs.legend_entries(data_source)?)?
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn for_each_colorbar_entry<F>(plot: &des::Plot, mut f: F) -> Result<(), Error>
+where
+    F: FnMut(colorbar::Entry<'_>) -> Result<(), Error>,
+{
+    for s in plot.series() {
+        match &s {
+            des::Series::Line(line) => {
+                if let Some(entry) = line.colorbar_entry() {
+                    f(entry)?;
+                }
+            }
+            des::Series::Scatter(scatter) => {
+                if let Some(entry) = scatter.colorbar_entry() {
+                    f(entry)?;
+                }
+            }
+            des::Series::Area(area) => {
+                if let Some(entry) = area.colorbar_entry() {
+                    f(entry)?;
+                }
+            }
+            des::Series::Histogram(hist) => {
+                if let Some(entry) = hist.colorbar_entry() {
+                    f(entry)?;
+                }
+            }
+            des::Series::Bars(bars) => {
+                if let Some(entry) = bars.colorbar_entry() {
+                    f(entry)?;
+                }
+            }
+            des::Series::BarsGroup(bars_group) => {
+                for bs in bars_group.series() {
+                    if let Some(entry) = bs.colorbar_entry() {
+                        f(entry)?;
+                    }
                 }
             }
         }
@@ -1038,18 +1094,18 @@ fn y_side_matches_out_legend_pos(side: des::axis::Side, legend_pos: des::plot::L
     }
 }
 
-fn x_side_matches_colorbar_pos(side: des::axis::Side, pos: colorbar::Pos) -> bool {
+fn x_side_matches_colorbar_pos(side: des::axis::Side, pos: des::colorbar::Pos) -> bool {
     match (side, pos) {
-        (des::axis::Side::Main, colorbar::Pos::Bottom) => true,
-        (des::axis::Side::Opposite, colorbar::Pos::Top) => true,
+        (des::axis::Side::Main, des::colorbar::Pos::Bottom) => true,
+        (des::axis::Side::Opposite, des::colorbar::Pos::Top) => true,
         _ => false,
     }
 }
 
-fn y_side_matches_colorbar_pos(side: des::axis::Side, pos: colorbar::Pos) -> bool {
+fn y_side_matches_colorbar_pos(side: des::axis::Side, pos: des::colorbar::Pos) -> bool {
     match (side, pos) {
-        (des::axis::Side::Main, colorbar::Pos::Left) => true,
-        (des::axis::Side::Opposite, colorbar::Pos::Right) => true,
+        (des::axis::Side::Main, des::colorbar::Pos::Left) => true,
+        (des::axis::Side::Opposite, des::colorbar::Pos::Right) => true,
         _ => false,
     }
 }

@@ -396,6 +396,10 @@ impl Categories {
         self.cats.iter().map(|c| c.0.as_str())
     }
 
+    fn into_iter(self) -> impl Iterator<Item = String> {
+        self.cats.into_iter().map(|c| c.0)
+    }
+
     fn get(&self, idx: usize) -> Option<&str> {
         self.cats.get(idx).map(|c| c.0.as_str())
     }
